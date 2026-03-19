@@ -9,6 +9,11 @@ vi.mock("../ws/connections.js", () => ({
   },
 }));
 
+// Mock terrain to always allow movement (world map not initialized in tests)
+vi.mock("../world/terrain.js", () => ({
+  isWalkable: vi.fn(() => true),
+}));
+
 import { spawnInitialNpcs, handleNpcDeath, getNpcTemplate, getNpcIds, isSpawnedNPC, cleanup } from "./npcs.js";
 
 describe("npcs", () => {

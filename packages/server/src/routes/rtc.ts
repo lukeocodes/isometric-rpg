@@ -8,6 +8,7 @@ import { registerEntity, unregisterEntity, engageTarget, disengage, getCombatSta
 import { getNpcTemplate } from "../game/npcs.js";
 import { getAllSpawnPoints } from "../game/spawn-points.js";
 import { isInSafeZone } from "../game/zones.js";
+import { isWalkable } from "../world/terrain.js";
 import { startLingering, cancelLingering, isLingering } from "../game/linger.js";
 import { Opcode, packEntitySpawn, packEntityDespawn, packReliable, packSpawnPoint } from "../game/protocol.js";
 import { db } from "../db/postgres.js";
@@ -135,7 +136,13 @@ export async function rtcRoutes(app: FastifyInstance) {
           const newZ = msg.readFloatLE(16);
           entity.rotation = msg.readFloatLE(20);
           entity.lastUpdate = Date.now();
-          entityStore.updatePosition(entityId, newX, newZ);
+
+          // Phase 2: Validate movement against terrain walkability
+          // Silent rejection: if target tile is blocked, just don't update position
+          if (isWalkable(Math.round(newX), Math.round(newZ))) {
+            entityStore.updatePosition(entityId, newX, newZ);
+          }
+          // Always update rotation even if position is rejected
         }
       });
 

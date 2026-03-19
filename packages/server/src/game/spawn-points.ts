@@ -15,6 +15,7 @@ import { registerEntity, unregisterEntity, disengage, getCombatState } from "./c
 import { connectionManager } from "../ws/connections.js";
 import { packEntitySpawn, packEntityDespawn } from "./protocol.js";
 import { NPC_TEMPLATES, rollStat, type NPCTemplate } from "./npc-templates.js";
+import { isWalkable } from "../world/terrain.js";
 
 export interface SpawnPoint {
   id: string;
@@ -139,15 +140,26 @@ export function tickWandering(dt: number) {
     const targetX = Math.round(point.x + Math.cos(angle) * dist);
     const targetZ = Math.round(point.z + Math.sin(angle) * dist);
 
+    // Phase 2: Check walkability of target wander destination
+    if (!isWalkable(targetX, targetZ)) continue;
+
     // Move one tile toward target
     const dx = targetX - Math.round(entity.x);
     const dz = targetZ - Math.round(entity.z);
     if (dx === 0 && dz === 0) continue;
 
     if (Math.abs(dx) > Math.abs(dz)) {
-      entityStore.updatePosition(entityId, entity.x + Math.sign(dx), entity.z);
+      const nextX = entity.x + Math.sign(dx);
+      const nextZ = entity.z;
+      if (isWalkable(Math.round(nextX), Math.round(nextZ))) {
+        entityStore.updatePosition(entityId, nextX, nextZ);
+      }
     } else {
-      entityStore.updatePosition(entityId, entity.x, entity.z + Math.sign(dz));
+      const nextX = entity.x;
+      const nextZ = entity.z + Math.sign(dz);
+      if (isWalkable(Math.round(nextX), Math.round(nextZ))) {
+        entityStore.updatePosition(entityId, nextX, nextZ);
+      }
     }
   }
 }
@@ -171,10 +183,23 @@ function spawnNPCForPoint(point: SpawnPoint) {
   const attackSpeed = rollStat(template.attackSpeed) + Math.random(); // add fractional variation
 
   // Random position within spawn distance
-  const angle = Math.random() * Math.PI * 2;
-  const dist = Math.random() * point.distance;
-  const x = Math.round(point.x + Math.cos(angle) * dist);
-  const z = Math.round(point.z + Math.sin(angle) * dist);
+  let spawnAngle = Math.random() * Math.PI * 2;
+  let spawnDist = Math.random() * point.distance;
+  let x = Math.round(point.x + Math.cos(spawnAngle) * spawnDist);
+  let z = Math.round(point.z + Math.sin(spawnAngle) * spawnDist);
+
+  // Phase 2: Don't spawn on blocked tiles, retry with new position
+  if (!isWalkable(x, z)) {
+    let attempts = 0;
+    while (!isWalkable(x, z) && attempts < 5) {
+      spawnAngle = Math.random() * Math.PI * 2;
+      spawnDist = Math.random() * point.distance;
+      x = Math.round(point.x + Math.cos(spawnAngle) * spawnDist);
+      z = Math.round(point.z + Math.sin(spawnAngle) * spawnDist);
+      attempts++;
+    }
+    if (!isWalkable(x, z)) return; // Give up, don't spawn on blocked tile
+  }
 
   const entityId = `npc-${point.id}-${nextEntityId++}`;
 

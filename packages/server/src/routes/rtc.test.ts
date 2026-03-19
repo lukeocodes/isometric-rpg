@@ -98,6 +98,11 @@ vi.mock("../game/zones.js", () => ({
   isInSafeZone: vi.fn(() => true),
 }));
 
+// Mock terrain to always allow movement (world map not initialized in tests)
+vi.mock("../world/terrain.js", () => ({
+  isWalkable: vi.fn(() => true),
+}));
+
 vi.mock("../game/linger.js", () => ({
   cancelLingering: vi.fn(() => false),
   startLingering: vi.fn(),
