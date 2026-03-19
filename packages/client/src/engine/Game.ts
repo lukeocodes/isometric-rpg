@@ -27,6 +27,7 @@ import type { CombatComponent } from "../ecs/components/Combat";
 import type { StatsComponent } from "../ecs/components/Stats";
 import type { IdentityComponent } from "../ecs/components/Identity";
 import type { GameHUD } from "../ui/screens/GameHUD";
+import { generateWorld } from "@server/world/worldgen";
 
 const PLAYER_SPEED = 3.0;
 const POSITION_SEND_INTERVAL = 1000 / 15;
@@ -104,6 +105,13 @@ export class Game {
     const id = characterId || "local-player";
     this.createLocalPlayer(id);
     this.stateSync.setLocalEntityId(id);
+
+    // Phase 2: Generate world map client-side for biome/elevation data
+    // Uses same seed as server for deterministic matching
+    // Will be replaced by server-streamed data in Phase 3
+    const worldMap = generateWorld(42);
+    this.chunkManager.setWorldData(worldMap.biomeMap, worldMap.elevation);
+
     this.chunkManager.updatePlayerPosition(this.spawnPosition.x, this.spawnPosition.z);
     this.sceneManager.scene.activeCamera = this.camera.camera;
 

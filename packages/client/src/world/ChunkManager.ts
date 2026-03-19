@@ -1,5 +1,5 @@
 import type { Scene } from "@babylonjs/core";
-import { CHUNK_SIZE, TILE_SIZE, CHUNK_LOAD_RADIUS } from "./WorldConstants";
+import { CHUNK_SIZE, TILE_SIZE, CHUNK_LOAD_RADIUS, WORLD_WIDTH, WORLD_HEIGHT } from "./WorldConstants";
 import { Chunk } from "./Chunk";
 
 export class ChunkManager {
@@ -7,9 +7,30 @@ export class ChunkManager {
   private scene: Scene;
   private mapId: number;
 
+  // World map biome data (loaded at startup for chunk generation)
+  // This will be replaced by server-streamed chunk data in Phase 3
+  private biomeData: Uint8Array | null = null;
+  private elevationData: Float32Array | null = null;
+
   constructor(scene: Scene, mapId = 1) {
     this.scene = scene;
     this.mapId = mapId;
+  }
+
+  /**
+   * Set the world map data for biome-based chunk generation.
+   * Called once at startup with data from the world generation pipeline.
+   */
+  setWorldData(biomeMap: Uint8Array, elevation: Float32Array) {
+    this.biomeData = biomeMap;
+    this.elevationData = elevation;
+  }
+
+  getChunkElevation(chunkX: number, chunkY: number): number {
+    if (!this.elevationData || chunkX < 0 || chunkX >= WORLD_WIDTH || chunkY < 0 || chunkY >= WORLD_HEIGHT) {
+      return 0;
+    }
+    return this.elevationData[chunkY * WORLD_WIDTH + chunkX];
   }
 
   updatePlayerPosition(worldX: number, worldZ: number) {
@@ -60,8 +81,6 @@ export class ChunkManager {
   }
 
   private loadChunk(chunkX: number, chunkY: number, chunkZ: number) {
-    // For now, generate procedural chunk data locally.
-    // Will be replaced with server-fetched data in Step 12.
     const tileData = this.generateChunkData(chunkX, chunkY);
     const chunk = new Chunk(this.mapId, chunkX, chunkY, chunkZ, tileData);
     chunk.buildMesh(this.scene);
@@ -71,32 +90,15 @@ export class ChunkManager {
   private generateChunkData(chunkX: number, chunkY: number): Uint8Array {
     const data = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
 
-    for (let z = 0; z < CHUNK_SIZE; z++) {
-      for (let x = 0; x < CHUNK_SIZE; x++) {
-        const worldX = chunkX * CHUNK_SIZE + x;
-        const worldZ = chunkY * CHUNK_SIZE + z;
-
-        // Simple procedural generation
-        const dist = Math.sqrt(worldX * worldX + worldZ * worldZ);
-
-        if (dist < 8) {
-          data[z * CHUNK_SIZE + x] = 3; // stone (spawn area)
-        } else if (dist < 12) {
-          data[z * CHUNK_SIZE + x] = 2; // dirt (transition)
-        } else {
-          // Pseudo-random variation using simple hash
-          const hash = Math.abs(Math.sin(worldX * 12.9898 + worldZ * 78.233) * 43758.5453) % 1;
-          if (hash < 0.05) {
-            data[z * CHUNK_SIZE + x] = 5; // sand patches
-          } else if (hash < 0.08) {
-            data[z * CHUNK_SIZE + x] = 2; // dirt patches
-          } else {
-            data[z * CHUNK_SIZE + x] = 1; // grass
-          }
-        }
-      }
+    // If we have world map data, use it
+    if (this.biomeData && chunkX >= 0 && chunkX < WORLD_WIDTH && chunkY >= 0 && chunkY < WORLD_HEIGHT) {
+      const biome = this.biomeData[chunkY * WORLD_WIDTH + chunkX];
+      data.fill(biome);
+      return data;
     }
 
+    // Fallback: out-of-bounds chunks are deep ocean
+    data.fill(0); // BiomeType.DEEP_OCEAN = 0
     return data;
   }
 }

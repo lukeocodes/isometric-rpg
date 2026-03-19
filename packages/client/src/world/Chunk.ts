@@ -45,7 +45,6 @@ export class Chunk {
 
     const meshes: Mesh[] = [];
     for (const [tileId, positions] of tileGroups) {
-      if (tileId === 0) continue;
       const tileType = getTileType(tileId);
       for (const pos of positions) {
         const tile = MeshBuilder.CreateGround(`tile_${this.key}_${pos.x}_${pos.z}`, { width: TILE_SIZE, height: TILE_SIZE }, scene);

@@ -5,6 +5,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@shared": resolve(__dirname, "../shared"),
+      "@server/world": resolve(__dirname, "../server/src/world"),
     },
   },
   test: {
