@@ -88,13 +88,13 @@ describe("queries - initialized", () => {
   });
 
   it("getBiomeForChunk returns valid BiomeType", () => {
-    // Check several in-bounds chunks; BiomeType values are 0-15
+    // Check several in-bounds chunks; BiomeType values are 0-17 (includes RIVER=16, LAKE=17)
     for (let i = 0; i < 10; i++) {
       const cx = Math.floor(Math.random() * 900);
       const cz = Math.floor(Math.random() * 900);
       const biome = getBiomeForChunk(cx, cz);
       expect(biome).toBeGreaterThanOrEqual(0);
-      expect(biome).toBeLessThanOrEqual(15);
+      expect(biome).toBeLessThanOrEqual(17);
     }
   });
 

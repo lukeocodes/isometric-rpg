@@ -12,6 +12,7 @@ import {
   generateRegionNames,
 } from "./regions.js";
 import { classifyBiomes, getRegionBiome } from "./biomes.js";
+import { generateRiversAndLakes } from "./rivers.js";
 
 /**
  * Complete world generation pipeline.
@@ -77,6 +78,9 @@ export function generateWorld(
     width,
     height,
   );
+
+  // Step 5.5: Generate rivers and lakes (modifies biomeMap in place)
+  generateRiversAndLakes(seed, biomeMap, elevation, moisture, landmask, width, height);
 
   // Step 6: Assign each region's biome by majority chunk vote
   for (const region of regions) {
