@@ -15,12 +15,15 @@
   },
   "dependencies": {
     "@fastify/cors": "^10.0.0",
+    "alea": "^1.0.1",
     "dotenv": "^16.4.0",
     "drizzle-orm": "^0.38.0",
+    "fast-2d-poisson-disk-sampling": "^1.0.3",
     "fastify": "^5.0.0",
     "ioredis": "^5.4.0",
     "jsonwebtoken": "^9.0.0",
     "postgres": "^3.4.0",
+    "simplex-noise": "^4.0.3",
     "tsx": "^4.21.0",
     "werift": "^0.22.9"
   },

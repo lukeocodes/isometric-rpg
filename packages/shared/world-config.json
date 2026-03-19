@@ -1,0 +1,9 @@
+{
+  "worldSeed": 42,
+  "worldWidth": 900,
+  "worldHeight": 900,
+  "chunkSize": 32,
+  "playerSpeed": 5.0,
+  "continentCrossMinutes": 35,
+  "oceanGapMinutes": 17.5
+}
