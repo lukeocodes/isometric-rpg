@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { RTCPeerConnection } from "werift";
 import { requireAuth } from "../auth/middleware.js";
 import { connectionManager } from "../ws/connections.js";
+import { config } from "../config.js";
 import { entityStore, type ServerEntity } from "../game/entities.js";
 import { registerEntity, unregisterEntity, engageTarget, disengage, getCombatState } from "../game/combat.js";
 import { getNpcTemplate } from "../game/npcs.js";
@@ -74,7 +75,35 @@ export async function rtcRoutes(app: FastifyInstance) {
       }
 
       // Server creates the peer connection and DataChannels
-      const pc = new RTCPeerConnection({});
+      let iceServers: any[] = config.ice.stun.map(url => ({ urls: url }));
+      if (config.ice.cfTurnKeyId && config.ice.cfTurnToken) {
+        // Fetch short-lived TURN credentials from Cloudflare
+        try {
+          const cfRes = await fetch(
+            `https://rtc.live.cloudflare.com/v1/turn/keys/${config.ice.cfTurnKeyId}/credentials/generate-ice-servers`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${config.ice.cfTurnToken}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ ttl: 86400 }),
+            }
+          );
+          if (cfRes.ok) {
+            const cfData = await cfRes.json() as { iceServers?: any[] };
+            if (cfData.iceServers) {
+              iceServers = cfData.iceServers;
+              console.log(`[WebRTC] Got ${iceServers.length} ICE servers from Cloudflare`);
+            }
+          } else {
+            console.error(`[WebRTC] Cloudflare TURN API error: ${cfRes.status}`);
+          }
+        } catch (err) {
+          console.error(`[WebRTC] Cloudflare TURN API failed:`, err);
+        }
+      }
+      const pc = new RTCPeerConnection({ iceServers });
 
       const positionChannel = pc.createDataChannel("position", {
         ordered: false,
@@ -209,6 +238,11 @@ export async function rtcRoutes(app: FastifyInstance) {
         sdp: pc.localDescription!.sdp,
         type: pc.localDescription!.type,
         spawn: { x: entity.x, y: entity.y, z: entity.z, mapId: entity.mapId },
+        iceServers: iceServers.map(s => {
+          // Only expose STUN URLs and TURN with short-lived credentials
+          if (s.username) return { urls: s.urls, username: s.username, credential: s.credential };
+          return { urls: s.urls };
+        }),
       };
     }
   );

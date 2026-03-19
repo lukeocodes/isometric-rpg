@@ -39,9 +39,9 @@ export class NetworkManager {
     if (offer.spawn) this.spawnPosition = offer.spawn;
 
     // Phase 2: Create peer connection, receive server's DataChannels
-    this.pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-    });
+    // Use ICE servers from server response (includes STUN + TURN if configured)
+    const iceServers = offer.iceServers ?? [{ urls: "stun:stun.l.google.com:19302" }];
+    this.pc = new RTCPeerConnection({ iceServers });
 
     const channelsReady = new Promise<void>((resolve) => {
       let posOpen = false;

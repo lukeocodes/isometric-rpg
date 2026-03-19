@@ -22,6 +22,15 @@ export const config = {
     host: process.env.SERVER_HOST || "0.0.0.0",
     port: parseInt(process.env.SERVER_PORT || "8000"),
   },
+  cors: {
+    origins: (process.env.CORS_ORIGINS || "http://localhost:5173").split(",").map(s => s.trim()),
+  },
+  ice: {
+    stun: (process.env.ICE_STUN_URLS || "stun:stun.l.google.com:19302").split(",").map(s => s.trim()),
+    // Cloudflare TURN — set key ID and API token from Dashboard > Realtime > TURN
+    cfTurnKeyId: process.env.CF_TURN_KEY_ID || "",
+    cfTurnToken: process.env.CF_TURN_TOKEN || "",
+  },
   world: {
     seed: parseInt(process.env.WORLD_SEED || "42"),
   },
