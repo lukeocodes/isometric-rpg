@@ -38,3 +38,15 @@ export const TEMPERATURE_LATITUDE_WEIGHT = 0.3; // how much latitude affects tem
 export const ISLAND_CLUSTER_RADIUS = 40; // chunks
 export const ISLAND_NOISE_SCALE = 0.03;
 export const ISLANDS_PER_PAIR = 4; // island clusters between each continent pair
+
+// Elevation banding (7 levels, quantizing 0.0-1.0 continuous range)
+export const ELEVATION_STEP_HEIGHT = 1.5; // world units per elevation level
+
+// River generation parameters
+export const RIVER_SOURCE_ELEVATION_MIN = 0.8; // minimum elevation for river source
+export const RIVER_SOURCE_MOISTURE_MIN = 0.5;  // minimum moisture for river source
+export const RIVER_MAX_STEPS = 500;             // max steps before terminating a river trace
+export const RIVER_WIDTH_FACTOR = 15;           // flow accumulation / this = width
+export const LAKE_MIN_SIZE = 4;                 // minimum chunks for a lake
+export const LAKE_MAX_FILL_DEPTH = 0.05;        // max elevation above basin floor to flood
+export const NUM_RIVER_SOURCES = 80;            // number of river sources to attempt per world

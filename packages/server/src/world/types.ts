@@ -26,6 +26,8 @@ export enum BiomeType {
   HIGHLAND = 13,
   MEADOW = 14,
   RIVER_VALLEY = 15,
+  RIVER = 16,
+  LAKE = 17,
 }
 
 // POI type taxonomy
