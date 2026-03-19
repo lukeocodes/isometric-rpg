@@ -22,6 +22,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 8: PvP Flagging & Combat Rules** - Criminal/murderer flagging system with safe zone enforcement and visual status indicators
 - [ ] **Phase 9: Biome Atmosphere & Rendering** - Biome-specific ambient visual systems (heat shimmer, dense shadows, fog)
 - [ ] **Phase 10: World-Scale Performance** - Server-side spatial indexing to replace O(n) entity iteration for position broadcasts
+- [ ] **Phase 11: Core Audio Engine** - Web Audio API context, bus architecture, music state machine, and crossfade system (PARALLEL — no world map dependency)
+- [ ] **Phase 12: Procedural Background Music** - Tone.js synthesis with layered stems for towns, dungeons, combat, and exploration biomes
+- [ ] **Phase 13: Sound Effects** - Combat, movement, weather, and progression SFX with spatial audio positioning
+- [ ] **Phase 14: Ambient Audio & Acoustic Occlusion** - Creature/NPC ambient sounds, indoor/outdoor filtering, reverb profiles, zone acoustic tags
 
 ## Phase Details
 
@@ -174,11 +178,76 @@ Plans:
 Plans:
 - [ ] 10-01: TBD
 
+### Phase 11: Core Audio Engine
+**Goal**: The game has a working audio foundation — AudioContext lifecycle, separate gain buses, a music state machine that transitions between game states, and beat-quantized crossfades
+**Depends on**: Nothing (client-only, runs in parallel with world map phases)
+**Requirements**: AUDIO-01, AUDIO-02
+**Success Criteria** (what must be TRUE):
+  1. AudioContext initializes on first user interaction and resumes correctly after browser suspension
+  2. Separate gain buses exist for music, SFX, weather, and ambient — each independently controllable
+  3. Music state machine transitions between states (Exploring, Town, Dungeon, Enemy Nearby, Combat, Boss) driven by game events
+  4. Crossfades between music states are quantized to beat boundaries via Tone.js Transport for seamless transitions
+  5. A master intensity variable (0.0–1.0) globally influences stem density, SFX volume, and weather presence
+**Plans**: TBD
+
+Plans:
+- [ ] 11-01: TBD
+- [ ] 11-02: TBD
+
+### Phase 12: Procedural Background Music
+**Goal**: Every location in the game has distinctive procedural music — towns sound warm and busy, dungeons feel tense, wilderness biomes each have their own character, and combat drives adrenaline
+**Depends on**: Phase 11 (needs audio engine and state machine)
+**Requirements**: AUDIO-03
+**Success Criteria** (what must be TRUE):
+  1. Town music plays layered stems with procedural melodic variation — motifs randomized from phrase pools, rhythm sections constant
+  2. Exploration biome music (grasslands, forest, desert, mountains) uses distinct scales/modes and instruments per biome type
+  3. Combat music crossfades in on enemy aggro with intensity scaling by enemy count; boss music has HP-threshold phase transitions
+  4. Enemy detection state plays a transitional tension track with proximity-driven pulse tempo
+  5. Music never loops identically — procedural variation (BPM drift, phrase selection, ornamental injection) ensures each session sounds fresh
+**Plans**: TBD
+
+Plans:
+- [ ] 12-01: TBD
+- [ ] 12-02: TBD
+
+### Phase 13: Sound Effects
+**Goal**: Player actions and world events have audio feedback — weapon swings, footsteps on different surfaces, weather atmosphere, and progression fanfares
+**Depends on**: Phase 11 (needs audio buses and spatial audio setup)
+**Requirements**: AUDIO-04, AUDIO-05
+**Success Criteria** (what must be TRUE):
+  1. Combat SFX plays for melee swings/hits, bow draw/release/impact, and magic cast/hit with 3 intensity tiers and weapon-type variation
+  2. Footstep sounds vary by surface type (grass, stone, wood, sand, snow) with random pitch variation (±5%) to prevent repetition
+  3. Weather synthesis produces rain (noise-shaped) and wind (bandpass-filtered) with 3 crossfaded intensity layers on a separate audio graph
+  4. Progression stingers play for rank/skill level ups and special events
+  5. All positional SFX uses Web Audio API PannerNode for spatial audio based on entity distance from player
+**Plans**: TBD
+
+Plans:
+- [ ] 13-01: TBD
+- [ ] 13-02: TBD
+
+### Phase 14: Ambient Audio & Acoustic Occlusion
+**Goal**: The world sounds alive and physically grounded — creatures call in the distance, NPCs chatter in towns, and walking indoors muffles the outside world with appropriate reverb
+**Depends on**: Phase 11 (needs audio buses), Phase 12 (music buses for occlusion filtering), Phase 13 (SFX buses for reverb)
+**Requirements**: AUDIO-06, AUDIO-07
+**Success Criteria** (what must be TRUE):
+  1. Biome-appropriate creature sounds play stochastically near wildlife entities (wolves howl in forests, scorpions chititer in deserts)
+  2. NPC ambient voices are race-specific (human market calls, elf singing, dwarf laughter) and spatially positioned
+  3. Zone acoustic tags (outdoors/indoorWood/indoorStone/underground) drive a per-bus low-pass occlusion filter with smooth interpolation on zone transitions
+  4. Four reverb profiles (dry ~0.1s, room ~0.6s, hall ~1.5s, cave ~3.0s+) apply to SFX based on acoustic environment
+  5. Weather audio is muffled/silenced indoors with a separate rain-on-roof synthesis layer for indoor spaces
+**Plans**: TBD
+
+Plans:
+- [ ] 14-01: TBD
+- [ ] 14-02: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 > 2 > 3 > 4 > 5 > 6 > 7 > 8 > 9 > 10.
-Phases 8, 9, and 10 can execute in parallel with later phases (see dependency notes).
+- World phases: 1 > 2 > 3 > 4 > 5 > 6 > 7 > 8 > 9 > 10 (sequential, phases 8-10 can overlap)
+- Audio phases: 11 > 12/13 > 14 (11 first, then 12 & 13 in parallel, then 14)
+- Audio phases (11-14) run **independently** of world phases (1-10) — no cross-dependencies
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -192,3 +261,7 @@ Phases 8, 9, and 10 can execute in parallel with later phases (see dependency no
 | 8. PvP Flagging & Combat Rules | 0/0 | Not started | - |
 | 9. Biome Atmosphere & Rendering | 0/0 | Not started | - |
 | 10. World-Scale Performance | 0/0 | Not started | - |
+| 11. Core Audio Engine | 0/0 | Not started | - |
+| 12. Procedural Background Music | 0/0 | Not started | - |
+| 13. Sound Effects | 0/0 | Not started | - |
+| 14. Ambient Audio & Acoustic Occlusion | 0/0 | Not started | - |

@@ -9,7 +9,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### World Structure & Geography
 
-- [ ] **WORLD-01**: World map defines three continents (Human, Elf, Dwarf) with ocean separation, each containing distinct biome regions
+- [x] **WORLD-01**: World map defines three continents (Human, Elf, Dwarf) with ocean separation, each containing distinct biome regions
 - [ ] **WORLD-02**: Terrain biome classification system expands tile types from 7 to 15-20 (forest, mountain, swamp, desert, snow, deep water, shallow water, cliff, etc.)
 - [ ] **WORLD-03**: Water bodies (ocean, rivers, lakes) exist as impassable or boundary terrain between and within continents
 - [ ] **WORLD-04**: Safe zone hierarchy with cities (2-3 min walk across), towns (1-2 min), and settlements (1 min) pre-generated on the world map
@@ -38,7 +38,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Technical Foundation
 
-- [ ] **TECH-01**: World map data layer defines continental outlines, elevation, biome classification, and settlement locations above the existing chunk system
+- [x] **TECH-01**: World map data layer defines continental outlines, elevation, biome classification, and settlement locations above the existing chunk system
 - [ ] **TECH-02**: Hierarchical spatial system — Continent > Region > Chunk > Tile — with region as the unit of discovery and seeding
 - [ ] **TECH-03**: Server-side chunk generation replaces client-side generation — chunk data streamed via existing CHUNK_REQUEST/CHUNK_DATA protocol opcodes (10-13)
 - [ ] **TECH-04**: Region-aware spawn system — wildlife spawn points created dynamically per region based on biome rules, extending existing SpawnPoint infrastructure
@@ -46,6 +46,16 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [ ] **TECH-06**: Seedable PRNG (alea) used for all procedural generation to guarantee deterministic region reproduction
 - [ ] **TECH-07**: Async region seeding — region generation runs off the main game loop thread to prevent freezing all connected players
 - [ ] **TECH-08**: Server-side spatial indexing for entities — replace O(n) entity iteration with spatial grid for position broadcasts at world scale
+
+### Procedural Audio
+
+- [ ] **AUDIO-01**: Core audio engine with AudioContext lifecycle, separate gain buses (music, SFX, weather, ambient), and master intensity variable
+- [ ] **AUDIO-02**: Music state machine with states (Exploring, Town, Dungeon, Enemy Nearby, Combat, Boss) and beat-quantized crossfade transitions
+- [ ] **AUDIO-03**: Procedural background music using Tone.js with layered stems per location type (towns, dungeons, biomes) and procedural melodic variation
+- [ ] **AUDIO-04**: Combat, movement, and progression sound effects with spatial positioning via Web Audio API PannerNode
+- [ ] **AUDIO-05**: Weather audio synthesis (rain/wind) with 3 intensity layers, separate audio graph from music, and acoustic dampening of music bus
+- [ ] **AUDIO-06**: Ambient creature and NPC sounds with stochastic triggers, spatial positioning, and biome-appropriate selection
+- [ ] **AUDIO-07**: Acoustic occlusion system — indoor/outdoor low-pass filtering, 4 reverb profiles (dry/room/hall/cave), zone acoustic tags driving all buses
 
 ## v2 Requirements
 
@@ -81,7 +91,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | NPC merchants / quest givers | Requires inventory, economy, and dialogue systems |
 | Skills affecting exploration | Requires skill progression system |
 | Resource gathering (mining, lumber) | Requires inventory and crafting systems |
-| Weather system | Atmospheric but no gameplay impact without survival systems |
+| Weather system (visual/gameplay) | Atmospheric but no gameplay impact without survival systems (audio weather SFX covered by AUDIO-05) |
 | Guard NPCs in towns | Safe zones prevent combat directly — simpler and equally effective |
 | Faction warfare mechanics | Racial identity established via continents, mechanical warfare deferred |
 | Chat and social features | Deferred to social milestone |
@@ -95,7 +105,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| WORLD-01 | Phase 1: World Map Data Layer | Pending |
+| WORLD-01 | Phase 1: World Map Data Layer | Complete |
 | WORLD-02 | Phase 2: Terrain Classification & Biomes | Pending |
 | WORLD-03 | Phase 2: Terrain Classification & Biomes | Pending |
 | WORLD-04 | Phase 5: Safe Zones & Settlements | Pending |
@@ -115,7 +125,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PVP-02 | Phase 8: PvP Flagging & Combat Rules | Pending |
 | PVP-03 | Phase 8: PvP Flagging & Combat Rules | Pending |
 | PVP-04 | Phase 8: PvP Flagging & Combat Rules | Pending |
-| TECH-01 | Phase 1: World Map Data Layer | Pending |
+| TECH-01 | Phase 1: World Map Data Layer | Complete |
 | TECH-02 | Phase 1: World Map Data Layer | Pending |
 | TECH-03 | Phase 3: Server-Side Chunk Generation | Pending |
 | TECH-04 | Phase 7: Wildlife & Region-Aware Spawning | Pending |
@@ -124,9 +134,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TECH-07 | Phase 4: Region Discovery System | Pending |
 | TECH-08 | Phase 10: World-Scale Performance | Pending |
 
+| AUDIO-01 | Phase 11: Core Audio Engine | Pending |
+| AUDIO-02 | Phase 11: Core Audio Engine | Pending |
+| AUDIO-03 | Phase 12: Procedural Background Music | Pending |
+| AUDIO-04 | Phase 13: Sound Effects | Pending |
+| AUDIO-05 | Phase 13: Sound Effects | Pending |
+| AUDIO-06 | Phase 14: Ambient Audio & Acoustic Occlusion | Pending |
+| AUDIO-07 | Phase 14: Ambient Audio & Acoustic Occlusion | Pending |
+
 **Coverage:**
-- v1 requirements: 28 total
-- Mapped to phases: 28
+- v1 requirements: 35 total
+- Mapped to phases: 35
 - Unmapped: 0
 
 ---
