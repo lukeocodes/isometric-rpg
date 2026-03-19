@@ -28,8 +28,8 @@ Players can freely explore a vast, dangerous world where every region they disco
 
 <!-- Current scope. Building toward these. -->
 
-- [ ] Multi-continent world map with three racial continents (Human, Elf, Dwarf)
-- [ ] Pre-determined terrain classification across the world map (biomes, elevation, water)
+- [x] Multi-continent world map with three racial continents (Human, Elf, Dwarf) — Validated in Phase 1: World Map Data Layer
+- [x] Pre-determined terrain classification across the world map (biomes, elevation, water) — Validated in Phase 1: World Map Data Layer
 - [ ] Cities (2-3 min walk across), towns (1-2 min), settlements (1 min) pre-generated as safe zones
 - [ ] Cross-continent minority settlements (small presence of each race on other continents)
 - [ ] Wilderness regions with 5-10 minute walking distances between safe zones
@@ -63,7 +63,7 @@ Players can freely explore a vast, dangerous world where every region they disco
 
 - Spiritual successor to Ultima Online, built entirely from memory — no assets or code copied
 - Existing codebase has solid networking (WebRTC), combat, and ECS foundation
-- World is currently flat/empty — the core game loop exists but there's nowhere to go
+- World map data layer complete (Phase 1) — 900x900 chunk world with 3 continents, Voronoi regions, biome classification, O(1) spatial queries
 - Target audience: serious project aiming for real player base ("as big as it gets")
 - World design takes inspiration from famous fantasy world maps for multi-continent layout
 - Terrain classification is deterministic (pre-set), but visual detail is procedurally generated on first exploration
@@ -92,4 +92,4 @@ Players can freely explore a vast, dangerous world where every region they disco
 | Expand existing foundation | Don't refactor what works — build new systems on top of solid base | — Pending |
 
 ---
-*Last updated: 2026-03-19 after initialization*
+*Last updated: 2026-03-19 after Phase 1 completion*
