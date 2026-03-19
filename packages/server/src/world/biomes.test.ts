@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { classifyBiomes, classifyBiome, getRegionBiome } from "./biomes.js";
-import { generateContinents } from "./continents.js";
+import {
+  generateContinents,
+  generateElevation,
+  generateMoisture,
+  generateTemperature,
+} from "./continents.js";
 import { generateRegions, buildRegionLookup } from "./regions.js";
 import { BiomeType } from "./types.js";
 import type { WorldConfig, Region } from "./types.js";
@@ -29,9 +34,6 @@ describe("biomes", () => {
     continentMap = result.continentMap;
     continentDefs = result.continentDefs;
 
-    // Import the grid generators
-    const { generateElevation, generateMoisture, generateTemperature } =
-      require("./continents.js");
     elevation = generateElevation(42, config, landmask);
     moisture = generateMoisture(42, config, landmask);
     temperature = generateTemperature(42, config, landmask);
