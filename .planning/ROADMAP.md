@@ -13,7 +13,7 @@ This milestone transforms the existing flat, empty world into a massive three-co
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: World Map Data Layer** - Define the static world map with three continents, regions, and the spatial hierarchy that everything else queries
-- [ ] **Phase 2: Terrain Classification & Biomes** - Expand tile types to 15-20 biomes with water bodies and movement blocking
+- [x] **Phase 2: Terrain Classification & Biomes** - Expand tile types to 15-20 biomes with water bodies and movement blocking (completed 2026-03-19)
 - [ ] **Phase 3: Server-Side Chunk Generation** - Replace client-side generation with server-authoritative deterministic terrain pipeline using binary storage
 - [ ] **Phase 4: Region Discovery System** - Implement regions as discoverable units with atomic seeding, persistence, procedural naming, and explorer attribution
 - [ ] **Phase 5: Safe Zones & Settlements** - Pre-generate cities, towns, and settlements as safe zones with cross-continent minority outposts
@@ -253,7 +253,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. World Map Data Layer | 0/3 | Planning complete | - |
-| 2. Terrain Classification & Biomes | 0/3 | Planning complete | - |
+| 2. Terrain Classification & Biomes | 3/3 | Complete   | 2026-03-19 |
 | 3. Server-Side Chunk Generation | 0/0 | Not started | - |
 | 4. Region Discovery System | 0/0 | Not started | - |
 | 5. Safe Zones & Settlements | 0/0 | Not started | - |
