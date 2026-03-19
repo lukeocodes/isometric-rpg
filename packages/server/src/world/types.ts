@@ -1,5 +1,6 @@
 // LandType enum (stored in Uint8Array landmask)
-export const enum LandType {
+// Using regular enum (not const enum) for compatibility with isolatedModules + vitest
+export enum LandType {
   DEEP_OCEAN = 0,
   SHALLOW_OCEAN = 1,
   LAND = 2,
@@ -7,7 +8,8 @@ export const enum LandType {
 }
 
 // BiomeType enum (stored in Uint8Array biomeMap)
-export const enum BiomeType {
+// Using regular enum (not const enum) for compatibility with isolatedModules + vitest
+export enum BiomeType {
   DEEP_OCEAN = 0,
   SHALLOW_OCEAN = 1,
   BEACH = 2,
