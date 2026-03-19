@@ -1,0 +1,53 @@
+{
+  "opcodes": {
+    "POSITION_UPDATE": 1,
+    "ENTITY_SPAWN": 2,
+    "ENTITY_DESPAWN": 3,
+    "ENTITY_MOVE": 4,
+    "CHUNK_REQUEST": 10,
+    "CHUNK_DATA": 11,
+    "CHUNK_SUBSCRIBE": 12,
+    "CHUNK_UNSUBSCRIBE": 13,
+    "CHAT_MESSAGE": 20,
+    "SYSTEM_MESSAGE": 21,
+    "ACTION_USE": 30,
+    "STATS_UPDATE": 31,
+    "TARGET_SELECT": 40,
+    "AUTO_ATTACK_TOGGLE": 41,
+    "AUTO_ATTACK_CANCEL": 42,
+    "DAMAGE_EVENT": 50,
+    "ENTITY_DEATH": 51,
+    "ENTITY_STATE": 52,
+    "COMBAT_STATE": 53,
+    "PING": 253,
+    "PONG": 254,
+    "ERROR": 255
+  },
+  "channels": {
+    "position": {
+      "label": "position",
+      "ordered": false,
+      "maxRetransmits": 0
+    },
+    "reliable": {
+      "label": "reliable",
+      "ordered": true
+    }
+  },
+  "binaryFormat": {
+    "positionUpdate": {
+      "description": "24-byte compact position update",
+      "layout": [
+        { "field": "opcode", "type": "uint8", "offset": 0 },
+        { "field": "flags", "type": "uint8", "offset": 1 },
+        { "field": "sequence", "type": "uint16", "offset": 2 },
+        { "field": "entityId", "type": "uint32", "offset": 4 },
+        { "field": "x", "type": "float32", "offset": 8 },
+        { "field": "y", "type": "float32", "offset": 12 },
+        { "field": "z", "type": "float32", "offset": 16 },
+        { "field": "rotation", "type": "float32", "offset": 20 }
+      ],
+      "totalBytes": 24
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "isometric-mmo",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ]
+}
