@@ -13,7 +13,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **WORLD-02**: Terrain biome classification system expands tile types from 7 to 15-20 (forest, mountain, swamp, desert, snow, deep water, shallow water, cliff, etc.)
 - [x] **WORLD-03**: Water bodies (ocean, rivers, lakes) exist as impassable or boundary terrain between and within continents
 - [ ] **WORLD-04**: Safe zone hierarchy with cities (2-3 min walk across), towns (1-2 min), and settlements (1 min) pre-generated on the world map
-- [ ] **WORLD-05**: Movement blocking based on terrain type (water, cliffs, steep mountains) prevents player traversal
+- [x] **WORLD-05**: Movement blocking based on terrain type (water, cliffs, steep mountains) prevents player traversal
 - [ ] **WORLD-06**: Region entry notifications display region name, discoverer, and notes when a player crosses into a new region
 - [ ] **WORLD-07**: Cross-continent minority settlements — small outposts of each race on the other two continents
 - [ ] **WORLD-08**: Biome-specific ambient systems — heat shimmer in deserts, denser shadows in forests, fog in swamps
@@ -109,7 +109,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WORLD-02 | Phase 2: Terrain Classification & Biomes | Complete |
 | WORLD-03 | Phase 2: Terrain Classification & Biomes | Complete |
 | WORLD-04 | Phase 5: Safe Zones & Settlements | Pending |
-| WORLD-05 | Phase 2: Terrain Classification & Biomes | Pending |
+| WORLD-05 | Phase 2: Terrain Classification & Biomes | Complete |
 | WORLD-06 | Phase 6: Region Interaction & Fog of War | Pending |
 | WORLD-07 | Phase 5: Safe Zones & Settlements | Pending |
 | WORLD-08 | Phase 9: Biome Atmosphere & Rendering | Pending |
