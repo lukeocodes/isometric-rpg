@@ -264,7 +264,7 @@ Plans:
 | 8. PvP Flagging & Combat Rules | 0/0 | Not started | - |
 | 9. Biome Atmosphere & Rendering | 0/0 | Not started | - |
 | 10. World-Scale Performance | 0/0 | Not started | - |
-| 11. Core Audio Engine | 1/4 | In Progress|  |
+| 11. Core Audio Engine | 2/4 | In Progress|  |
 | 12. Procedural Background Music | 0/0 | Not started | - |
 | 13. Sound Effects | 0/0 | Not started | - |
 | 14. Ambient Audio & Acoustic Occlusion | 0/0 | Not started | - |
