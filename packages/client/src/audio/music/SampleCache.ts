@@ -1,24 +1,6 @@
 import * as Tone from "tone";
 import { GM_INSTRUMENTS, SOUNDFONT_BASE, type InstrumentKey } from "./types";
 
-/**
- * Sparse note set for memory efficiency.
- * Tone.Sampler interpolates between loaded samples,
- * so loading every major 3rd gives full chromatic coverage.
- */
-const SPARSE_NOTES = ["C", "E", "Ab"];
-// Note: FluidR3_GM uses "Ab" in its note names, which matches our sparse set
-const OCTAVE_RANGE = [2, 3, 4, 5, 6];
-
-function isSparseNote(noteName: string): boolean {
-  for (const oct of OCTAVE_RANGE) {
-    for (const note of SPARSE_NOTES) {
-      if (noteName === `${note}${oct}`) return true;
-    }
-  }
-  return false;
-}
-
 interface CacheEntry {
   sampler: Tone.Sampler;
   lastUsed: number;
@@ -121,23 +103,10 @@ export class SampleCache {
     const jsText = await response.text();
 
     // Parse the JS: format is MIDI.Soundfont.instrument_name = { "C4": "data:audio/mp3;base64,...", ... }
-    const allNotes = this.parseSoundfontJS(jsText);
-
-    // Pick sparse notes for memory efficiency
-    const urls: Record<string, string> = {};
-    for (const [noteName, dataUri] of Object.entries(allNotes)) {
-      if (isSparseNote(noteName)) {
-        urls[noteName] = dataUri;
-      }
-    }
-
-    // Fallback: if no sparse notes matched (unlikely), take first 15
-    if (Object.keys(urls).length === 0) {
-      const entries = Object.entries(allNotes);
-      for (let i = 0; i < Math.min(15, entries.length); i++) {
-        urls[entries[i][0]] = entries[i][1];
-      }
-    }
+    const urls = this.parseSoundfontJS(jsText);
+    // Load ALL notes from the soundfont. Since it's a single JS file fetch,
+    // there's no network cost to loading every note. This avoids Sampler
+    // interpolation issues where sparse buffers haven't decoded yet.
 
     return new Promise<Tone.Sampler>((resolve, reject) => {
       const sampler = new Tone.Sampler({
