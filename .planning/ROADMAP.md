@@ -70,11 +70,12 @@ Plans:
   2. Generated chunks are stored in PostgreSQL using binary format (bytea) and cached in Redis for fast retrieval
   3. All terrain generation uses a seedable PRNG (alea) so the same seed always produces identical terrain — deterministic reproduction is guaranteed
   4. A player requesting the same chunk at different times always receives identical terrain data
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md — Server terrain noise engine, Float16 chunk generator, Redis binary cache with seed invalidation
+- [ ] 03-02-PLAN.md — Server data delivery: world map in /offer response, CHUNK_REQUEST handler, Y validation
+- [ ] 03-03-PLAN.md — Client migration: receive server data, remove local worldgen, smooth terrain rendering
 
 ### Phase 4: Region Discovery System
 **Goal**: When a player is the first to enter an unexplored region, that region is permanently seeded — tiles, decorations, and trees generated from biome rules, the discoverer is recorded, and a procedural name is assigned forever
@@ -258,7 +259,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. World Map Data Layer | 0/3 | Planning complete | - |
 | 2. Terrain Classification & Biomes | 3/3 | Complete   | 2026-03-19 |
-| 3. Server-Side Chunk Generation | 0/0 | Not started | - |
+| 3. Server-Side Chunk Generation | 0/3 | Planning complete | - |
 | 4. Region Discovery System | 0/0 | Not started | - |
 | 5. Safe Zones & Settlements | 0/0 | Not started | - |
 | 6. Region Interaction & Fog of War | 0/0 | Not started | - |
