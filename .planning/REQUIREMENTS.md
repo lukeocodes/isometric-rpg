@@ -42,8 +42,8 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **TECH-02**: Hierarchical spatial system — Continent > Region > Chunk > Tile — with region as the unit of discovery and seeding
 - [ ] **TECH-03**: Server-side chunk generation replaces client-side generation — chunk data streamed via existing CHUNK_REQUEST/CHUNK_DATA protocol opcodes (10-13)
 - [ ] **TECH-04**: Region-aware spawn system — wildlife spawn points created dynamically per region based on biome rules, extending existing SpawnPoint infrastructure
-- [ ] **TECH-05**: Chunk storage uses binary format (bytea) instead of JSONB for 5-10x storage efficiency at world scale
-- [ ] **TECH-06**: Seedable PRNG (alea) used for all procedural generation to guarantee deterministic region reproduction
+- [x] **TECH-05**: Chunk storage uses binary format (bytea) instead of JSONB for 5-10x storage efficiency at world scale
+- [x] **TECH-06**: Seedable PRNG (alea) used for all procedural generation to guarantee deterministic region reproduction
 - [ ] **TECH-07**: Async region seeding — region generation runs off the main game loop thread to prevent freezing all connected players
 - [ ] **TECH-08**: Server-side spatial indexing for entities — replace O(n) entity iteration with spatial grid for position broadcasts at world scale
 
@@ -129,8 +129,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TECH-02 | Phase 1: World Map Data Layer | Complete |
 | TECH-03 | Phase 3: Server-Side Chunk Generation | Pending |
 | TECH-04 | Phase 7: Wildlife & Region-Aware Spawning | Pending |
-| TECH-05 | Phase 3: Server-Side Chunk Generation | Pending |
-| TECH-06 | Phase 3: Server-Side Chunk Generation | Pending |
+| TECH-05 | Phase 3: Server-Side Chunk Generation | Complete |
+| TECH-06 | Phase 3: Server-Side Chunk Generation | Complete |
 | TECH-07 | Phase 4: Region Discovery System | Pending |
 | TECH-08 | Phase 10: World-Scale Performance | Pending |
 
