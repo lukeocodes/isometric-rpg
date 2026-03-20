@@ -31,8 +31,6 @@ import type { StatsComponent } from "../ecs/components/Stats";
 import type { IdentityComponent } from "../ecs/components/Identity";
 import type { GameHUD } from "../ui/screens/GameHUD";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "../world/WorldConstants";
-import { initTerrainNoise } from "../world/TerrainNoise";
-import WorldgenWorker from "../world/worldgen.worker?worker";
 
 const PLAYER_SPEED = 5.0;
 const POSITION_SEND_INTERVAL = 1000 / 15;
@@ -169,7 +167,7 @@ export class Game {
     const id = characterId || "local-player";
     this.stateSync.setLocalEntityId(id);
 
-    // Create player — world data already loaded in constructor
+    // Create player — world data loaded in connectToServer()
     this.createLocalPlayer(id);
     this.chunkManager.updatePlayerPosition(this.spawnPosition.x, this.spawnPosition.z);
     this.sceneManager.scene.activeCamera = this.camera.camera;
@@ -226,54 +224,49 @@ export class Game {
     this.network = new NetworkManager();
     this.network.setOnPositionMessage((data) => this.stateSync.handlePositionMessage(data));
     this.network.setOnReliableMessage((msg) => this.stateSync.handleReliableMessage(msg));
+    this.network.setOnChunkData((data) => this.stateSync.handleChunkData(data));
     this.network.setOnDisconnect((reason) => {
       if (this.onDisconnect) this.onDisconnect(reason);
     });
 
     await this.network.connect(token, characterId);
     console.log("WebRTC connected, waiting for world data...");
-    await this.network.waitForWorldReady();
-    console.log("World ready — all entities loaded");
 
-    // Store spawn position for start()
-    this.spawnPosition = this.network.spawnPosition;
-  }
+    // Apply server-provided world map data
+    if (this.network.worldData) {
+      const wd = this.network.worldData;
+      this.chunkManager.setWorldData(wd.biomeMap, wd.elevationBands, wd.regionMap, wd.regionBiomes);
+      console.log(`[Game] World map applied: ${wd.width}x${wd.height}`);
+    } else {
+      console.warn("[Game] No world map received from server!");
+    }
 
-  /** Run worldgen in a web worker so the loading screen stays responsive */
-  async generateWorldAsync(seed = 42): Promise<void> {
-    console.log("[Game] Generating world map (worker)...");
-    const start = performance.now();
-
-    const { biomeMap, elevation, regionMap, regionBiomes } = await new Promise<{
-      biomeMap: Uint8Array; elevation: Float32Array;
-      regionMap: Uint16Array; regionBiomes: Uint8Array;
-    }>((resolve, reject) => {
-      const worker = new WorldgenWorker();
-      worker.onmessage = (e: MessageEvent) => {
-        resolve(e.data);
-        worker.terminate();
-      };
-      worker.onerror = (err: ErrorEvent) => {
-        reject(err);
-        worker.terminate();
-      };
-      worker.postMessage({ seed });
-    });
-
-    this.chunkManager.setWorldData(biomeMap, elevation, regionMap, regionBiomes);
-    initTerrainNoise(seed);
-    console.log(`[Game] World map loaded in ${Math.round(performance.now() - start)}ms (worker)`);
-
+    // Set up terrain resolvers (getTerrainY now reads from server-provided chunk heights)
     this.stateSync.setTerrainYResolver((x, z) => this.chunkManager.getTerrainY(x, z));
+    this.stateSync.setOnChunkData((cx, cz, heights) => {
+      this.chunkManager.setChunkHeights(cx, cz, heights);
+    });
     this.movementSystem.setTerrainResolvers(
       (x, z) => this.chunkManager.getTerrainY(x, z),
-      (x, z) => this.chunkManager.getElevationBandAt(x, z),
       (x, z) => this.chunkManager.isWalkable(x, z),
     );
     this.tilePool.setResolvers(
       (x, z) => this.chunkManager.getTerrainY(x, z),
       (x, z) => this.chunkManager.getBiomeAt(x, z),
     );
+
+    // Set up chunk request function so ChunkManager can request heights from server
+    this.chunkManager.setChunkRequestFn((cx, cz) => {
+      if (this.network?.isConnected()) {
+        this.network.sendReliable(packReliable(Opcode.CHUNK_REQUEST, { cx, cz }));
+      }
+    });
+
+    await this.network.waitForWorldReady();
+    console.log("World ready -- all entities loaded");
+
+    // Store spawn position for start()
+    this.spawnPosition = this.network.spawnPosition;
   }
 
   private spawnPosition = { x: 0, y: 0, z: 0 };

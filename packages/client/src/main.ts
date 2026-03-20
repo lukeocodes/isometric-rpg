@@ -49,16 +49,9 @@ async function boot() {
     const token = session.getToken();
     if (!token) throw new Error("Not authenticated");
 
-    loading.setStatus("Generating world...", 10);
-    // Run worldgen and server connection in parallel
-    await Promise.all([
-      game.generateWorldAsync(42),
-      (async () => {
-        loading.setStatus("Connecting to server...", 30);
-        await game.connectToServer(token, characterId);
-        loading.setStatus("Loading entities...", 80);
-      })(),
-    ]);
+    loading.setStatus("Connecting to server...", 10);
+    await game.connectToServer(token, characterId);
+    loading.setStatus("Loading entities...", 80);
 
     loading.setStatus("Entering world...", 95);
     game.start(characterId);
