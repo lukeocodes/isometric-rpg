@@ -17,6 +17,13 @@ export default defineConfig({
           if (id.includes("@babylonjs")) {
             return "babylon";
           }
+          // Split audio libraries into their own chunk
+          if (
+            id.includes("tone") ||
+            id.includes("standardized-audio-context")
+          ) {
+            return "audio";
+          }
         },
       },
     },
