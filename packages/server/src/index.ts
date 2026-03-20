@@ -3,7 +3,7 @@ import { config } from "./config.js";
 import { connectRedis, disconnectRedis } from "./db/redis.js";
 import { spawnInitialNpcs, cleanup as cleanupNpcs } from "./game/npcs.js";
 import { startGameLoop, stopGameLoop } from "./game/world.js";
-import { initWorldMap } from "./world/queries.js";
+import { initWorldMap, cacheWorldMapToRedis } from "./world/queries.js";
 
 async function main() {
   const app = await buildApp();
@@ -12,6 +12,7 @@ async function main() {
 
   // Generate world map from seed (deterministic, ~100-500ms)
   initWorldMap(config.world.seed);
+  await cacheWorldMapToRedis();
 
   spawnInitialNpcs();
   startGameLoop();
