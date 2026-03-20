@@ -40,7 +40,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 - [x] **TECH-01**: World map data layer defines continental outlines, elevation, biome classification, and settlement locations above the existing chunk system
 - [x] **TECH-02**: Hierarchical spatial system — Continent > Region > Chunk > Tile — with region as the unit of discovery and seeding
-- [ ] **TECH-03**: Server-side chunk generation replaces client-side generation — chunk data streamed via existing CHUNK_REQUEST/CHUNK_DATA protocol opcodes (10-13)
+- [x] **TECH-03**: Server-side chunk generation replaces client-side generation — chunk data streamed via existing CHUNK_REQUEST/CHUNK_DATA protocol opcodes (10-13)
 - [ ] **TECH-04**: Region-aware spawn system — wildlife spawn points created dynamically per region based on biome rules, extending existing SpawnPoint infrastructure
 - [x] **TECH-05**: Chunk storage uses binary format (bytea) instead of JSONB for 5-10x storage efficiency at world scale
 - [x] **TECH-06**: Seedable PRNG (alea) used for all procedural generation to guarantee deterministic region reproduction
@@ -127,7 +127,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PVP-04 | Phase 8: PvP Flagging & Combat Rules | Pending |
 | TECH-01 | Phase 1: World Map Data Layer | Complete |
 | TECH-02 | Phase 1: World Map Data Layer | Complete |
-| TECH-03 | Phase 3: Server-Side Chunk Generation | Pending |
+| TECH-03 | Phase 3: Server-Side Chunk Generation | Complete |
 | TECH-04 | Phase 7: Wildlife & Region-Aware Spawning | Pending |
 | TECH-05 | Phase 3: Server-Side Chunk Generation | Complete |
 | TECH-06 | Phase 3: Server-Side Chunk Generation | Complete |
