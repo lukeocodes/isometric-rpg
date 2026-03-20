@@ -72,12 +72,14 @@ async function boot() {
       if (import.meta.env.DEV && game) {
         (window as any).__audio = {
           getState: () => game?.getAudioSystem().getMusicStateMachine()?.getState(),
+          getCurrentSide: () => game?.getAudioSystem().getCrossfadeManager()?.getCurrentSide(),
           requestState: (s: string) => game?.getAudioSystem().getMusicStateMachine()?.requestState(s as any),
           forceState: (s: string) => game?.getAudioSystem().getMusicStateMachine()?.forceState(s as any),
           startTestTone: (side: string) => game?.getAudioSystem().getCrossfadeManager()?.startTestTone(side as any),
           stopTestTone: (side: string) => game?.getAudioSystem().getCrossfadeManager()?.stopTestTone(side as any),
           setIntensity: (v: number) => { if (game) game.getAudioSystem().intensity = v; },
           getIntensity: () => game?.getAudioSystem().intensity,
+          getFadeValue: () => game?.getAudioSystem().getCrossfadeManager()?.getCrossFade().fade.value,
         };
         console.log("[Dev] Audio API available at window.__audio");
       }

@@ -12,6 +12,7 @@ import { RenderSystem } from "../ecs/systems/RenderSystem";
 import { AnimationSystem } from "../ecs/systems/AnimationSystem";
 import { InterpolationSystem } from "../ecs/systems/InterpolationSystem";
 import { ChunkManager } from "../world/ChunkManager";
+import { TilePool } from "../world/TilePool";
 import { AudioSystem } from "../audio/AudioSystem";
 import { MusicState } from "../audio/types";
 import { NetworkManager } from "../net/NetworkManager";
@@ -58,6 +59,7 @@ export class Game {
   private minimapEntities: Array<{ x: number; z: number; type: string }> = [];
 
   private chunkManager: ChunkManager;
+  private tilePool: TilePool;
 
   private audioSystem: AudioSystem;
   private network: NetworkManager | null = null;
@@ -80,6 +82,7 @@ export class Game {
     this.interpolationSystem = new InterpolationSystem(this.entityManager);
 
     this.chunkManager = new ChunkManager(this.sceneManager.scene);
+    this.tilePool = new TilePool(this.sceneManager.scene);
     this.stateSync = new StateSync(this.entityManager);
 
     // Initialize audio system
@@ -100,17 +103,18 @@ export class Game {
     this.stateSync.setOnCombatState((entityId, inCombat, autoAttacking, targetId) => {
       if (entityId === this.localEntityId) {
         const combat = this.entityManager.getComponent<CombatComponent>(entityId, "combat");
+        const wasInCombat = combat?.inCombat ?? false;
         if (combat) {
           combat.inCombat = inCombat;
           combat.autoAttacking = autoAttacking;
           combat.targetEntityId = targetId;
         }
-        // Drive music state machine
+        // Drive music state machine — only on state *changes*
         const sm = this.audioSystem.getMusicStateMachine();
         if (sm) {
-          if (inCombat) {
+          if (inCombat && !wasInCombat) {
             sm.requestState(MusicState.Combat);
-          } else {
+          } else if (!inCombat && wasInCombat) {
             sm.requestState(MusicState.Victory);
           }
         }
@@ -169,6 +173,7 @@ export class Game {
           this.cameraTarget.set(pos.x, pos.y, pos.z);
           this.camera.setTarget(this.cameraTarget);
           this.chunkManager.updatePlayerPosition(pos.x, pos.z);
+          this.tilePool.update(pos.x, pos.z);
           // Update minimap and world map
           if (this.hud) {
             this.hud.miniMap.updatePlayerPosition(pos.x, pos.z);
@@ -246,6 +251,10 @@ export class Game {
       (x, z) => this.chunkManager.getElevationBandAt(x, z),
       (x, z) => this.chunkManager.isWalkable(x, z),
     );
+    this.tilePool.setResolvers(
+      (x, z) => this.chunkManager.getTerrainY(x, z),
+      (x, z) => this.chunkManager.getBiomeAt(x, z),
+    );
   }
 
   private spawnPosition = { x: 0, y: 0, z: 0 };
@@ -254,6 +263,7 @@ export class Game {
     this.loop.stop();
     this.network?.disconnect();
     this.audioSystem.dispose();
+    this.tilePool.dispose();
     this.chunkManager.dispose();
     this.assetCache.clear();
     this.sceneManager.dispose();

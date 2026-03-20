@@ -45,7 +45,9 @@ export class CrossfadeManager {
     const targetFade = this.currentSide === "a" ? 1 : 0;
 
     const transport = Tone.getTransport();
+    console.log(`[CrossfadeManager] Scheduling crossfade ${from}->${to}: side ${this.currentSide}->${targetFade === 1 ? "b" : "a"}, duration=${duration}s, waiting for next bar...`);
     const scheduledId = transport.schedule((time: number) => {
+      console.log(`[CrossfadeManager] Crossfade firing now: fade ${this.crossFade.fade.value} -> ${targetFade} over ${duration}s`);
       this.crossFade.fade.linearRampTo(targetFade, duration, time);
       // Flip active side after scheduling
       this.currentSide = targetFade === 1 ? "b" : "a";
@@ -77,9 +79,17 @@ export class CrossfadeManager {
   /**
    * Start a test tone on one side of the CrossFade for verification.
    * Side "a" plays 440Hz, side "b" plays 330Hz.
-   * These are placeholders removed when Phase 12 adds real music.
+   * Tones connect to their respective CrossFade inputs so crossfade
+   * transitions audibly blend between them.
+   * Call forceState() to trigger a crossfade and hear the blend.
+   *
+   * To hear a tone immediately regardless of crossfade position,
+   * start the tone on the CURRENT side: getCrossfadeManager().getCurrentSide()
    */
   startTestTone(side: "a" | "b"): void {
+    // Stop existing tone on this side first
+    this.stopTestTone(side);
+
     const synth = new Tone.Synth({
       oscillator: { type: "sine" },
       envelope: { attack: 0.1, decay: 0.2, sustain: 0.5, release: 0.5 },
