@@ -1,19 +1,22 @@
 import * as Tone from "tone";
 import { GM_INSTRUMENTS, SOUNDFONT_BASE, type InstrumentKey } from "./types";
 
-/** Sparse note set for Tone.Sampler (every major 3rd for memory efficiency) */
+/**
+ * Sparse note set for memory efficiency.
+ * Tone.Sampler interpolates between loaded samples,
+ * so loading every major 3rd gives full chromatic coverage.
+ */
 const SPARSE_NOTES = ["C", "E", "Ab"];
+// Note: FluidR3_GM uses "Ab" in its note names, which matches our sparse set
 const OCTAVE_RANGE = [2, 3, 4, 5, 6];
 
-/** Generates the URL mapping for sparse note sampling */
-function getSamplerUrls(): Record<string, string> {
-  const urls: Record<string, string> = {};
+function isSparseNote(noteName: string): boolean {
   for (const oct of OCTAVE_RANGE) {
     for (const note of SPARSE_NOTES) {
-      urls[`${note}${oct}`] = `${note}${oct}.mp3`;
+      if (noteName === `${note}${oct}`) return true;
     }
   }
-  return urls;
+  return false;
 }
 
 interface CacheEntry {
@@ -23,6 +26,8 @@ interface CacheEntry {
 
 /**
  * LRU cache for Tone.Sampler instances loaded from FluidR3_GM CDN.
+ * Fetches the soundfont JS file (contains base64 data URIs for all notes),
+ * picks sparse notes for memory efficiency, and creates Tone.Samplers.
  * Evicts least-recently-used instruments when exceeding max count.
  */
 export class SampleCache {
@@ -35,32 +40,24 @@ export class SampleCache {
     this.maxInstruments = maxInstruments;
   }
 
-  /**
-   * Load an instrument by key. Returns cached instance if available.
-   * Creates a new Tone.Sampler if not cached. Evicts LRU if over limit.
-   */
   async loadInstrument(key: InstrumentKey): Promise<Tone.Sampler> {
-    // Check cache hit — update lastUsed timestamp
     const cached = this.cache.get(key);
     if (cached) {
       cached.lastUsed = ++this.accessCounter;
       return cached.sampler;
     }
 
-    // Check if already loading (prevent duplicate requests)
     const existing = this.inflight.get(key);
     if (existing) {
       return existing;
     }
 
-    // Create new sampler
     const promise = this.createSampler(key);
     this.inflight.set(key, promise);
 
     try {
       const sampler = await promise;
 
-      // Evict LRU if over limit
       if (this.cache.size >= this.maxInstruments) {
         this.evictLRU();
       }
@@ -76,17 +73,14 @@ export class SampleCache {
     }
   }
 
-  /** Returns the number of cached instruments */
   getLoadedCount(): number {
     return this.cache.size;
   }
 
-  /** Check if an instrument is currently cached */
   isLoaded(key: InstrumentKey): boolean {
     return this.cache.has(key);
   }
 
-  /** Evict the least recently used instrument */
   evictLRU(): void {
     let oldest: string | null = null;
     let oldestTime = Infinity;
@@ -107,7 +101,6 @@ export class SampleCache {
     }
   }
 
-  /** Dispose all cached samplers and clear the cache */
   disposeAll(): void {
     for (const [, entry] of this.cache) {
       entry.sampler.dispose();
@@ -116,28 +109,67 @@ export class SampleCache {
     this.inflight.clear();
   }
 
-  private createSampler(key: InstrumentKey): Promise<Tone.Sampler> {
+  private async createSampler(key: InstrumentKey): Promise<Tone.Sampler> {
     const gmName = GM_INSTRUMENTS[key];
-    const baseUrl = `${SOUNDFONT_BASE}${gmName}-mp3/`;
-    const urls = getSamplerUrls();
+    const jsUrl = `${SOUNDFONT_BASE}${gmName}-mp3.js`;
 
-    // Use a ref object to avoid TDZ when onload fires synchronously (test mocks).
-    // The ref is assigned after construction, and onload defers resolve via microtask.
-    const ref: { sampler: Tone.Sampler | null } = { sampler: null };
+    // Fetch the soundfont JS file containing base64 data URIs
+    const response = await fetch(jsUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to load soundfont: ${jsUrl} (${response.status})`);
+    }
+    const jsText = await response.text();
+
+    // Parse the JS: format is MIDI.Soundfont.instrument_name = { "C4": "data:audio/mp3;base64,...", ... }
+    const allNotes = this.parseSoundfontJS(jsText);
+
+    // Pick sparse notes for memory efficiency
+    const urls: Record<string, string> = {};
+    for (const [noteName, dataUri] of Object.entries(allNotes)) {
+      if (isSparseNote(noteName)) {
+        urls[noteName] = dataUri;
+      }
+    }
+
+    // Fallback: if no sparse notes matched (unlikely), take first 15
+    if (Object.keys(urls).length === 0) {
+      const entries = Object.entries(allNotes);
+      for (let i = 0; i < Math.min(15, entries.length); i++) {
+        urls[entries[i][0]] = entries[i][1];
+      }
+    }
 
     return new Promise<Tone.Sampler>((resolve, reject) => {
-      ref.sampler = new Tone.Sampler({
+      const sampler = new Tone.Sampler({
         urls,
-        baseUrl,
-        onload: () => {
-          // Use queueMicrotask to ensure ref.sampler is assigned
-          // (handles both sync mock and async production cases)
-          queueMicrotask(() => resolve(ref.sampler!));
-        },
-        onerror: (err: Error) => {
-          queueMicrotask(() => reject(err));
-        },
+        onload: () => resolve(sampler),
+        onerror: (err: Error) => reject(err),
       });
     });
+  }
+
+  /**
+   * Parse the soundfont JS file format:
+   * `MIDI.Soundfont.instrument_name = { "C4": "data:audio/...", ... }`
+   * Returns a Record<noteName, dataURI>.
+   */
+  private parseSoundfontJS(jsText: string): Record<string, string> {
+    // Find the object literal between { and the final }
+    const startIdx = jsText.indexOf("{");
+    const endIdx = jsText.lastIndexOf("}");
+    if (startIdx === -1 || endIdx === -1) {
+      throw new Error("Invalid soundfont JS format");
+    }
+
+    const objText = jsText.slice(startIdx, endIdx + 1);
+
+    // Use Function constructor to safely evaluate the object literal
+    // (it's a simple key-value map of strings, no executable code)
+    try {
+      const parsed = new Function(`return ${objText}`)();
+      return parsed as Record<string, string>;
+    } catch {
+      throw new Error("Failed to parse soundfont JS object");
+    }
   }
 }
