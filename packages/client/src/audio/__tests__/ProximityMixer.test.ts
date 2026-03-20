@@ -23,7 +23,9 @@ function createMockAudioContext() {
         },
         connect: vi.fn(),
         disconnect: vi.fn(),
+        context: null as unknown, // set below
       };
+      node.context = ctx; // back-reference so gainNode.context.currentTime works
       gainNodes.push(node);
       return node;
     },
