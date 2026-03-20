@@ -10,14 +10,20 @@ import { BaseTrack } from "../BaseTrack";
 import { SampleCache } from "../SampleCache";
 import { PhraseEngine } from "../PhraseEngine";
 
-/** Fast eighth-note ostinato patterns from E minor */
+/** Fast eighth-note ostinato patterns from E minor — 2 bars each */
 const PHRASE_POOL: (string | null)[][] = [
-  ["E4", "G4", "B4", "E5", "D5", "B4", "G4", "E4"],
-  ["B4", "E5", "D5", "B4", "G4", "E4", "G4", "B4"],
-  ["G4", "B4", "D5", "E5", "D5", "B4", "G4", "Gb4"],
-  ["E4", "Gb4", "G4", "B4", "D5", "B4", "G4", "E4"],
-  ["D5", "B4", "G4", "E4", "G4", "B4", "D5", "E5"],
-  ["E5", "D5", "B4", "G4", "E4", "Gb4", "G4", "B4"],
+  // Phrase 1: Driving ascending run then hammering resolution
+  ["E4", "G4", "B4", "E5", null, "D5", "B4", "G4", "E4", "Gb4", "G4", "B4", "D5", "E5", "D5", "B4"],
+  // Phrase 2: Aggressive broken arpeggios with rests for impact
+  ["B4", null, "E5", "D5", null, "B4", "G4", "E4", null, "G4", "B4", "D5", "E5", null, "D5", "B4"],
+  // Phrase 3: Chromatic tension builder
+  ["G4", "Gb4", "G4", "B4", "D5", "E5", null, "D5", "B4", "G4", "Gb4", "E4", null, "G4", "B4", "E5"],
+  // Phrase 4: Syncopated stabs between runs
+  ["E4", null, null, "G4", "B4", "E5", "D5", null, "B4", null, null, "G4", "E4", "Gb4", "G4", "B4"],
+  // Phrase 5: Relentless sixteenth-feel with high point
+  ["D5", "B4", "G4", "E4", "G4", "B4", "D5", "E5", "Gb5", "E5", "D5", "B4", "G4", "E4", "G4", "E4"],
+  // Phrase 6: Dark descent with chromatic color
+  ["E5", "D5", "B4", "G4", "Gb4", "E4", "G4", "Gb4", "E4", null, "G4", "B4", "D5", null, "E5", "D5"],
 ];
 
 export class CombatTrack extends BaseTrack {

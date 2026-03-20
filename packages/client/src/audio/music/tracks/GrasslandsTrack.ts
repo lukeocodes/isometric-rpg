@@ -9,13 +9,18 @@ import { BaseTrack } from "../BaseTrack";
 import { SampleCache } from "../SampleCache";
 import { PhraseEngine } from "../PhraseEngine";
 
-/** Folk-style pentatonic phrases from G Mixolydian */
+/** Folk-style pentatonic phrases from G Mixolydian — 2 bars each */
 const PHRASE_POOL: (string | null)[][] = [
-  ["G4", "A4", "B4", "D5", "B4", "A4", "G4", "F4"],
-  ["D4", "G4", "A4", "B4", "D5", "B4", "A4", "G4"],
-  ["B4", "D5", "F5", "D5", "B4", "A4", "G4", "A4"],
-  ["A4", "B4", "D5", "F5", "D5", "B4", "A4", "G4"],
-  ["G4", "B4", "D5", "G5", "D5", "B4", "G4", "F4"],
+  // Phrase 1: Open field wandering, gentle rise and fall
+  ["G4", null, "A4", "B4", "D5", null, "B4", "A4", "G4", null, "F4", "G4", "A4", "B4", "A4", "G4"],
+  // Phrase 2: Penny whistle adventure call
+  ["D4", "G4", null, "A4", "B4", "D5", null, null, "B4", "A4", "G4", "F4", "G4", null, "A4", "G4"],
+  // Phrase 3: Soaring melody with breathing space
+  ["B4", "D5", null, "F5", "D5", null, "B4", "A4", "G4", null, null, "A4", "B4", "D5", null, "B4"],
+  // Phrase 4: Lilting dance rhythm
+  ["A4", null, "B4", "D5", "F5", null, "D5", "B4", null, "A4", "G4", null, "F4", "G4", "A4", null],
+  // Phrase 5: Horizon gazing — wide intervals, spacious
+  ["G4", null, null, "B4", "D5", null, "G5", null, "D5", null, "B4", null, "G4", "F4", null, "G4"],
 ];
 
 export class GrasslandsTrack extends BaseTrack {

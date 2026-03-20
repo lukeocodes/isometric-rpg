@@ -10,12 +10,18 @@ import { PhraseEngine } from "../PhraseEngine";
 import { ProximityMixer } from "../ProximityMixer";
 
 const PHRASE_POOL: (string | null)[][] = [
-  ["C4", "E4", "G4", "A4", "G4", "E4", "D4", "C4"],
-  ["G4", "A4", "Bb4", "A4", "G4", "F4", "E4", "D4"],
-  ["E4", "G4", "C5", "Bb4", "A4", "G4", "F4", "E4"],
-  ["D4", "E4", "F4", "G4", "A4", "G4", "E4", "C4"],
-  ["C4", "D4", "E4", "G4", "A4", "G4", "F4", "E4"],
-  ["A4", "G4", "F4", "E4", "D4", "E4", "F4", "G4"],
+  // Phrase 1: Warm ascending melody with gentle descent
+  ["C4", "D4", "E4", "G4", null, "A4", "G4", "E4", "F4", "E4", "D4", "C4", null, "D4", "E4", "D4"],
+  // Phrase 2: Flowing folk melody, stepwise with leaps
+  ["G4", "A4", "Bb4", "A4", "G4", null, "E4", "F4", "G4", "A4", "G4", "F4", "E4", "D4", null, "C4"],
+  // Phrase 3: Rising arc to high point then cascading down
+  ["E4", "G4", "A4", "Bb4", "C5", null, "Bb4", "A4", "G4", null, "F4", "E4", "D4", "E4", "F4", "E4"],
+  // Phrase 4: Playful rhythm with rests, dance-like
+  ["C4", null, "E4", "G4", "A4", null, "G4", "E4", "D4", null, "F4", "E4", "D4", "C4", null, null],
+  // Phrase 5: Gentle swaying motion, thirds
+  ["E4", "G4", "F4", "A4", "G4", "Bb4", "A4", "G4", null, "F4", "E4", "D4", "E4", "F4", "G4", null],
+  // Phrase 6: Descending lullaby with pickup
+  ["A4", null, "G4", "F4", "E4", "D4", null, "E4", "F4", "G4", null, "E4", "D4", "C4", "D4", "C4"],
 ];
 
 export class HumanTownTrack extends BaseTrack {
