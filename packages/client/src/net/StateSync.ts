@@ -13,6 +13,8 @@ import { Opcode, unpackReliable } from "./Protocol";
 export type DamageCallback = (attackerId: string, targetId: string, damage: number, weaponType: string) => void;
 export type DeathCallback = (entityId: string) => void;
 export type CombatStateCallback = (entityId: string, inCombat: boolean, autoAttacking: boolean, targetId: string | null) => void;
+export type EnemyNearbyCallback = (entityIds: string[], nearby: boolean) => void;
+export type ZoneMusicTagCallback = (musicState: string) => void;
 
 export class StateSync {
   private entityManager: EntityManager;
@@ -22,12 +24,19 @@ export class StateSync {
   private onDamage: DamageCallback | null = null;
   private onDeath: DeathCallback | null = null;
   private onCombatState: CombatStateCallback | null = null;
+  private onEnemyNearby: EnemyNearbyCallback | null = null;
+  private onZoneMusicTag: ZoneMusicTagCallback | null = null;
+  private terrainYResolver: ((x: number, z: number) => number) | null = null;
 
   // Spawn points (for dev mode rendering)
   public spawnPoints: Array<{ id: string; x: number; z: number; distance: number; npcIds: string[]; maxCount: number; frequency: number }> = [];
 
   constructor(entityManager: EntityManager) {
     this.entityManager = entityManager;
+  }
+
+  setTerrainYResolver(resolver: (x: number, z: number) => number) {
+    this.terrainYResolver = resolver;
   }
 
   private hashCode(str: string): number {
@@ -45,6 +54,8 @@ export class StateSync {
   setOnDamage(handler: DamageCallback) { this.onDamage = handler; }
   setOnDeath(handler: DeathCallback) { this.onDeath = handler; }
   setOnCombatState(handler: CombatStateCallback) { this.onCombatState = handler; }
+  setOnEnemyNearby(handler: EnemyNearbyCallback) { this.onEnemyNearby = handler; }
+  setOnZoneMusicTag(handler: ZoneMusicTagCallback) { this.onZoneMusicTag = handler; }
 
   handlePositionMessage(data: ArrayBuffer) {
     // Batched format: [count:u16LE] then N * 20 bytes: [entityId:u32LE][x:f32LE][y:f32LE][z:f32LE][rotation:f32LE]
@@ -70,7 +81,7 @@ export class StateSync {
       const pos = this.entityManager.getComponent<PositionComponent>(entityId, "position");
       if (pos) {
         pos.remoteTargetX = x;
-        pos.remoteTargetY = y;
+        pos.remoteTargetY = this.terrainYResolver ? this.terrainYResolver(x, z) : y;
         pos.remoteTargetZ = z;
         pos.remoteTargetRotation = rotation;
         pos.isRemote = true;
@@ -107,6 +118,16 @@ export class StateSync {
           this.onCombatState(data.entityId, data.inCombat, data.autoAttacking, data.targetId);
         }
         break;
+      case Opcode.ENEMY_NEARBY:
+        if (this.onEnemyNearby) {
+          this.onEnemyNearby(data.entityIds || [], data.nearby);
+        }
+        break;
+      case Opcode.ZONE_MUSIC_TAG:
+        if (this.onZoneMusicTag) {
+          this.onZoneMusicTag(data.musicState);
+        }
+        break;
       case Opcode.SPAWN_POINT:
         this.spawnPoints.push({
           id: data.id, x: data.x, z: data.z,
@@ -130,7 +151,10 @@ export class StateSync {
 
     this.entityManager.addEntity(id);
     this.entityManager.addComponent(id, createIdentity(id, data.name || "Unknown", data.entityType || "player"));
-    const pos = createPosition(data.x || 0, data.y || 0, data.z || 0);
+    const spawnX = data.x || 0;
+    const spawnZ = data.z || 0;
+    const spawnY = this.terrainYResolver ? this.terrainYResolver(spawnX, spawnZ) : (data.y || 0);
+    const pos = createPosition(spawnX, spawnY, spawnZ);
     pos.isRemote = true;
     this.entityManager.addComponent(id, pos);
     this.entityManager.addComponent(id, createMovement(0, data.x || 0, data.z || 0));

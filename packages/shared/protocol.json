@@ -19,6 +19,10 @@
     "ENTITY_DEATH": 51,
     "ENTITY_STATE": 52,
     "COMBAT_STATE": 53,
+    "SPAWN_POINT": 60,
+    "ENEMY_NEARBY": 70,
+    "ZONE_MUSIC_TAG": 71,
+    "WORLD_READY": 100,
     "PING": 253,
     "PONG": 254,
     "ERROR": 255

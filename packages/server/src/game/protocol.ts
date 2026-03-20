@@ -11,6 +11,8 @@ export const Opcode = {
   ENTITY_STATE: 52,
   COMBAT_STATE: 53,
   SPAWN_POINT: 60,
+  ENEMY_NEARBY: 70,
+  ZONE_MUSIC_TAG: 71,
   WORLD_READY: 100,
   PING: 253,
   PONG: 254,
@@ -52,6 +54,14 @@ export function packSpawnPoint(id: string, x: number, z: number, distance: numbe
 
 export function packCombatState(entityId: string, inCombat: boolean, autoAttacking: boolean, targetId: string | null): string {
   return packReliable(Opcode.COMBAT_STATE, { entityId, inCombat, autoAttacking, targetId });
+}
+
+export function packEnemyNearby(playerId: string, entityIds: string[], nearby: boolean): string {
+  return packReliable(Opcode.ENEMY_NEARBY, { playerId, entityIds, nearby });
+}
+
+export function packZoneMusicTag(playerId: string, musicState: string): string {
+  return packReliable(Opcode.ZONE_MUSIC_TAG, { playerId, musicState });
 }
 
 // Binary position: 24 bytes
