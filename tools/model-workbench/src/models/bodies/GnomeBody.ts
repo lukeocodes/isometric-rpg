@@ -151,7 +151,8 @@ export class GnomeBody implements Model {
   }
 
   private drawArm(g: Graphics, j: Record<string, V>, p: ModelPalette, s: number, side: "L" | "R"): void {
-    const shoulder = j[`shoulder${side}`];
+    const raw = j[`shoulder${side}`];
+    const shoulder = { x: raw.x + (side === "L" ? 2 : -2), y: raw.y };
     const elbow = j[`elbow${side}`];
     const wrist = j[`wrist${side}`];
 
