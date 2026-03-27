@@ -1,5 +1,6 @@
-# Playwright per-session Chrome profile
+# Playwright per-session Chrome profile and screenshots
 .playwright-chrome/
+.playwright-mcp/
 
 # Dependencies
 node_modules/
