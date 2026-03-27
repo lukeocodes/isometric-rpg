@@ -45,6 +45,8 @@ export class AnimationSystem {
         phase += dt * 10;
         this.bobPhase.set(entity.id, phase);
         (render.displayObject as any)._bobOffset = Math.sin(phase) * 2.5;
+        (render.displayObject as any)._walkPhase = phase;
+        (render.displayObject as any)._isWalking = true;
         // Slight body sway while walking
         render.displayObject.skew.x = Math.sin(phase) * 0.04;
         // Restore uniform scale from breathing
@@ -55,6 +57,7 @@ export class AnimationSystem {
         }
       } else {
         // Reset walk sway
+        (render.displayObject as any)._isWalking = false;
         render.displayObject.skew.x = 0;
         // Idle breathing — subtle scale pulse (uniform X+Y to avoid squishing)
         if (!this.baseScale.has(entity.id)) {

@@ -4,8 +4,11 @@ import { EntityRenderer } from "../renderer/EntityRenderer";
 import { TerrainRenderer } from "../renderer/TerrainRenderer";
 import { TiledMapRenderer } from "../renderer/TiledMapRenderer";
 import { StructureRenderer, FLOOR_ELEVATION } from "../renderer/StructureRenderer";
+import { WorldItemRenderer } from "../renderer/WorldItemRenderer";
 import { screenToWorld, worldToScreen, TILE_WIDTH_HALF, TILE_HEIGHT_HALF } from "../renderer/IsometricRenderer";
-// EntitySpriteSheet removed — sprite art handled in separate session
+// Workbench model registration — naked human body only for now
+import "../../../../tools/model-workbench/src/models/bodies/index";
+import { WorkbenchSpriteSheet } from "../../../../tools/model-workbench/src/models/WorkbenchSpriteSheet";
 import { ParticleSystem } from "../renderer/ParticleSystem";
 import { Graphics } from "pixi.js";
 import { InputManager } from "./InputManager";
@@ -62,6 +65,7 @@ export class Game {
   private chunkManager: ChunkManager;
   private tiledMap: TiledMapRenderer | null = null;
   private structureRenderer: StructureRenderer | null = null;
+  private worldItemRenderer: WorldItemRenderer | null = null;
   private useTiledMap = false;
 
   private audioSystem: AudioSystem;
@@ -295,6 +299,16 @@ export class Game {
       }
     });
 
+    this.stateSync.setOnWorldItemsSync((items) => {
+      if (this.worldItemRenderer) this.worldItemRenderer.setItems(items);
+    });
+    this.stateSync.setOnWorldItemSpawn((item) => {
+      if (this.worldItemRenderer) this.worldItemRenderer.addItem(item);
+    });
+    this.stateSync.setOnWorldItemDespawn((id) => {
+      if (this.worldItemRenderer) this.worldItemRenderer.removeItem(id);
+    });
+
     this.stateSync.setOnDungeonMap((data) => {
       console.log(`[Game] Entering dungeon: ${data.width}x${data.height}`);
       if (this.hud) this.hud.chatBox.addSystemMessage("Entering dungeon...");
@@ -427,7 +441,9 @@ export class Game {
     if (!this.initialized) {
       await this.pixiApp.init();
 
-      // Sprite sheets removed — art pipeline handled separately
+      // Wire up workbench sprite sheet — uses registered models for all entities
+      const workbenchSheet = new WorkbenchSpriteSheet(this.pixiApp.app);
+      this.entityRenderer.setSpriteSheet(workbenchSheet);
 
       // Try loading a Tiled map (client-side for now)
       try {
@@ -460,6 +476,8 @@ export class Game {
       }
 
       this.pixiApp.worldContainer.addChild(this.entityRenderer.container);
+      this.worldItemRenderer = new WorldItemRenderer();
+      this.pixiApp.worldContainer.addChild(this.worldItemRenderer.container);
       this.pixiApp.worldContainer.addChild(this.particles.container);
 
       // Tile hover cursor — isometric diamond outline
@@ -958,6 +976,19 @@ export class Game {
   }
 
   private handleLeftClick(sx: number, sy: number) {
+    // Check for world item click first
+    if (this.worldItemRenderer && this.network?.isConnected()) {
+      const wc = this.pixiApp.worldContainer;
+      const zoom = this.camera.getZoom();
+      const worldPxX = (sx - wc.x) / zoom;
+      const worldPxY = (sy - wc.y) / zoom;
+      const itemId = this.worldItemRenderer.hitTest(worldPxX, worldPxY);
+      if (itemId) {
+        this.network.sendReliable(packReliable(Opcode.ITEM_PICKUP_REQUEST, { worldItemId: itemId }));
+        return;
+      }
+    }
+
     const entityId = this.pickEntityAt(sx, sy);
     if (entityId) {
       this.selectTarget(entityId);

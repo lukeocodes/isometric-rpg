@@ -1,4 +1,4 @@
-import { Container, Graphics, Text, Sprite } from "pixi.js";
+import { Container, Graphics, Text, Sprite, Texture } from "pixi.js";
 import { EntityManager } from "../ecs/EntityManager";
 import type { PositionComponent } from "../ecs/components/Position";
 import type { RenderableComponent } from "../ecs/components/Renderable";
@@ -8,7 +8,14 @@ import type { StatsComponent } from "../ecs/components/Stats";
 import type { CombatComponent } from "../ecs/components/Combat";
 import { worldToScreen } from "./IsometricRenderer";
 import { facingToDirection, directionToIsoOffset } from "./SpriteDirection";
-import { EntitySpriteSheet, entityNameToSpriteType } from "./EntitySpriteSheet";
+import { entityNameToSpriteType } from "./EntitySpriteSheet";
+
+interface ISpriteSheet {
+  getFrame(entityType: string, direction: number, walkPhaseIndex?: number): Texture;
+  has(entityType: string): boolean;
+  readonly displayScale?: number;
+  readonly walkPhases?: number;
+}
 
 // Entity visual sizing (pixels)
 // Entity visual sizing (pixels)
@@ -70,7 +77,7 @@ export class EntityRenderer {
 
   private entityManager: EntityManager;
   private localEntityId: string | null = null;
-  private spriteSheet: EntitySpriteSheet | null = null;
+  private spriteSheet: ISpriteSheet | null = null;
   private flashTimers = new Map<string, FlashTimer>();
   private targetRing: Graphics | null = null;
   private targetEntityId: string | null = null;
@@ -122,7 +129,7 @@ export class EntityRenderer {
   }
 
   setLocalEntityId(id: string) { this.localEntityId = id; }
-  setSpriteSheet(sheet: EntitySpriteSheet) { this.spriteSheet = sheet; }
+  setSpriteSheet(sheet: ISpriteSheet) { this.spriteSheet = sheet; }
 
   setTargetEntity(entityId: string | null): void {
     this.targetEntityId = entityId;
@@ -366,7 +373,9 @@ export class EntityRenderer {
       }
 
       const { sx, sy } = worldToScreen(pos.x, pos.z, pos.y);
-      const bobOffset = (render.displayObject as any)._bobOffset ?? 0;
+      // Sprite-sheet mode: walk animation is baked into frames, suppress container bob
+      const hasSprite = render.displayObject.children.some(c => (c as any).label === "body-sprite");
+      const bobOffset = hasSprite ? 0 : ((render.displayObject as any)._bobOffset ?? 0);
       render.displayObject.position.set(sx, sy + bobOffset);
       render.displayObject.visible = render.visible;
       render.displayObject.zIndex = (pos.x + pos.z) * 10;
@@ -397,12 +406,23 @@ export class EntityRenderer {
       const prevDir = (render.displayObject as any)._dirIndex ?? -1;
       (render.displayObject as any)._dirIndex = dirIndex;
 
-      // Swap sprite texture when direction changes (sprite sheet mode)
+      // Swap sprite texture when direction or walk phase changes
       const bodySprite = render.displayObject.children.find(c => c.label === "body-sprite") as Sprite | undefined;
-      if (bodySprite && this.spriteSheet && prevDir !== dirIndex) {
+      if (bodySprite && this.spriteSheet) {
         const spriteType = (render.displayObject as any)._spriteType as string;
         if (spriteType) {
-          bodySprite.texture = this.spriteSheet.getFrame(spriteType, dirIndex);
+          const walkPhases = this.spriteSheet.walkPhases ?? 1;
+          let walkPhaseIndex = 0;
+          if (walkPhases > 1 && (render.displayObject as any)._isWalking) {
+            const raw: number = (render.displayObject as any)._walkPhase ?? 0;
+            const norm = ((raw % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+            walkPhaseIndex = Math.floor((norm / (Math.PI * 2)) * walkPhases) % walkPhases;
+          }
+          const prevPhase: number = (render.displayObject as any)._walkPhaseIndex ?? -1;
+          (render.displayObject as any)._walkPhaseIndex = walkPhaseIndex;
+          if (prevDir !== dirIndex || prevPhase !== walkPhaseIndex) {
+            bodySprite.texture = this.spriteSheet.getFrame(spriteType, dirIndex, walkPhaseIndex);
+          }
         }
       }
 
@@ -549,6 +569,8 @@ export class EntityRenderer {
       bodySprite.label = "body-sprite";
       bodySprite.anchor.set(0.5, 1);
       bodySprite.position.set(0, 4);
+      const displayScale = this.spriteSheet.displayScale ?? 1;
+      if (displayScale !== 1) bodySprite.scale.set(displayScale);
       container.addChild(bodySprite);
       (container as any)._spriteType = spriteType;
     } else {

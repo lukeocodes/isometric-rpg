@@ -36,9 +36,12 @@ import { registry } from "./registry";
  * falling back to "human-body" for unknown types.
  */
 
-// Game client's frame dimensions (must match EntitySpriteSheet)
-const GAME_FRAME_W = 40;
-const GAME_FRAME_H = 72;
+// Render at 2× the workbench's native frame so lines stay crisp at game scale.
+// The sprite is displayed at displayScale (0.5) to keep the visual size consistent.
+const RENDER_SCALE = 2;
+const WALK_PHASES = 8;
+const FRAME_W_RENDER = 48 * RENDER_SCALE;  // 96
+const FRAME_H_RENDER = 64 * RENDER_SCALE;  // 128
 
 /**
  * Maps game entity names (substring) to workbench model IDs.
@@ -94,20 +97,27 @@ export class WorkbenchSpriteSheet {
   private app: Application;
   private cache = new Map<string, EntityFrames>();
 
+  /** Scale sprites by this when adding to the scene to get correct visual size. */
+  readonly displayScale = 1 / RENDER_SCALE;
+  /** Number of walk animation frames per direction. */
+  readonly walkPhases = WALK_PHASES;
+
   constructor(app: Application) {
     this.app = app;
   }
 
   /**
-   * Get a directional texture frame for an entity type.
-   * API-compatible with EntitySpriteSheet.getFrame().
+   * Get a directional + walk-phase texture frame for an entity type.
+   * walkPhaseIndex 0..WALK_PHASES-1 (defaults to 0 = idle pose).
    */
-  getFrame(entityType: string, direction: number): Texture {
+  getFrame(entityType: string, direction: number, walkPhaseIndex = 0): Texture {
     if (!this.cache.has(entityType)) {
       this.cache.set(entityType, this.generateFrames(entityType));
     }
     const frames = this.cache.get(entityType)!;
-    return frames[direction % DIRECTION_COUNT] ?? frames[0];
+    const dir = direction % DIRECTION_COUNT;
+    const phase = walkPhaseIndex % WALK_PHASES;
+    return frames[dir * WALK_PHASES + phase] ?? frames[0];
   }
 
   /**
@@ -122,13 +132,15 @@ export class WorkbenchSpriteSheet {
   /**
    * Get a directional texture for a composite character (player with equipment).
    */
-  getCompositeFrame(config: CompositeConfig, direction: number): Texture {
+  getCompositeFrame(config: CompositeConfig, direction: number, walkPhaseIndex = 0): Texture {
     const key = this.compositeKey(config);
     if (!this.cache.has(key)) {
       this.cache.set(key, this.generateCompositeFrames(config));
     }
     const frames = this.cache.get(key)!;
-    return frames[direction % DIRECTION_COUNT] ?? frames[0];
+    const dir = direction % DIRECTION_COUNT;
+    const phase = walkPhaseIndex % WALK_PHASES;
+    return frames[dir * WALK_PHASES + phase] ?? frames[0];
   }
 
   /**
@@ -165,23 +177,20 @@ export class WorkbenchSpriteSheet {
     const frames: Texture[] = [];
 
     for (let dir = 0; dir < DIRECTION_COUNT; dir++) {
-      const container = new Container();
-      const g = new Graphics();
-      container.addChild(g);
+      for (let p = 0; p < WALK_PHASES; p++) {
+        const walkPhase = (p / WALK_PHASES) * Math.PI * 2;
+        const container = new Container();
+        const g = new Graphics();
+        container.addChild(g);
 
-      // Position at center-bottom of frame (match game's anchor point)
-      g.position.set(GAME_FRAME_W / 2, GAME_FRAME_H - 4);
+        g.position.set(FRAME_W_RENDER / 2, FRAME_H_RENDER - 4 * RENDER_SCALE);
+        renderModel(g, modelId, palette, dir, walkPhase, RENDER_SCALE, false);
 
-      renderModel(g, modelId, palette, dir, 0, 1, false);
-
-      const rt = RenderTexture.create({
-        width: GAME_FRAME_W,
-        height: GAME_FRAME_H,
-      });
-      this.app.renderer.render({ container, target: rt });
-      frames.push(rt);
-
-      container.destroy();
+        const rt = RenderTexture.create({ width: FRAME_W_RENDER, height: FRAME_H_RENDER });
+        this.app.renderer.render({ container, target: rt });
+        frames.push(rt);
+        container.destroy();
+      }
     }
 
     return frames;
@@ -191,22 +200,20 @@ export class WorkbenchSpriteSheet {
     const frames: Texture[] = [];
 
     for (let dir = 0; dir < DIRECTION_COUNT; dir++) {
-      const container = new Container();
-      const g = new Graphics();
-      container.addChild(g);
+      for (let p = 0; p < WALK_PHASES; p++) {
+        const walkPhase = (p / WALK_PHASES) * Math.PI * 2;
+        const container = new Container();
+        const g = new Graphics();
+        container.addChild(g);
 
-      g.position.set(GAME_FRAME_W / 2, GAME_FRAME_H - 4);
+        g.position.set(FRAME_W_RENDER / 2, FRAME_H_RENDER - 4 * RENDER_SCALE);
+        renderComposite(g, config, dir, walkPhase, RENDER_SCALE);
 
-      renderComposite(g, config, dir, 0, 1);
-
-      const rt = RenderTexture.create({
-        width: GAME_FRAME_W,
-        height: GAME_FRAME_H,
-      });
-      this.app.renderer.render({ container, target: rt });
-      frames.push(rt);
-
-      container.destroy();
+        const rt = RenderTexture.create({ width: FRAME_W_RENDER, height: FRAME_H_RENDER });
+        this.app.renderer.render({ container, target: rt });
+        frames.push(rt);
+        container.destroy();
+      }
     }
 
     return frames;
