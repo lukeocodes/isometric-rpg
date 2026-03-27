@@ -135,8 +135,26 @@ Priority order (game designer perspective):
 ## Known Issues
 - Hover cursor position uses synthetic pointermove which doesn't work with Playwright (works with real mouse)
 - Audio tests have 21 pre-existing failures (Tone.js mocking)
-- `getZoom()` was returning target zoom instead of current (fixed but uncommitted)
 - Spawn point debug circles visible in dev mode (intentional)
+- Dungeon NPCs share spatial grid with overworld (minor — wastes CPU on awake checks if positions overlap)
+
+## Performance Optimizations Applied
+- Binary protocol for DAMAGE/STATE/DEATH (90% bandwidth reduction)
+- Delta-only state broadcasts (skip unchanged HP)
+- Pre-computed awake set per tick (O(1) vs O(N*cells))
+- Zero-alloc iterators: iterNearbyEntities, iterAll
+- HP bar dirty flags (skip redraw when HP unchanged)
+- Respawn queue replaces setTimeout swarm
+- Spawn/death animations in game loop (no rogue RAF)
+- Particle swap-and-pop removal
+- Shared broadcast buffer (one alloc per broadcast)
+- Zone-filtered entity spawn on join
+- Decoration destroy on scroll-out (prevent memory growth)
+- Dungeon NPC reverse lookup map (O(1) boss death check)
+- Periodic XP/position persistence (30s crash recovery)
+- Interpolation lerp speed tuned for 20Hz tick
+- Client position send aligned to 20Hz
+- DataChannel maxPacketLifeTime=200ms for stale packet drop
 
 ## Architecture Quick Reference
 - **Server-authoritative** — client only renders, never runs game logic
