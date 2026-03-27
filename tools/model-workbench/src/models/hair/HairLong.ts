@@ -76,7 +76,7 @@ export class HairLong implements Model {
     // Back hair cap
     if (!facingCamera) {
       calls.push({
-        depth: 40,
+        depth: 53,
         draw: (g: Graphics, s: number) => {
           g.ellipse(
             head.x * s,
@@ -91,7 +91,7 @@ export class HairLong implements Model {
 
     // Front bangs + side framing
     calls.push({
-      depth: 55,
+      depth: 53,
       draw: (g: Graphics, s: number) => {
         if (facingCamera || sideView) {
           // Curtain bangs — parted, framing face

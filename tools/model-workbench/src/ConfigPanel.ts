@@ -138,8 +138,17 @@ export function createConfigPanel(
 
       const set = sets[v];
       if (set) {
+        // Only apply slots that the base model actually exposes
+        const baseModel = registry.get(state.compositeConfig.baseModelId);
+        const skeleton = computeHumanoidSkeleton(0 as Direction, 0);
+        const availableSlots = new Set(
+          Object.keys(baseModel?.getAttachmentPoints(skeleton) ?? {})
+        );
+
         for (const [slot, modelId] of Object.entries(set)) {
-          api.setSlot(slot, modelId);
+          if (availableSlots.has(slot)) {
+            api.setSlot(slot, modelId);
+          }
         }
       }
 

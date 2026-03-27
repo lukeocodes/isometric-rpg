@@ -85,7 +85,7 @@ export class HairPonytail implements Model {
     // Hair cap on head
     if (!facingCamera) {
       calls.push({
-        depth: 40,
+        depth: 53,
         draw: (g: Graphics, s: number) => {
           g.ellipse(
             head.x * s,
@@ -100,7 +100,7 @@ export class HairPonytail implements Model {
 
     // Front bangs (shorter, swept)
     calls.push({
-      depth: 55,
+      depth: 53,
       draw: (g: Graphics, s: number) => {
         if (facingCamera || sideView) {
           // Swept bangs

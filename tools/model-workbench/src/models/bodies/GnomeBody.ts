@@ -48,7 +48,7 @@ export class GnomeBody implements Model {
     calls.push({ depth: 32, draw: (g, s) => this.drawPelvis(g, j, palette, s) });
     calls.push({ depth: 50, draw: (g, s) => this.drawHead(g, j, skeleton, palette, s) });
 
-    calls.push({ depth: facingCamera ? 55 : 25, draw: (g, s) => this.drawArm(g, j, palette, s, nearSide) });
+    calls.push({ depth: facingCamera ? 59 : 24, draw: (g, s) => this.drawArm(g, j, palette, s, nearSide) });
 
     return calls;
   }

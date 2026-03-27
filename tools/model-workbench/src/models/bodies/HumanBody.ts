@@ -50,7 +50,7 @@ export class HumanBody implements Model {
 
     // Glutes (back views only)
     if (!facingCamera) {
-      calls.push({ depth: 25, draw: (g, s) => this.drawGlutes(g, j, skeleton, palette, s) });
+      calls.push({ depth: 26, draw: (g, s) => this.drawGlutes(g, j, skeleton, palette, s) });
     }
 
     // Torso
@@ -64,7 +64,7 @@ export class HumanBody implements Model {
 
     // Near arm
     calls.push({
-      depth: facingCamera ? 55 : 25,
+      depth: facingCamera ? 59 : 24,
       draw: (g, s) => this.drawArm(g, j, palette, s, nearSide),
     });
 

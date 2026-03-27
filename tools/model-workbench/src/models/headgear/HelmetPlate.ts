@@ -23,40 +23,35 @@ export class HelmetPlate implements Model {
 
     return [
       {
-        depth: 52,
+        // Helm dome — fully opaque to completely cover hair/eyes underneath
+        depth: 54,
         draw: (g: Graphics, s: number) => {
-          // Helm body
-          g.ellipse(
-            head.x * s,
-            (head.y - 0.5) * s,
-            (r + 1.5) * wf * s,
-            (r + 1) * s
-          );
-          g.fill({ color: palette.body, alpha: 0.85 });
-          g.ellipse(
-            head.x * s,
-            (head.y - 0.5) * s,
-            (r + 1.5) * wf * s,
-            (r + 1) * s
-          );
+          g.ellipse(head.x * s, (head.y - 0.5) * s, (r + 1.5) * wf * s, (r + 1) * s);
+          g.fill(palette.body); // fully opaque — no alpha
+          g.ellipse(head.x * s, (head.y - 0.5) * s, (r + 1.5) * wf * s, (r + 1) * s);
           g.stroke({ width: s * 0.7, color: palette.outline });
+        },
+      },
+      {
+        // Helm details — nose guard and eye slit drawn on top of dome
+        depth: 55,
+        draw: (g: Graphics, s: number) => {
+          // Highlight ridge on top
+          g.moveTo(head.x * s, (head.y - r - 1) * s);
+          g.lineTo(head.x * s, (head.y - r + 3) * s);
+          g.stroke({ width: s * 1, color: palette.bodyLt, alpha: 0.4 });
 
-          // Nose guard / center ridge
+          // Nose guard
           if (facingCamera || sideView) {
-            g.moveTo(head.x * s, (head.y - r - 1) * s);
-            g.lineTo(head.x * s, (head.y + 1) * s);
-            g.stroke({ width: s * 1.2, color: palette.bodyLt, alpha: 0.5 });
+            g.moveTo(head.x * s, (head.y - r * 0.4) * s);
+            g.lineTo(head.x * s, (head.y + r * 0.4) * s);
+            g.stroke({ width: s * 1.5, color: palette.bodyDk, alpha: 0.5 });
           }
 
           // Eye slit
           if (facingCamera || (sideView && iso.y >= -0.1)) {
-            const slitW = 6 * wf;
-            g.rect(
-              (head.x - slitW / 2) * s,
-              (head.y + 0.5) * s,
-              slitW * s,
-              1.8 * s
-            );
+            const slitW = 7 * wf;
+            g.rect((head.x - slitW / 2) * s, (head.y + 0.2) * s, slitW * s, 2 * s);
             g.fill(0x111122);
           }
         },

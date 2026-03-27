@@ -21,7 +21,7 @@ export class GauntletsLeather implements Model {
       draw: (g, s) => this.drawGauntlet(g, j, palette, s, farSide),
     });
     calls.push({
-      depth: facingCamera ? 56 : 26,
+      depth: facingCamera ? 60 : 24,
       draw: (g, s) => this.drawGauntlet(g, j, palette, s, nearSide),
     });
 

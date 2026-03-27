@@ -21,7 +21,7 @@ export class HelmHorned implements Model {
 
     return [
       {
-        depth: 52,
+        depth: 54,
         draw: (g: Graphics, s: number) => {
           const cx = head.x;
           const helmColor = palette.body;
@@ -29,20 +29,10 @@ export class HelmHorned implements Model {
           const hornColor = 0xd0c0a0;
           const hornDk = 0xa09070;
 
-          // Helm dome
-          g.ellipse(
-            cx * s,
-            (head.y - 1) * s,
-            (r + 1) * wf * s,
-            (r - 0.5) * s
-          );
-          g.fill(helmColor);
-          g.ellipse(
-            cx * s,
-            (head.y - 1) * s,
-            (r + 1) * wf * s,
-            (r - 0.5) * s
-          );
+          // Helm dome — fully opaque to cover hair/eyes underneath
+          g.ellipse(cx * s, (head.y - 1) * s, (r + 1) * wf * s, (r - 0.5) * s);
+          g.fill(helmColor); // no alpha — fully covers head
+          g.ellipse(cx * s, (head.y - 1) * s, (r + 1) * wf * s, (r - 0.5) * s);
           g.stroke({ width: s * 0.6, color: palette.outline, alpha: 0.45 });
 
           // Nose guard (front view)

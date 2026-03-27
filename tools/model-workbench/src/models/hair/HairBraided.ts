@@ -99,7 +99,7 @@ export class HairBraided implements Model {
     // Back hair cap
     if (!facingCamera) {
       calls.push({
-        depth: 40,
+        depth: 53,
         draw: (g: Graphics, s: number) => {
           g.ellipse(
             head.x * s,
@@ -114,7 +114,7 @@ export class HairBraided implements Model {
 
     // Front bangs and top
     calls.push({
-      depth: 55,
+      depth: 53,
       draw: (g: Graphics, s: number) => {
         if (facingCamera || sideView) {
           // Center-parted bangs

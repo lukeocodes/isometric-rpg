@@ -108,7 +108,7 @@ export class WitchBody implements Model {
     calls.push({ depth: 50, draw: (g, s) => this.drawHead(g, j, skeleton, s) });
 
     // Near arm
-    calls.push({ depth: facingCamera ? 55 : 25, draw: (g, s) => this.drawArm(g, j, skeleton, s, nearSide) });
+    calls.push({ depth: facingCamera ? 59 : 24, draw: (g, s) => this.drawArm(g, j, skeleton, s, nearSide) });
 
     return calls;
   }

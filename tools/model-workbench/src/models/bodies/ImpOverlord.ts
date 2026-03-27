@@ -114,7 +114,7 @@ export class ImpOverlord implements Model {
     calls.push({ depth: 50, draw: (g, s) => this.drawHead(g, j, skeleton, s, SC) });
 
     // Near arm
-    calls.push({ depth: facingCamera ? 55 : 25, draw: (g, s) => this.drawArm(g, j, s, nearSide, SC) });
+    calls.push({ depth: facingCamera ? 59 : 24, draw: (g, s) => this.drawArm(g, j, s, nearSide, SC) });
 
     return calls;
   }

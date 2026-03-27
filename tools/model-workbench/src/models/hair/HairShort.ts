@@ -27,7 +27,7 @@ export class HairShort implements Model {
     // Back hair (depth 40) — visible when facing away from camera
     if (!facingCamera) {
       calls.push({
-        depth: 40,
+        depth: 53,
         draw: (g: Graphics, s: number) => {
           g.ellipse(
             head.x * s,
@@ -43,7 +43,7 @@ export class HairShort implements Model {
     // Front hair / bangs (depth 55) — visible when facing camera or side view
     if (facingCamera || sideView) {
       calls.push({
-        depth: 55,
+        depth: 53,
         draw: (g: Graphics, s: number) => {
           // Bangs
           g.ellipse(
@@ -70,7 +70,7 @@ export class HairShort implements Model {
     } else {
       // From behind — full hair coverage on top
       calls.push({
-        depth: 55,
+        depth: 53,
         draw: (g: Graphics, s: number) => {
           g.ellipse(
             head.x * s,

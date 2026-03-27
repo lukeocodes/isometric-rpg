@@ -32,7 +32,7 @@ export class HairMohawk implements Model {
     // Mohawk ridge — visible from all angles
     // Depth 55 so it's always on top of the head
     calls.push({
-      depth: 55,
+      depth: 53,
       draw: (g: Graphics, s: number) => {
         const ridgeHeight = 7;
         const ridgeW = 2.2; // narrow ridge width

@@ -51,15 +51,19 @@ export function createModelNav(
         btn.textContent = model.name;
         btn.dataset.modelId = model.id;
 
+        // All "root" slot models (playable races + NPCs) use composite view
+        // so their weapon/offhand/headgear attachment slots are shown
+        const isRootModel = model.slot === "root";
+
         const isActive =
           (state.viewMode === "individual" && state.selectedModelId === model.id) ||
-          (state.viewMode === "composite" && model.category === "body" && model.id === state.compositeConfig.baseModelId);
+          (state.viewMode === "composite" && isRootModel && model.id === state.compositeConfig.baseModelId);
 
         if (isActive) btn.classList.add("active");
 
         btn.addEventListener("click", () => {
-          if (model.category === "body") {
-            // Body models show composite view (body + all equipped slots)
+          if (isRootModel) {
+            // Root models (bodies + NPCs) show composite view so slots are visible
             api.setView("composite");
             state.compositeConfig.baseModelId = model.id;
           } else {

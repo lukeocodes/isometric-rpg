@@ -69,7 +69,7 @@ export class SkeletonBody implements Model {
 
     // Near arm
     calls.push({
-      depth: facingCamera ? 55 : 25,
+      depth: facingCamera ? 59 : 24,
       draw: (g, s) => this.drawBoneArm(g, j, s, nearSide),
     });
 

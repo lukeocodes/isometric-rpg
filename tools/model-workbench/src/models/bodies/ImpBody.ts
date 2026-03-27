@@ -78,7 +78,7 @@ export class ImpBody implements Model {
 
     // Near arm
     calls.push({
-      depth: facingCamera ? 55 : 25,
+      depth: facingCamera ? 59 : 24,
       draw: (g, s) => this.drawArm(g, j, s, nearSide),
     });
 

@@ -26,7 +26,7 @@ export class Crown implements Model {
 
     return [
       {
-        depth: 52,
+        depth: 58,
         draw: (g: Graphics, s: number) => {
           const cx = head.x;
           const bandY = head.y - r * 0.4;

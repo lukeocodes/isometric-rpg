@@ -20,7 +20,7 @@ export class HairBald implements Model {
 
     return [
       {
-        depth: 55,
+        depth: 53,
         draw: (g: Graphics, s: number) => {
           // Subtle scalp highlight (shiny bald head)
           if (facingCamera) {
