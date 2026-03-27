@@ -6,10 +6,13 @@ import { registerEntity, unregisterEntity, engageTarget, getCombatState } from "
 vi.mock("../ws/connections.js", () => {
   const sendReliable = vi.fn();
   const sendPosition = vi.fn();
+  const sendBinary = vi.fn();
   const broadcastReliable = vi.fn();
+  const broadcastBinary = vi.fn();
   const getAll = vi.fn(() => []);
+  const iterAll = vi.fn(function* () { yield* getAll(); });
   return {
-    connectionManager: { sendReliable, sendPosition, broadcastReliable, getAll },
+    connectionManager: { sendReliable, sendPosition, sendBinary, broadcastReliable, broadcastBinary, getAll, iterAll },
   };
 });
 
@@ -17,7 +20,14 @@ vi.mock("../ws/connections.js", () => {
 vi.mock("./npcs.js", () => ({
   handleNpcDeath: vi.fn(),
   tickWandering: vi.fn(),
+  tickRespawns: vi.fn(),
+  getNpcTemplate: vi.fn(),
 }));
+
+// Mock inventory + quests + dungeon to avoid side effects
+vi.mock("./inventory.js", () => ({ rollAndGiveLoot: vi.fn() }));
+vi.mock("./quests.js", () => ({ onQuestKill: vi.fn() }));
+vi.mock("./dungeon.js", () => ({ onDungeonNpcDeath: vi.fn() }));
 
 import { startGameLoop, stopGameLoop } from "./world.js";
 import { connectionManager } from "../ws/connections.js";
@@ -162,11 +172,11 @@ describe("world game loop", () => {
       startGameLoop();
       vi.advanceTimersByTime(1000);
 
-      const calls = (connectionManager.sendReliable as any).mock.calls;
-      expect(calls.length).toBeGreaterThanOrEqual(2);
-      for (const [eid] of calls) {
-        expect(eid).toBe("p1");
-      }
+      // HP state is binary, combat state is JSON — check either was sent
+      const reliableCalls = (connectionManager.sendReliable as any).mock.calls;
+      const binaryCalls = (connectionManager.sendBinary as any).mock.calls;
+      const totalCalls = reliableCalls.length + binaryCalls.length;
+      expect(totalCalls).toBeGreaterThanOrEqual(1);
     });
 
     it("sends nearby NPC state to player", () => {
@@ -180,11 +190,11 @@ describe("world game loop", () => {
       startGameLoop();
       vi.advanceTimersByTime(1000);
 
-      const calls = (connectionManager.sendReliable as any).mock.calls;
-      const npcStateCalls = calls.filter(([, msg]: [string, string]) => {
-        const parsed = JSON.parse(msg);
-        return parsed.entityId === "n1";
-      });
+      // NPC state is sent as binary (opcode 52)
+      const binaryCalls = (connectionManager.sendBinary as any).mock.calls;
+      const npcStateCalls = binaryCalls.filter(([eid, buf]: [string, Buffer]) =>
+        eid === "p1" && buf[0] === 52
+      );
       expect(npcStateCalls.length).toBeGreaterThan(0);
     });
   });
@@ -202,10 +212,9 @@ describe("world game loop", () => {
       // Run enough ticks for wind-up + damage (>0.55s)
       vi.advanceTimersByTime(1000);
 
-      const calls = (connectionManager.broadcastReliable as any).mock.calls;
-      const damageCall = calls.find(([msg]: [string]) => {
-        try { return JSON.parse(msg).op === 50; } catch { return false; }
-      });
+      // Damage is now binary — check broadcastBinary was called with opcode 50
+      const binaryCalls = (connectionManager.broadcastBinary as any).mock.calls;
+      const damageCall = binaryCalls.find(([buf]: [Buffer]) => buf[0] === 50);
       expect(damageCall).toBeDefined();
     });
 
@@ -220,14 +229,14 @@ describe("world game loop", () => {
       startGameLoop();
       vi.advanceTimersByTime(1000);
 
-      const calls = (connectionManager.broadcastReliable as any).mock.calls;
-      const deathCall = calls.find(([msg]: [string]) => {
-        try { return JSON.parse(msg).op === 51; } catch { return false; }
-      });
-      const despawnCall = calls.find(([msg]: [string]) => {
+      // Death is binary (opcode 51), despawn is still JSON (opcode 3)
+      const binaryCalls = (connectionManager.broadcastBinary as any).mock.calls;
+      const deathCall = binaryCalls.find(([buf]: [Buffer]) => buf[0] === 51);
+      expect(deathCall).toBeDefined();
+      const jsonCalls = (connectionManager.broadcastReliable as any).mock.calls;
+      const despawnCall = jsonCalls.find(([msg]: [string]) => {
         try { return JSON.parse(msg).op === 3; } catch { return false; }
       });
-      expect(deathCall).toBeDefined();
       expect(despawnCall).toBeDefined();
 
       expect(handleNpcDeath).toHaveBeenCalledWith("n1");

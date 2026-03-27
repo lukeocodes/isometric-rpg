@@ -132,7 +132,7 @@ Priority order (game designer perspective):
 9. ~~Structure pieces~~ — DONE (1fe9cbe). 8 structure types (walls, houses, tower, well, market, gate). Parsed from Tiled objects, rendered as PixiJS composites. 8 structures placed in starter town.
 10. ~~Dungeon instances~~ — DONE (8060fb8). Full loop: entrance on Crossroads → server gen → client renders → boss defeat → exit portal.
 11. **NPC aggro** — DONE (22c6b46). Hostile NPCs detect players within 8 tiles and auto-engage.
-12. ~~Quest system~~ — DONE (9bbac7d). 5 kill quests, server lifecycle, quest UI panel (J key) with progress bars + turn-in. Still needs: quest giver NPCs, quest reward application (XP/items on turn-in).
+12. ~~Quest system~~ — DONE (326f56d). 5 kill quests, quest UI (J key), XP rewards on turn-in, auto-accept on login. Full quest loop complete.
 
 ## Known Issues
 - Hover cursor position uses synthetic pointermove which doesn't work with Playwright (works with real mouse)
