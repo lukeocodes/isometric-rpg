@@ -93,16 +93,7 @@ export class WallE implements Model {
 
     // ── 4. Outer face — topmost main face (iso.y ≥ 0) ────────────────────────
     if (iso.y >= 0) {
-      quad(59, FACE_COL, [OA, OB, lift(OB), lift(OA)], (g, s) => {
-        if (!tex) {
-          for (let i = 1; i < 6; i++) {
-            const t = i / 6;
-            g.moveTo(OA.x * s, (OA.y - STORY_H * t) * s);
-            g.lineTo(OB.x * s, (OB.y - STORY_H * t) * s);
-            g.stroke({ width: s * 0.35, color: TRIM, alpha: 0.25 });
-          }
-        }
-      });
+      quad(59, FACE_COL, [OA, OB, lift(OB), lift(OA)]);
     }
 
     // ── 5. Top cap — above outer face ─────────────────────────────────────────

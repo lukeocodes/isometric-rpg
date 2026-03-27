@@ -102,8 +102,17 @@ export class WallW implements Model {
       quad(50, SIDE_COL, [OB, IB, lift(IB), lift(OB)]);
     }
 
-    // ── 6. Inner face — topmost (mirrors Wall N) ─────────────────────────────
-    quad(60, FACE_COL, [IA, IB, lift(IB), lift(IA)]);
+    // ── 6. Inner face — topmost, with mortar lines ───────────────────────────
+    quad(60, FACE_COL, [IA, IB, lift(IB), lift(IA)], (g, s) => {
+      if (!tex) {
+        for (let i = 1; i < 6; i++) {
+          const t = i / 6;
+          g.moveTo(IA.x * s, (IA.y - STORY_H * t) * s);
+          g.lineTo(IB.x * s, (IB.y - STORY_H * t) * s);
+          g.stroke({ width: s * 0.35, color: TRIM, alpha: 0.25 });
+        }
+      }
+    });
 
     return calls;
   }
