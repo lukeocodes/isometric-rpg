@@ -127,7 +127,7 @@ Priority order (game designer perspective):
 4. ~~Performance pass (critical)~~ — DONE (793f3a7, ae6ff33). Entity cleanup leak, delta broadcasts, awake set cache, particle swap-and-pop, spawn/death RAF→game loop, lerp speed tuning, tick rate alignment.
 5. ~~Performance pass (high pt1)~~ — DONE (e7e4bd1). HP bar dirty flags, respawn queue (no more setTimeout swarm).
 6. ~~Performance pass (high pt2)~~ — DONE (7c9f527). Binary protocol for DAMAGE/STATE/DEATH (90% bandwidth reduction). Zone sharding deferred to architecture phase.
-7. ~~Equipment/inventory/loot~~ — DONE (92ff9fa). Full loop: kill→loot→inventory panel (I key)→equip/unequip→use potions. DB persist on disconnect. Still TODO: apply equipped stat bonuses to combat damage/armor calculations.
+7. ~~Equipment/inventory/loot~~ — DONE (f272ca1). Full loop: kill→loot→inventory (I key)→equip/unequip→use potions→stat bonuses in combat. Equipment damage/armor applied to melee + abilities.
 7. **More zones** — Elf and Orc starter zones (256x256 each), Crossroads convergence zone.
 8. **Structure pieces (walls/buildings)** — Composite containers for buildings.
 9. **Dungeon instances** — Procedural dungeons as instanced zones with boss encounters.

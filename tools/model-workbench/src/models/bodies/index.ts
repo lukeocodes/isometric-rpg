@@ -7,6 +7,7 @@ import { GoblinBody } from "./GoblinBody";
 import { RabbitBody } from "./RabbitBody";
 import { ImpBody } from "./ImpBody";
 import { WolfBody } from "./WolfBody";
+import { OgreBody } from "./OgreBody";
 
 registry.register(new HumanBody());
 registry.register(new ElfBody());
@@ -16,3 +17,4 @@ registry.register(new GoblinBody());
 registry.register(new RabbitBody());
 registry.register(new ImpBody());
 registry.register(new WolfBody());
+registry.register(new OgreBody());

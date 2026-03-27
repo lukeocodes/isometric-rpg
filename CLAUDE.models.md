@@ -12,7 +12,7 @@ Read this file at the start of each model workbench session. Update after signif
 - **Palette** — `computePalette(skin, hair, eyes, primary, secondary, armorType)` generates full color set from base colors + armor material.
 - **Attachment slots** — `root`, `head-top`, `hand-R`, `hand-L`, `torso`, `torso-back`, `legs`, `feet-L`, `feet-R`
 
-## Current State (2026-03-27, session 5)
+## Current State (2026-03-27, session 6)
 
 ### Workbench UI
 - [x] 3-panel layout: left nav (model browser), center (PixiJS canvas), right (config panel)
@@ -87,6 +87,10 @@ Read this file at the start of each model workbench session. Update after signif
 
 #### Off-hand
 - [x] Kite Shield
+- [x] Tower Shield — tall rectangular, metal rim, center boss, corner rivets, cross bands
+- [x] Buckler — small round, inner ring, center boss, 6 decorative edge rivets
+- [x] Spell Tome — open book with cream pages, cover emblem with glow, bookmark ribbon, corner clasps
+- [x] Torch — wooden handle with wrapped grip, charred top, animated flickering flame (orange/yellow/white layers), glow halo
 
 ### Missing (priority order)
 
@@ -117,14 +121,14 @@ Read this file at the start of each model workbench session. Update after signif
 - [ ] Elven armor set
 
 #### Additional weapons/offhand (LOW)
-- [ ] Tower shield
-- [ ] Buckler
-- [ ] Tome (offhand)
-- [ ] Torch (offhand)
+- [x] Tower shield — DONE
+- [x] Buckler — DONE
+- [x] Tome (offhand) — DONE
+- [x] Torch (offhand) — DONE
 
 #### NPC/Monster models (MEDIUM)
 - [x] Imp — DONE. Dark red body, bat wings with flap animation, curved horns, glowing yellow slit-pupil eyes, arrow-tipped tail with sway, fangs. Can hold weapons.
-- [ ] Ogre — large, bulky
+- [x] Ogre — DONE. Massive grey-green body (1.5x width), barrel torso, tree-trunk limbs, heavy brow, tusks, warts, beady eyes. Can hold weapons.
 - [ ] Wraith — ethereal, translucent
 - [x] Wolf — DONE. Four-legged grey predator, snout, pointed ears, amber eyes, bushy tail with sway, shoulder hump, trotting gait. No weapon slots.
 - [ ] Bear — large four-legged
@@ -144,6 +148,7 @@ Priority for each session (tackle 1-2 items per run):
 6. ~~Gauntlet + shoulder armor~~ — DONE (8 models: 4 shoulders + 4 gauntlets). Full armor sets complete!
 7. ~~More NPC models (imp, wolf)~~ — DONE (2 new NPCs)
 8. ~~Auto-equip matching armor set~~ — DONE (clicking armor type equips full set: head, shoulders, torso, gauntlets, legs, boots)
-9. Remaining NPC models (ogre, wraith, bear, boss variants)
-10. Additional offhand items (tower shield, buckler, tome, torch)
-11. Armor race variants (dragon, skeleton, ogre, elven)
+9. ~~Additional offhand items~~ — DONE (tower shield, buckler, tome, torch)
+10. ~~Ogre NPC~~ — DONE
+11. Remaining NPC models (wraith, bear, boss variants)
+12. Armor race variants (dragon, skeleton, ogre, elven)

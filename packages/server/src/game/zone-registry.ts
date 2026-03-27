@@ -70,15 +70,17 @@ registerZone({
   },
 });
 
-// Elf starter (placeholder — map not yet created)
-// registerZone({
-//   id: "elf-grove",
-//   name: "Eldergrove",
-//   mapFile: "elf-grove.json",
-//   levelRange: [1, 5],
-//   musicTag: "forest",
-//   exits: { "exit-to-crossroads": { targetZone: "crossroads", spawnX: 128, spawnZ: 20 } },
-// });
+// Elf starter
+registerZone({
+  id: "elf-grove",
+  name: "Eldergrove",
+  mapFile: "elf-grove.json",
+  levelRange: [1, 5],
+  musicTag: "forest",
+  exits: {
+    "exit-to-crossroads": { targetZone: "crossroads", spawnX: 128, spawnZ: 20 },
+  },
+});
 
 // Orc starter (placeholder)
 // registerZone({
