@@ -214,8 +214,8 @@ export class RabbitBody implements Model {
     walkPhase: number,
     s: number
   ): void {
-    const earW = 2.2;
-    const earH = 8;
+    const earW = 3.2;
+    const earH = 13;
     const earSway = walkPhase !== 0 ? Math.sin(walkPhase * 1.5) * 0.5 : 0;
 
     for (const side of [-1, 1]) {

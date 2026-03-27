@@ -188,8 +188,8 @@ export class KingRabbit implements Model {
   getAttachmentPoints(): Record<string, AttachmentPoint> { return {}; }
 
   private drawEars(g: Graphics, headX: number, headY: number, iso: V, wf: number, walkPhase: number, SC: number, s: number): void {
-    const earW = 2.2 * SC;
-    const earH = 10 * SC;
+    const earW = 3.2 * SC;
+    const earH = 15 * SC;
     const earSway = walkPhase !== 0 ? Math.sin(walkPhase * 1.5) * 0.5 : 0;
 
     for (const side of [-1, 1]) {
