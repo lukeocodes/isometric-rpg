@@ -9,7 +9,11 @@ export const TILE_HEIGHT_HALF = TILE_HEIGHT / 2;
 // How many pixels one unit of elevation offsets a tile upward
 export const ELEVATION_PX = 16;
 
-/** Convert world tile coords + elevation to screen pixel coords */
+/**
+ * Convert world tile coords + elevation to screen pixel coords.
+ * Integer tile coords map to the CENTRE of that tile's diamond.
+ * (tile 0,0 centre = screen origin; tile 1,0 centre = +32,+16; etc.)
+ */
 export function worldToScreen(
   tileX: number,
   tileZ: number,
@@ -17,7 +21,7 @@ export function worldToScreen(
 ): { sx: number; sy: number } {
   return {
     sx: (tileX - tileZ) * TILE_WIDTH_HALF,
-    sy: (tileX + tileZ) * TILE_HEIGHT_HALF - elevation * ELEVATION_PX,
+    sy: (tileX + tileZ + 1) * TILE_HEIGHT_HALF - elevation * ELEVATION_PX,
   };
 }
 
@@ -26,9 +30,10 @@ export function screenToWorld(
   sx: number,
   sy: number,
 ): { tileX: number; tileZ: number } {
-  // Inverse of the iso projection
-  const tileX = (sx / TILE_WIDTH_HALF + sy / TILE_HEIGHT_HALF) / 2;
-  const tileZ = (sy / TILE_HEIGHT_HALF - sx / TILE_WIDTH_HALF) / 2;
+  // Inverse: adjust for the +TILE_HEIGHT_HALF centre offset then un-project
+  const adjustedSy = sy - TILE_HEIGHT_HALF;
+  const tileX = (sx / TILE_WIDTH_HALF + adjustedSy / TILE_HEIGHT_HALF) / 2;
+  const tileZ = (adjustedSy / TILE_HEIGHT_HALF - sx / TILE_WIDTH_HALF) / 2;
   return { tileX, tileZ };
 }
 
