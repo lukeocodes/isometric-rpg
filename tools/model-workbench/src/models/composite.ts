@@ -76,12 +76,12 @@ export function renderComposite(
     const childModel = registry.get(att.modelId);
     if (!childModel) continue;
 
-    // Look up the body's attachment point for this slot
+    // Skip if the body has no attachment point for this slot
     const bodyAP = bodyAttachments[att.slot];
-    const bodyParams = bodyAP?.params ?? DEFAULT_SLOT_PARAMS;
+    if (!bodyAP) continue;
 
-    // Merge with any per-slot overrides from the config
-    const resolvedParams = resolveSlotParams(bodyParams, att.overrides);
+    // Merge body-defined params with any per-slot overrides from the config
+    const resolvedParams = resolveSlotParams(bodyAP.params, att.overrides);
 
     const childCtx: RenderContext = { ...baseCtx, slotParams: resolvedParams };
     calls.push(...childModel.getDrawCalls(childCtx));
