@@ -626,7 +626,7 @@ export class Game {
       // Update click-to-move marker
       if (this.moveMarker) {
         if (this.moveGoal) {
-          const { sx: msx, sy: msy } = worldToScreen(this.moveGoal.x + 0.5, this.moveGoal.z + 0.5, 0);
+          const { sx: msx, sy: msy } = worldToScreen(this.moveGoal.x, this.moveGoal.z, 0);
           this.moveMarker.position.set(msx, msy);
           this.moveMarker.visible = true;
         } else {
@@ -644,7 +644,7 @@ export class Game {
         const { tileX, tileZ } = screenToWorld(worldPxX, worldPxY);
         const snappedX = Math.round(tileX);
         const snappedZ = Math.round(tileZ);
-        const { sx, sy } = worldToScreen(snappedX + 0.5, snappedZ + 0.5, 0);
+        const { sx, sy } = worldToScreen(snappedX, snappedZ, 0);
         this.hoverCursor.position.set(sx, sy);
       }
 
@@ -1187,7 +1187,7 @@ export class Game {
     const tileX = Math.round(this.spawnPosition.x);
     const tileZ = Math.round(this.spawnPosition.z);
     const terrainY = this.chunkManager.getTerrainY(tileX, tileZ);
-    this.entityManager.addComponent(characterId, createPosition(tileX + 0.5, terrainY, tileZ + 0.5));
+    this.entityManager.addComponent(characterId, createPosition(tileX, terrainY, tileZ));
     this.entityManager.addComponent(characterId, createMovement(PLAYER_SPEED, tileX, tileZ));
     this.entityManager.addComponent(characterId, createRenderable("player", "#4466aa", "#e8c4a0", "#2c1b0e"));
     this.entityManager.addComponent(characterId, createStats(10, 10, 10));
