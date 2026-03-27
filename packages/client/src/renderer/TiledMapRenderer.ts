@@ -258,6 +258,11 @@ export class TiledMapRenderer {
     return this.groundData[tileZ * this.mapWidth + tileX];
   }
 
+  /** Set render radius based on zoom level — lower zoom needs more tiles */
+  setZoom(zoom: number): void {
+    this.renderRadius = Math.ceil(24 / Math.max(0.5, zoom));
+  }
+
   /** Update visible tiles around the camera center */
   update(centerX: number, centerZ: number): void {
     const cx = Math.floor(centerX);

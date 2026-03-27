@@ -36,3 +36,6 @@ import { ElderBear } from "./ElderBear";
 registry.register(new GoblinChieftain());
 registry.register(new ImpOverlord());
 registry.register(new ElderBear());
+
+import { GnomeBody } from "./GnomeBody";
+registry.register(new GnomeBody());

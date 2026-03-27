@@ -11,7 +11,7 @@
  */
 
 import { entityStore, type ServerEntity } from "./entities.js";
-import { registerEntity, unregisterEntity, disengage, getCombatState } from "./combat.js";
+import { registerEntity, unregisterEntity, disengage, engageTarget, getCombatState } from "./combat.js";
 import { connectionManager } from "../ws/connections.js";
 import { packEntitySpawn, packEntityDespawn } from "./protocol.js";
 import { NPC_TEMPLATES, rollStat, type NPCTemplate } from "./npc-templates.js";
@@ -134,8 +134,12 @@ export function tickRespawns(): void {
   }
 }
 
-/** Tick wandering for all alive NPCs */
+const AGGRO_RADIUS = 8;
+let tickCounter = 0;
+
+/** Tick wandering + aggro for all alive NPCs */
 export function tickWandering(dt: number) {
+  tickCounter++;
   for (const [entityId, spawned] of spawnedNPCs) {
     if (!spawned.alive) continue;
 
@@ -143,10 +147,29 @@ export function tickWandering(dt: number) {
     if (!entity) continue;
 
     const template = NPC_TEMPLATES[spawned.templateId];
-    if (!template?.wanders) continue;
+    if (!template) continue;
+
+    const combat = getCombatState(entityId);
+
+    // Aggro: aggressive NPCs target nearby players (stagger by entity hash to spread load)
+    const aggroThisTick = template.aggressive && !combat?.autoAttacking &&
+      ((entity.x * 7 + entity.z * 13 + tickCounter) % 10 === 0);
+    if (aggroThisTick) {
+      for (const other of entityStore.iterNearbyEntities(entity.x, entity.z, AGGRO_RADIUS)) {
+        if (other.entityType !== "player") continue;
+        if (other.mapId !== entity.mapId) continue;
+        const d = Math.max(Math.abs(entity.x - other.x), Math.abs(entity.z - other.z));
+        if (d <= AGGRO_RADIUS) {
+          // Engage the player
+          engageTarget(entityId, other.entityId);
+          break;
+        }
+      }
+    }
+
+    if (!template.wanders) continue;
 
     // Don't wander if in combat
-    const combat = getCombatState(entityId);
     if (combat?.inCombat) continue;
 
     const point = spawnPoints.get(spawned.spawnPointId);

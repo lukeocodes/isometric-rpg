@@ -413,6 +413,7 @@ export class Game {
       e.preventDefault();
       const delta = e.deltaY > 0 ? -0.15 : 0.15;
       this.camera.setZoom(this.camera.getZoom() + delta);
+      if (this.tiledMap) this.tiledMap.setZoom(this.camera.getZoom());
     }, { passive: false });
   }
 
