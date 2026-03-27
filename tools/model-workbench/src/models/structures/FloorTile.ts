@@ -31,16 +31,17 @@ const TRIM = 0x3a3028;
 
 type V = { x: number; y: number };
 
-// Tile diamond corners
+// Ground-level tile diamond corners (bottom of the slab)
 const N: V = { x:  0,   y: -H2  };  // north  ( 0, −11)
 const E: V = { x:  T,   y:  0   };  // east   (22,   0)
 const S: V = { x:  0,   y:  H2  };  // south  ( 0, +11)
 const W: V = { x: -T,   y:  0   };  // west   (−22,  0)
 
-// Bottom of each corner (shifted down by H)
-const Sd: V = { x:  0,   y:  H2+H };  // south bottom ( 0, 13)
-const Wd: V = { x: -T,   y:  H    };  // west  bottom (−22, 2)
-const Ed: V = { x:  T,   y:  H    };  // east  bottom (22,  2)
+// Top-surface corners — lifted UP by H (the raised slab top face)
+const Nt: V = { x:  0,   y: -H2-H };  // north top ( 0, −13)
+const Et: V = { x:  T,   y:  -H   };  // east  top (22,  −2)
+const St: V = { x:  0,   y:  H2-H };  // south top ( 0,   9)
+const Wt: V = { x: -T,   y:  -H   };  // west  top (−22, −2)
 
 export class FloorTile implements Model {
   readonly id         = "floor-tile";
@@ -87,14 +88,14 @@ export class FloorTile implements Model {
       });
     };
 
-    // ── Right side strip (SE edge, darker — in shadow from above-right) ──────
-    quad(10, SIDE_COL, [S, E, Ed, Sd]);
+    // ── Right side strip (SE edge: ground → top, in shadow) ──────────────────
+    quad(10, SIDE_COL, [S, E, Et, St]);
 
-    // ── Left side strip (SW edge) ─────────────────────────────────────────────
-    quad(11, FACE_COL, [W, S, Sd, Wd]);
+    // ── Left side strip (SW edge: ground → top) ───────────────────────────────
+    quad(11, FACE_COL, [W, S, St, Wt]);
 
-    // ── Top face (full tile diamond, lightest) ────────────────────────────────
-    quad(20, TOP_COL, [N, E, S, W]);
+    // ── Top face (lifted diamond, lightest) ───────────────────────────────────
+    quad(20, TOP_COL, [Nt, Et, St, Wt]);
 
     return calls;
   }
