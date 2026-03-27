@@ -82,15 +82,17 @@ registerZone({
   },
 });
 
-// Orc starter (placeholder)
-// registerZone({
-//   id: "orc-wastes",
-//   name: "Bloodstone Wastes",
-//   mapFile: "orc-wastes.json",
-//   levelRange: [1, 5],
-//   musicTag: "desert",
-//   exits: { "exit-to-crossroads": { targetZone: "crossroads", spawnX: 236, spawnZ: 128 } },
-// });
+// Orc starter
+registerZone({
+  id: "orc-wastes",
+  name: "Bloodstone Wastes",
+  mapFile: "orc-wastes.json",
+  levelRange: [1, 5],
+  musicTag: "desert",
+  exits: {
+    "exit-to-crossroads": { targetZone: "crossroads", spawnX: 236, spawnZ: 128 },
+  },
+});
 
 // Crossroads — all races converge here at level 5
 // registerZone({
