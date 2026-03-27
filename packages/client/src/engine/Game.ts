@@ -251,14 +251,12 @@ export class Game {
       if (mov) { mov.tileX = Math.round(x); mov.tileZ = Math.round(z); mov.moving = false; }
       this.movePath = [];
       const stats = this.entityManager.getComponent<StatsComponent>(this.localEntityId, "stats");
-      if (stats) {
-        stats.hp = hp;
-        stats.maxHp = maxHp;
-      }
+      const wasDead = stats && stats.hp <= 0;
+      if (stats) { stats.hp = hp; stats.maxHp = maxHp; }
       // Clear combat state
       this.selectTarget(null);
       this.entityRenderer.setAutoAttacking(false);
-      if (this.hud) {
+      if (wasDead && this.hud) {
         this.hud.showZoneNotification("You have been resurrected");
       }
     });
