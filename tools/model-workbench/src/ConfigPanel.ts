@@ -129,49 +129,6 @@ export function createConfigPanel(
     divider.className = "section-divider";
     container.appendChild(divider);
 
-    // Armor type (drives palette)
-    appendHeading("Armor Type");
-    const armorTypes: ArmorType[] = ["none", "cloth", "leather", "mail", "plate"];
-    createRadioGroup("armorType", armorTypes, armorType, (v) => {
-      armorType = v as ArmorType;
-      rebuildPalette();
-
-      // Full armor set mapping per type
-      const sets: Record<string, Record<string, string | null>> = {
-        none: { torso: null, shoulders: null, gauntlets: null, legs: null, "feet-L": null },
-        cloth: { torso: "armor-cloth", shoulders: "shoulders-cloth", gauntlets: "gauntlets-cloth", legs: "legs-cloth", "feet-L": "boots-cloth" },
-        leather: { torso: "armor-leather", shoulders: "shoulders-leather", gauntlets: "gauntlets-leather", legs: "legs-leather", "feet-L": "boots-leather" },
-        mail: { torso: "armor-mail", shoulders: "shoulders-mail", gauntlets: "gauntlets-mail", legs: "legs-mail", "feet-L": "boots-mail" },
-        plate: { torso: "armor-plate", shoulders: "shoulders-plate", gauntlets: "gauntlets-plate", legs: "legs-plate", "feet-L": "boots-plate" },
-      };
-
-      const set = sets[v];
-      if (set) {
-        // Only apply slots that the base model actually exposes
-        const baseModel = registry.get(state.compositeConfig.baseModelId);
-        const skeleton = computeHumanoidSkeleton(0 as Direction, 0);
-        const availableSlots = new Set(
-          Object.keys(baseModel?.getAttachmentPoints(skeleton) ?? {})
-        );
-
-        for (const [slot, modelId] of Object.entries(set)) {
-          if (availableSlots.has(slot)) {
-            api.setSlot(slot, modelId);
-          }
-        }
-      }
-
-      // Head slot: plate→helmet, mail→coif, else→keep hair
-      if (v === "plate") api.setSlot("head-top", "helmet-plate");
-      else if (v === "mail") api.setSlot("head-top", "coif-mail");
-      else {
-        const hasHair = state.compositeConfig.attachments.some(
-          (a) => a.slot === "head-top" && a.modelId.startsWith("hair-")
-        );
-        if (!hasHair) api.setSlot("head-top", "hair-short");
-      }
-    });
-
     // Get attachment slots from base model
     const baseModel = registry.get(state.compositeConfig.baseModelId);
     if (!baseModel) return;
