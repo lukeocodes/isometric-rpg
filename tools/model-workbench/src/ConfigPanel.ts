@@ -110,14 +110,24 @@ export function createConfigPanel(
     createRadioGroup("armorType", armorTypes, armorType, (v) => {
       armorType = v as ArmorType;
       rebuildPalette();
-      const armorMap: Record<string, string | null> = {
-        none: null,
-        cloth: "armor-cloth",
-        leather: "armor-leather",
-        mail: "armor-mail",
-        plate: "armor-plate",
+
+      // Full armor set mapping per type
+      const sets: Record<string, Record<string, string | null>> = {
+        none: { torso: null, shoulders: null, gauntlets: null, legs: null, "feet-L": null },
+        cloth: { torso: "armor-cloth", shoulders: "shoulders-cloth", gauntlets: "gauntlets-cloth", legs: "legs-cloth", "feet-L": "boots-cloth" },
+        leather: { torso: "armor-leather", shoulders: "shoulders-leather", gauntlets: "gauntlets-leather", legs: "legs-leather", "feet-L": "boots-leather" },
+        mail: { torso: "armor-mail", shoulders: "shoulders-mail", gauntlets: "gauntlets-mail", legs: "legs-mail", "feet-L": "boots-mail" },
+        plate: { torso: "armor-plate", shoulders: "shoulders-plate", gauntlets: "gauntlets-plate", legs: "legs-plate", "feet-L": "boots-plate" },
       };
-      api.setSlot("torso", armorMap[v] ?? null);
+
+      const set = sets[v];
+      if (set) {
+        for (const [slot, modelId] of Object.entries(set)) {
+          api.setSlot(slot, modelId);
+        }
+      }
+
+      // Head slot: plate→helmet, mail→coif, else→keep hair
       if (v === "plate") api.setSlot("head-top", "helmet-plate");
       else if (v === "mail") api.setSlot("head-top", "coif-mail");
       else {

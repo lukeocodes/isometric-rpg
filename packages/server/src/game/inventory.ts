@@ -148,6 +148,73 @@ export async function saveInventory(entityId: string): Promise<void> {
   entityToCharacter.delete(entityId);
 }
 
+/** Equip an item by inventory row ID. Unequips existing item in that slot. */
+export function equipItem(entityId: string, inventoryId: string): boolean {
+  const charId = entityToCharacter.get(entityId);
+  if (!charId) return false;
+  const inventory = inventories.get(charId);
+  if (!inventory) return false;
+
+  const item = inventory.find(s => s.id === inventoryId);
+  if (!item || item.equipped) return false;
+
+  const template = getItem(item.itemId);
+  if (!template?.slot) return false; // Not equippable
+
+  // Unequip existing item in that slot
+  const existing = inventory.find(s => s.equipped && s.slot === template.slot);
+  if (existing) {
+    existing.equipped = false;
+    existing.slot = null;
+  }
+
+  item.equipped = true;
+  item.slot = template.slot;
+  sendInventory(entityId);
+  return true;
+}
+
+/** Unequip an item by inventory row ID */
+export function unequipItem(entityId: string, inventoryId: string): boolean {
+  const charId = entityToCharacter.get(entityId);
+  if (!charId) return false;
+  const inventory = inventories.get(charId);
+  if (!inventory) return false;
+
+  const item = inventory.find(s => s.id === inventoryId);
+  if (!item || !item.equipped) return false;
+
+  item.equipped = false;
+  item.slot = null;
+  sendInventory(entityId);
+  return true;
+}
+
+/** Use a consumable item */
+export function useItem(entityId: string, inventoryId: string): { healAmount: number } | null {
+  const charId = entityToCharacter.get(entityId);
+  if (!charId) return null;
+  const inventory = inventories.get(charId);
+  if (!inventory) return null;
+
+  const idx = inventory.findIndex(s => s.id === inventoryId);
+  if (idx === -1) return null;
+  const item = inventory[idx];
+
+  const template = getItem(item.itemId);
+  if (!template || template.type !== "consumable") return null;
+
+  // Consume: reduce quantity or remove
+  if (item.quantity > 1) {
+    item.quantity--;
+  } else {
+    inventory.splice(idx, 1);
+  }
+
+  sendInventory(entityId);
+  return { healAmount: template.healAmount ?? 0 };
+}
+
 /** Get a player's equipped item bonuses */
 export function getEquippedBonuses(entityId: string): {
   bonusDamage: number; bonusArmor: number; bonusHp: number;

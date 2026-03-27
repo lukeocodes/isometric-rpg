@@ -638,6 +638,23 @@ export class Game {
     hud.setOnAutoAttackToggle(() => this.handleToggleAutoAttack());
     hud.setOnAbilityUse((slot) => this.handleAbilityUse(slot));
 
+    // Wire inventory actions
+    hud.inventory.setOnEquip((id) => {
+      if (this.network?.isConnected()) {
+        this.network.sendReliable(packReliable(Opcode.EQUIP_ITEM, { inventoryId: id }));
+      }
+    });
+    hud.inventory.setOnUnequip((id) => {
+      if (this.network?.isConnected()) {
+        this.network.sendReliable(packReliable(Opcode.UNEQUIP_ITEM, { inventoryId: id }));
+      }
+    });
+    hud.inventory.setOnUseItem((id) => {
+      if (this.network?.isConnected()) {
+        this.network.sendReliable(packReliable(Opcode.USE_ITEM, { inventoryId: id }));
+      }
+    });
+
     // Wire chat send
     hud.chatBox.setOnSend((text) => {
       if (this.network?.isConnected()) {

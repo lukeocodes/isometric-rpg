@@ -17,7 +17,7 @@ import { getOrGenerateChunkHeights } from "../world/chunk-cache.js";
 import { generateTileHeight, CONTINENTAL_SCALE } from "../world/terrain-noise.js";
 import { isInTiledMap } from "../world/tiled-map.js";
 import { initPlayerProgress, removePlayerProgress, handleKill } from "../game/world.js";
-import { loadInventory, saveInventory, sendInventory } from "../game/inventory.js";
+import { loadInventory, saveInventory, sendInventory, equipItem, unequipItem, useItem } from "../game/inventory.js";
 import { db } from "../db/postgres.js";
 import { characters } from "../db/schema.js";
 import { eq } from "drizzle-orm";
@@ -300,6 +300,23 @@ export async function rtcRoutes(app: FastifyInstance) {
           const senderName = entity.name || "Unknown";
           const chatMsg = JSON.stringify({ op: 20, senderId: entityId, senderName, text });
           connectionManager.broadcastReliable(chatMsg);
+        } else if (parsed.op === Opcode.EQUIP_ITEM && parsed.inventoryId) {
+          equipItem(entityId, parsed.inventoryId);
+        } else if (parsed.op === Opcode.UNEQUIP_ITEM && parsed.inventoryId) {
+          unequipItem(entityId, parsed.inventoryId);
+        } else if (parsed.op === Opcode.USE_ITEM && parsed.inventoryId) {
+          const result = useItem(entityId, parsed.inventoryId);
+          if (result && result.healAmount > 0) {
+            const selfCombat = getCombatState(entityId);
+            if (selfCombat && selfCombat.hp < selfCombat.maxHp) {
+              const healAmount = Math.min(result.healAmount, selfCombat.maxHp - selfCombat.hp);
+              selfCombat.hp += healAmount;
+              connectionManager.sendBinary(entityId,
+                packBinaryState(entityId, selfCombat.hp, selfCombat.maxHp));
+              connectionManager.broadcastBinary(
+                packBinaryState(entityId, selfCombat.hp, selfCombat.maxHp), entityId);
+            }
+          }
         } else if (parsed.op === Opcode.ZONE_CHANGE_REQUEST && parsed.exitId) {
           // Zone transition: validate exit, move entity, notify client
           const currentZone = getZone(entity.mapId === 1 ? "human-meadows" : `zone-${entity.mapId}`);

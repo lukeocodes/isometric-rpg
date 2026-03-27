@@ -12,7 +12,7 @@ Read this file at the start of each model workbench session. Update after signif
 - **Palette** — `computePalette(skin, hair, eyes, primary, secondary, armorType)` generates full color set from base colors + armor material.
 - **Attachment slots** — `root`, `head-top`, `hand-R`, `hand-L`, `torso`, `torso-back`, `legs`, `feet-L`, `feet-R`
 
-## Current State (2026-03-27, session 3)
+## Current State (2026-03-27, session 4)
 
 ### Workbench UI
 - [x] 3-panel layout: left nav (model browser), center (PixiJS canvas), right (config panel)
@@ -57,6 +57,18 @@ Read this file at the start of each model workbench session. Update after signif
 - [x] Mail Chausses — chain ring pattern, metal knee cop, mail skirt waist
 - [x] Plate Greaves — full plate cuisses + greaves, articulated knee cop, tasset plates, shin ridge
 
+#### Armor — Shoulders
+- [x] Cloth Mantle — flowing cloth drape over shoulder, edge stitch
+- [x] Leather Spaulders — rounded hardened leather, studs, stitching, edge band
+- [x] Mail Mantlets — chain mail drape, ring pattern, leather edge band
+- [x] Plate Pauldrons — layered plates, raised rim, segmentation lines, center rivet
+
+#### Armor — Gauntlets
+- [x] Cloth Wrappings — wrapped forearm bands, wrapped hand
+- [x] Leather Bracers — wrist guard, buckle strap, leather glove
+- [x] Mail Mittens — chain ring forearm, padded elbow cuff, mail mitten
+- [x] Plate Gauntlets — articulated vambrace, elbow cop with rivet, plate hand with finger plates, wrist flare
+
 #### Armor — Boots
 - [x] Cloth Wraps — ankle wraps, cross-bands
 - [x] Leather Boots — mid-calf shaft, buckle strap, fold top, thick sole
@@ -95,8 +107,8 @@ Read this file at the start of each model workbench session. Update after signif
 #### Armor pieces beyond torso (MEDIUM)
 - [x] Leg armor (cloth/leather/mail/plate) — DONE
 - [x] Boot armor (cloth/leather/mail/plate) — DONE
-- [ ] Gauntlet armor (cloth/leather/mail/plate)
-- [ ] Shoulder armor (cloth/leather/mail/plate)
+- [x] Gauntlet armor (cloth/leather/mail/plate) — DONE
+- [x] Shoulder armor (cloth/leather/mail/plate) — DONE
 
 #### Armor race/theme variants (LOW)
 - [ ] Dragon armor set
@@ -129,7 +141,8 @@ Priority for each session (tackle 1-2 items per run):
 3. ~~NPC body models (skeleton, goblin, rabbit)~~ — DONE
 4. ~~Armor leg/boot pieces~~ — DONE (8 models: 4 legs + 4 boots)
 5. ~~Clean up legacy files~~ — DONE (CharacterModel.ts, Controls.ts deleted)
-6. Gauntlet + shoulder armor (completes full armor sets)
+6. ~~Gauntlet + shoulder armor~~ — DONE (8 models: 4 shoulders + 4 gauntlets). Full armor sets complete!
 7. More NPC models (imp, ogre, wraith, wolf, bear)
 8. Additional offhand items (tower shield, buckler, tome, torch)
 9. Armor race variants (dragon, skeleton, ogre, elven)
+10. Auto-equip matching armor set when armor type radio changes (currently only changes torso+head)
