@@ -100,6 +100,8 @@ export interface RenderContext {
    * Equipment models use this for all scaling — never hardcode dimensions.
    */
   slotParams: SlotParams;
+  /** Optional texture for construction models (PixiJS Texture, typed as unknown to avoid import) */
+  texture?: unknown;
 }
 
 /** Convenience: neutral slot params (no scaling, no offset) */

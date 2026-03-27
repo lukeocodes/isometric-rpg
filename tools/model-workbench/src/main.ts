@@ -1,4 +1,4 @@
-import { Application, Graphics, Text, TextStyle, Container } from "pixi.js";
+import { Application, Graphics, Text, TextStyle, Container, Texture, Assets } from "pixi.js";
 import { DIRECTION_NAMES, DIRECTION_COUNT, FRAME_W, FRAME_H } from "./models/types";
 import type { CompositeConfig, AttachmentSlot, ModelPalette } from "./models/types";
 import { computePalette } from "./models/palette";
@@ -218,7 +218,26 @@ async function main() {
     }
   }
 
+  // Cache for construction texture: url → Texture
+  let _texUrl: string | null = null;
+  let _tex: Texture | null = null;
+
+  async function loadConstructionTexture(url: string): Promise<Texture> {
+    if (url !== _texUrl) {
+      _texUrl = url;
+      _tex = await Assets.load<Texture>(url);
+    }
+    return _tex!;
+  }
+
   function renderFrame(g: Graphics, dir: number, phase: number, scale: number): void {
+    const texUrl = (state as any)._constructionTextureUrl as string | null;
+    const tex = texUrl === _texUrl ? _tex : null;
+    // Kick off async load without blocking render
+    if (texUrl && texUrl !== _texUrl) {
+      loadConstructionTexture(texUrl).catch(() => {});
+    }
+
     if (state.viewMode === "composite") {
       renderComposite(g, state.compositeConfig, dir, phase, scale);
     } else if (state.selectedModelId) {
@@ -229,7 +248,8 @@ async function main() {
         dir,
         phase,
         scale,
-        state.showGhostBody
+        state.showGhostBody,
+        tex ?? undefined
       );
     }
   }

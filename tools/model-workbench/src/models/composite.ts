@@ -105,10 +105,11 @@ export function renderModel(
   dir: Direction | number,
   walkPhase: number,
   scale: number,
-  showGhostBody: boolean = false
+  showGhostBody: boolean = false,
+  texture?: unknown
 ): void {
   const skeleton = computeHumanoidSkeleton(dir as Direction, walkPhase);
-  const ctx = buildBaseContext(skeleton, palette);
+  const ctx = { ...buildBaseContext(skeleton, palette), texture };
 
   const calls: DrawCall[] = [];
 

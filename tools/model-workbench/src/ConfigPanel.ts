@@ -77,13 +77,16 @@ export function createConfigPanel(
     }
     container.appendChild(infoLabel);
 
+    const isConstruction = !isComposite && selectedModel?.category === "construction";
+    const isStatic       = !isComposite && selectedModel?.isAnimated === false;
+
     // ─── Slot dropdowns (composite view) ───
     if (isComposite) {
       buildSlotDropdowns();
     }
 
-    // ─── Ghost body toggle (individual view) ───
-    if (!isComposite && selectedModel && selectedModel.category !== "body") {
+    // ─── Ghost body toggle (individual, non-body, non-construction) ───
+    if (!isComposite && selectedModel && selectedModel.category !== "body" && !isConstruction) {
       const div = document.createElement("div");
       div.className = "control-group";
       div.style.marginBottom = "10px";
@@ -104,12 +107,13 @@ export function createConfigPanel(
     }
 
     // ─── Colors ───
-    buildColorPickers();
+    if (isConstruction) {
+      buildConstructionControls();
+    } else {
+      buildColorPickers();
+    }
 
-    // ─── Animation (hidden for static/non-animated models) ───
-    const isStatic = !isComposite &&
-      selectedModel != null &&
-      selectedModel.isAnimated === false;
+    // ─── Animation (hidden for static models) ───
     if (!isStatic) {
       buildAnimationControls();
     }
@@ -241,6 +245,73 @@ export function createConfigPanel(
     createSlider("Height", state.compositeConfig.height ?? 1, 0.85, 1.15, 0.05, (v) => {
       state.compositeConfig.height = v;
     });
+  }
+
+  function buildConstructionControls() {
+    const divider = document.createElement("div");
+    divider.className = "section-divider";
+    container.appendChild(divider);
+
+    const CONSTRUCTION_DEFAULT_PRIMARY = 0xc4b8aa;
+
+    appendHeading("Color");
+    createColorPicker("Primary", state.compositeConfig.palette.primary, (v) => {
+      state.compositeConfig.palette.primary = v;
+    });
+
+    const resetDiv = document.createElement("div");
+    resetDiv.className = "control-group";
+    const resetBtn = document.createElement("button");
+    resetBtn.textContent = "Reset to default";
+    resetBtn.style.cssText = "width:auto;padding:3px 10px;font-size:11px;background:#444;";
+    resetBtn.addEventListener("click", () => {
+      state.compositeConfig.palette.primary = CONSTRUCTION_DEFAULT_PRIMARY;
+      rebuild();
+    });
+    resetDiv.appendChild(resetBtn);
+    container.appendChild(resetDiv);
+
+    appendHeading("Texture");
+    const div = document.createElement("div");
+    div.className = "control-group";
+    div.style.flexDirection = "column";
+    div.style.alignItems = "flex-start";
+    div.style.gap = "6px";
+
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "image/*";
+    fileInput.style.cssText = "font-size:11px;color:#aaa;width:100%;";
+
+    const statusLbl = document.createElement("span");
+    statusLbl.style.cssText = "font-size:10px;color:#666;";
+    statusLbl.textContent = "No texture";
+
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files?.[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      // Store on state for the renderer to pick up
+      (state as any)._constructionTextureUrl = url;
+      statusLbl.textContent = file.name;
+      api.onChange(() => {}); // trigger re-render by notifying (no-op listener)
+      // Directly notify: force a redraw by touching walkPhase
+      (state as any)._constructionTextureUrl = url;
+    });
+
+    const clearBtn = document.createElement("button");
+    clearBtn.textContent = "Clear texture";
+    clearBtn.style.cssText = "width:auto;padding:2px 8px;font-size:11px;background:#444;";
+    clearBtn.addEventListener("click", () => {
+      (state as any)._constructionTextureUrl = null;
+      fileInput.value = "";
+      statusLbl.textContent = "No texture";
+    });
+
+    div.appendChild(fileInput);
+    div.appendChild(statusLbl);
+    div.appendChild(clearBtn);
+    container.appendChild(div);
   }
 
   function buildColorPickers() {
