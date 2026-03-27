@@ -111,7 +111,7 @@ export class TiledMapRenderer {
   public safeZones: SafeZone[] = [];
   public zoneExits: Array<{ name: string; tileX: number; tileZ: number; tileWidth: number; tileHeight: number; exitId: string }> = [];
   public dungeonEntrances: Array<{ name: string; tileX: number; tileZ: number; tileWidth: number; tileHeight: number; difficulty: number; dungeonName: string }> = [];
-  public structures: Array<{ type: string; tileX: number; tileZ: number; width: number; height: number; name: string }> = [];
+  public wallPieces: Array<{ tileX: number; tileZ: number; facing: string; material: string; variant: string }> = [];
   public playerSpawn = { x: 32, z: 32 }; // default center
 
   private lastCenterX = -Infinity;
@@ -498,15 +498,35 @@ export class TiledMapRenderer {
           tileHeight: Math.round(obj.height / tileH),
           exitId: (props.exitId as string) || obj.name,
         });
-      } else if (obj.type === "structure") {
-        this.structures.push({
-          type: (props.structureType as string) || "wall_stone",
+      } else if (obj.type === "wall") {
+        this.wallPieces.push({
           tileX,
           tileZ,
-          width: Math.round(obj.width / tileW),
-          height: Math.round(obj.height / tileH),
-          name: obj.name,
+          facing: (props.facing as string) || "n",
+          material: (props.material as string) || "stone",
+          variant: (props.variant as string) || "wall",
         });
+      } else if (obj.type === "building") {
+        // Building shorthand: generates wall pieces for a rectangular floor plan
+        const bw = (props.width as number) || 4;
+        const bd = (props.depth as number) || 4;
+        const mat = (props.material as string) || "stone";
+        const door = (props.door as string) || "s";
+        // Import is deferred to avoid circular — use inline generation
+        for (let i = 0; i < bw; i++) {
+          this.wallPieces.push({ tileX: tileX + i, tileZ, facing: "n", material: mat, variant: i % 3 === 1 ? "window" : "wall" });
+          this.wallPieces.push({ tileX: tileX + i, tileZ: tileZ + bd, facing: "n", material: mat, variant: i % 3 === 1 ? "window" : "wall" });
+        }
+        for (let j = 0; j < bd; j++) {
+          this.wallPieces.push({ tileX, tileZ: tileZ + j, facing: "e", material: mat, variant: j % 3 === 1 ? "window" : "wall" });
+          this.wallPieces.push({ tileX: tileX + bw, tileZ: tileZ + j, facing: "e", material: mat, variant: j % 3 === 1 ? "window" : "wall" });
+        }
+        // Door in the specified wall
+        const doorIdx = Math.floor((door === "n" || door === "s" ? bw : bd) / 2);
+        if (door === "s") this.wallPieces.find(w => w.tileX === tileX + doorIdx && w.tileZ === tileZ + bd && w.facing === "n")!.variant = "door";
+        else if (door === "n") this.wallPieces.find(w => w.tileX === tileX + doorIdx && w.tileZ === tileZ && w.facing === "n")!.variant = "door";
+        else if (door === "w") this.wallPieces.find(w => w.tileX === tileX && w.tileZ === tileZ + doorIdx && w.facing === "e")!.variant = "door";
+        else if (door === "e") this.wallPieces.find(w => w.tileX === tileX + bw && w.tileZ === tileZ + doorIdx && w.facing === "e")!.variant = "door";
       } else if (obj.type === "dungeon_entrance") {
         this.dungeonEntrances.push({
           name: obj.name,

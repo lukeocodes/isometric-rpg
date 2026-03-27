@@ -189,6 +189,32 @@ async function main() {
 
   // ─── Render helpers ─────────────
 
+  const CHECK_SIZE = 8;
+  const CHECK_LIGHT = 0x2a2a3e;
+  const CHECK_DARK = 0x222236;
+
+  function drawCheckerboard(g: Graphics, x: number, y: number, w: number, h: number): void {
+    // Clip area fill first
+    g.rect(x, y, w, h);
+    g.fill(CHECK_DARK);
+
+    // Light squares
+    const cols = Math.ceil(w / CHECK_SIZE);
+    const rows = Math.ceil(h / CHECK_SIZE);
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if ((r + c) % 2 === 0) {
+          const sx = x + c * CHECK_SIZE;
+          const sy = y + r * CHECK_SIZE;
+          const sw = Math.min(CHECK_SIZE, x + w - sx);
+          const sh = Math.min(CHECK_SIZE, y + h - sy);
+          g.rect(sx, sy, sw, sh);
+          g.fill(CHECK_LIGHT);
+        }
+      }
+    }
+  }
+
   function renderFrame(g: Graphics, dir: number, phase: number, scale: number): void {
     if (state.viewMode === "composite") {
       renderComposite(g, state.compositeConfig, dir, phase, scale);
@@ -231,11 +257,7 @@ async function main() {
 
     bgGfx.clear();
 
-    bgGfx.rect(mainX - mainW / 2 - 4, mainY - mainH - 4, mainW + 8, mainH + 12);
-    bgGfx.fill({ color: 0x0d1b2a, alpha: 0.5 });
-    bgGfx.moveTo(mainX - mainW / 2, mainY + 2);
-    bgGfx.lineTo(mainX + mainW / 2, mainY + 2);
-    bgGfx.stroke({ width: 1, color: 0x333355, alpha: 0.5 });
+    drawCheckerboard(bgGfx, mainX - mainW / 2 - 4, mainY - mainH - 4, mainW + 8, mainH + 12);
 
     for (let row = 0; row < 3; row++) {
       for (let col = 0; col < 3; col++) {
