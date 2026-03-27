@@ -11,7 +11,7 @@ import { isInSafeZone } from "../game/zones.js";
 import { getZone } from "../game/zone-registry.js";
 import { isWalkable } from "../world/terrain.js";
 import { startLingering, cancelLingering, isLingering } from "../game/linger.js";
-import { Opcode, packEntitySpawn, packEntityDespawn, packReliable, packSpawnPoint, packChunkData, packBinaryAbilityCooldown, packBinaryDamage, packBinaryState, packBinaryDeath } from "../game/protocol.js";
+import { Opcode, packEntitySpawn, packEntityDespawn, packReliable, packSpawnPoint, packChunkData, packBinaryAbilityCooldown, packBinaryDamage, packBinaryState, packBinaryDeath, packBinaryRespawn } from "../game/protocol.js";
 import { getZoneItems, pickupItem } from "../game/world-items.js";
 import { giveItem } from "../game/inventory.js";
 import { getServerNoisePerm, getCachedWorldMapGzip, getWorldMap } from "../world/queries.js";
@@ -320,6 +320,10 @@ export async function rtcRoutes(app: FastifyInstance) {
               const z = parseFloat(parts[2]);
               if (isNaN(x) || isNaN(z)) { reply("Usage: /go x,z"); return; }
               entity.x = x; entity.z = z;
+              const combat = getCombatState(entityId);
+              const hp = combat?.hp ?? 50;
+              const maxHp = combat?.maxHp ?? 50;
+              connectionManager.sendBinary(entityId, packBinaryRespawn(entityId, x, 0, z, hp, maxHp));
               reply(`Teleported to (${Math.round(x)}, ${Math.round(z)})`);
             } else {
               reply(`Unknown command: ${cmd}`);

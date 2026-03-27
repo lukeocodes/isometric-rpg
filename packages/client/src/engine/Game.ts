@@ -246,11 +246,10 @@ export class Game {
     this.stateSync.setOnRespawn((x, y, z, hp, maxHp) => {
       if (!this.localEntityId) return;
       const pos = this.entityManager.getComponent<PositionComponent>(this.localEntityId, "position");
-      if (pos) {
-        pos.x = x;
-        pos.y = y;
-        pos.z = z;
-      }
+      if (pos) { pos.x = x; pos.y = y; pos.z = z; }
+      const mov = this.entityManager.getComponent<MovementComponent>(this.localEntityId, "movement");
+      if (mov) { mov.tileX = Math.round(x); mov.tileZ = Math.round(z); mov.moving = false; }
+      this.movePath = [];
       const stats = this.entityManager.getComponent<StatsComponent>(this.localEntityId, "stats");
       if (stats) {
         stats.hp = hp;
