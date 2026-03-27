@@ -45,20 +45,39 @@ const MATERIAL_PRIMARY: Record<string, number> = {
   plaster: 0xcfbc96,
 };
 
-// WallPiece type → one or two workbench model IDs to render at that tile
-function modelsForPiece(type: WallPiece["type"]): string[] {
+/**
+ * Map a WallPiece to one or two workbench model IDs.
+ *
+ * Each building face has its own dedicated workbench model — no flip/transform needed.
+ * flip/flipL/flipR just selects which named model to use.
+ *
+ *   wall_left  no flip = west  wall → wall-w
+ *   wall_left  flip    = east  wall → wall-e
+ *   wall_right no flip = north wall → wall-n
+ *   wall_right flip    = south wall → wall-s
+ *
+ * Corners pair the two adjacent faces:
+ *   NW (flipL=F, flipR=F): west  + north → wall-w + wall-n
+ *   NE (flipL=T, flipR=F): east  + north → wall-e + wall-n
+ *   SW (flipL=F, flipR=T): west  + south → wall-w + wall-s
+ *   SE (flipL=T, flipR=T): east  + south → wall-e + wall-s
+ */
+function modelsForPiece(piece: WallPiece): string[] {
+  const { type, flip, flipL, flipR } = piece;
   switch (type) {
     case "wall_left":
     case "wall_left_door":
     case "wall_left_win":
-      return ["wall-n"];          // NW diamond edge (left → top)
+      return flip ? ["wall-e"] : ["wall-w"];
     case "wall_right":
     case "wall_right_door":
     case "wall_right_win":
-      return ["wall-e"];          // NE diamond edge (top → right)
-    case "wall_corner":
-      // Render both faces to create an L-shaped corner post
-      return ["wall-n", "wall-e"];
+      return flip ? ["wall-s"] : ["wall-n"];
+    case "wall_corner": {
+      const leftFace  = flipL ? "wall-e" : "wall-w";
+      const rightFace = flipR ? "wall-s" : "wall-n";
+      return [leftFace, rightFace];
+    }
     case "floor":
       return ["floor-tile"];
     default:

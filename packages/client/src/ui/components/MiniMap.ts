@@ -109,7 +109,7 @@ export class MiniMap {
     this.canvas = document.createElement("canvas");
     this.canvas.width = MINIMAP_SIZE;
     this.canvas.height = MINIMAP_SIZE;
-    this.canvas.style.cssText = "border-radius: 50%; display: block; transform: rotate(-45deg) scale(1.15);";
+    this.canvas.style.cssText = "border-radius: 50%; display: block; transform: rotate(45deg) scale(1.15);";
     this.ctx = this.canvas.getContext("2d")!;
     container.appendChild(this.canvas);
 
@@ -172,7 +172,7 @@ export class MiniMap {
     for (let py = 0; py < size; py++) {
       for (let px = 0; px < size; px++) {
         const tx = this.playerTileX - radius + Math.floor(px / pixPerTile);
-        const tz = this.playerTileZ + radius - Math.floor(py / pixPerTile);
+        const tz = this.playerTileZ - radius + Math.floor(py / pixPerTile);
 
         let r = 10, g = 15, b = 40; // out of bounds = dark ocean
         if (tx >= 0 && tx < this.tiledWidth && tz >= 0 && tz < this.tiledHeight) {
@@ -213,7 +213,7 @@ export class MiniMap {
     for (let py = 0; py < size; py++) {
       for (let px = 0; px < size; px++) {
         const cx = playerChunkX - radius + Math.floor(px / pixPerChunk);
-        const cz = playerChunkZ + radius - Math.floor(py / pixPerChunk);
+        const cz = playerChunkZ - radius + Math.floor(py / pixPerChunk);
 
         let r = 6, g = 6, b = 18;
         if (cx >= 0 && cx < this.worldWidth && cz >= 0 && cz < this.worldHeight) {
@@ -248,14 +248,14 @@ export class MiniMap {
         const etx = Math.round(ent.x);
         const etz = Math.round(ent.z);
         ex = ((etx - this.playerTileX + radius) / diameter) * size;
-        ey = ((this.playerTileZ + radius - etz) / diameter) * size;
+        ey = ((etz - this.playerTileZ + radius) / diameter) * size;
       } else {
         const ecx = Math.floor(ent.x / 32);
         const ecz = Math.floor(ent.z / 32);
         const playerChunkX = Math.floor(this.playerTileX / 32);
         const playerChunkZ = Math.floor(this.playerTileZ / 32);
         ex = ((ecx - playerChunkX + radius) / diameter) * size;
-        ey = ((playerChunkZ + radius - ecz) / diameter) * size;
+        ey = ((ecz - playerChunkZ + radius) / diameter) * size;
       }
       if (ex < 0 || ex >= size || ey < 0 || ey >= size) continue;
 
