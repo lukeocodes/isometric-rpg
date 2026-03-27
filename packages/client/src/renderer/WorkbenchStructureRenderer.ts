@@ -51,14 +51,14 @@ function modelsForPiece(type: WallPiece["type"]): string[] {
     case "wall_left":
     case "wall_left_door":
     case "wall_left_win":
-      return ["wall-n"];
+      return ["wall-n"];          // NW diamond edge (left → top)
     case "wall_right":
     case "wall_right_door":
     case "wall_right_win":
-      return ["wall-w"];
+      return ["wall-e"];          // NE diamond edge (top → right)
     case "wall_corner":
-      // Render both faces — creates an L-shaped corner post
-      return ["wall-n", "wall-w"];
+      // Render both faces to create an L-shaped corner post
+      return ["wall-n", "wall-e"];
     case "floor":
       return ["floor-tile"];
     default:
