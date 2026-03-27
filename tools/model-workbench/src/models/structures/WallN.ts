@@ -92,16 +92,7 @@ export class WallN implements Model {
 
     // ── 2. Outer face (visible from outside, iso.y ≥ 0) ─────────────────────
     if (iso.y >= 0) {
-      quad(41, FACE_COL, [OA, OB, lift(OB), lift(OA)], (g, s) => {
-        if (!tex) {
-          for (let i = 1; i < 6; i++) {
-            const t = i / 6;
-            g.moveTo(OA.x * s, (OA.y - STORY_H * t) * s);
-            g.lineTo(OB.x * s, (OB.y - STORY_H * t) * s);
-            g.stroke({ width: s * 0.35, color: TRIM, alpha: 0.25 });
-          }
-        }
-      });
+      quad(41, FACE_COL, [OA, OB, lift(OB), lift(OA)]);
     }
 
     // ── 3. Right edge (visible from east, iso.x ≥ 0) ─────────────────────────

@@ -88,6 +88,7 @@ export class WallW implements Model {
       quad(41, FACE_COL, [OA, OB, lift(OB), lift(OA)]);
     }
 
+
     // ── 3. Right edge — south corner (iso.x ≥ 0) ─────────────────────────────
     if (iso.x >= 0) {
       quad(42, SIDE_COL, [OA, IA, lift(IA), lift(OA)]);
@@ -103,21 +104,6 @@ export class WallW implements Model {
 
     // ── 6. Inner face — topmost (mirrors Wall N) ─────────────────────────────
     quad(60, FACE_COL, [IA, IB, lift(IB), lift(IA)]);
-
-    // ── 7. Mortar lines on inner face (the visible face at depth 60) ──────────
-    if (!tex && iso.y >= 0) {
-      calls.push({
-        depth: 61,
-        draw: (g, s) => {
-          for (let i = 1; i < 6; i++) {
-            const t = i / 6;
-            g.moveTo(IA.x * s, (IA.y - STORY_H * t) * s);
-            g.lineTo(IB.x * s, (IB.y - STORY_H * t) * s);
-            g.stroke({ width: s * 0.35, color: TRIM, alpha: 0.25 });
-          }
-        },
-      });
-    }
 
     return calls;
   }
