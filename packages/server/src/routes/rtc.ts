@@ -17,7 +17,7 @@ import { getOrGenerateChunkHeights } from "../world/chunk-cache.js";
 import { generateTileHeight, CONTINENTAL_SCALE } from "../world/terrain-noise.js";
 import { isInTiledMap } from "../world/tiled-map.js";
 import { initPlayerProgress, removePlayerProgress, handleKill } from "../game/world.js";
-import { loadInventory, saveInventory, sendInventory, equipItem, unequipItem, useItem } from "../game/inventory.js";
+import { loadInventory, saveInventory, sendInventory, equipItem, unequipItem, useItem, getEquippedBonuses } from "../game/inventory.js";
 import { db } from "../db/postgres.js";
 import { characters } from "../db/schema.js";
 import { eq } from "drizzle-orm";
@@ -251,18 +251,25 @@ export async function rtcRoutes(app: FastifyInstance) {
             const dist = Math.max(Math.abs(entity.x - target.x), Math.abs(entity.z - target.z));
             if (dist > 4) { (entity as any)[cdKey] = 0; return; }
 
-            // Damage by type
+            // Base damage by type + equipment bonus
+            const eqBonus = getEquippedBonuses(entityId);
             let damage: number;
             let weaponType: string;
             if (abilityId === "fire") {
-              damage = 15 + Math.floor(Math.random() * 6); // 15-20 burst
+              damage = 15 + Math.floor(Math.random() * 6) + eqBonus.bonusDamage;
               weaponType = "fire";
             } else if (abilityId === "ice") {
-              damage = 10 + Math.floor(Math.random() * 4); // 10-13 + slow effect
+              damage = 10 + Math.floor(Math.random() * 4) + eqBonus.bonusDamage;
               weaponType = "ice";
             } else {
-              damage = 8 + Math.floor(Math.random() * 3); // 8-10 fast chain
+              damage = 8 + Math.floor(Math.random() * 3) + eqBonus.bonusDamage;
               weaponType = "shock";
+            }
+
+            // Target armor reduces damage
+            if (target.entityType === "player") {
+              const targetBonus = getEquippedBonuses(targetId);
+              damage = Math.max(1, damage - targetBonus.bonusArmor);
             }
 
             // Apply defend reduction on target

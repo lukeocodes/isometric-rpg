@@ -1,4 +1,5 @@
 import { entityStore } from "./entities.js";
+import { getEquippedBonuses } from "./inventory.js";
 
 const COMBAT_DECAY = 6.0;
 const REGEN_INTERVAL = 0.5;
@@ -97,9 +98,19 @@ export function tick(dt: number): { damage: DamageEvent[]; deaths: DeathEvent[] 
     if (s.windingUp) {
       s.windUpTimer -= dt;
       if (s.windUpTimer <= 0) {
-        let dmg = s.weaponDamage;
-        // Defend ability halves damage for 5s
+        // Base damage + equipment bonus
+        const attackerEntity = entityStore.get(entityId);
+        const attackerBonus = attackerEntity?.entityType === "player" ? getEquippedBonuses(entityId) : null;
+        let dmg = s.weaponDamage + (attackerBonus?.bonusDamage ?? 0);
+
+        // Equipment armor reduces incoming damage
         const target = entityStore.get(s.targetId);
+        if (target?.entityType === "player") {
+          const targetBonus = getEquippedBonuses(s.targetId);
+          dmg = Math.max(1, dmg - targetBonus.bonusArmor);
+        }
+
+        // Defend ability halves damage for 5s
         if (target && (target as any)._defendUntil && Date.now() < (target as any)._defendUntil) {
           dmg = Math.floor(dmg * 0.5);
         }

@@ -12,7 +12,7 @@ Read this file at the start of each model workbench session. Update after signif
 - **Palette** — `computePalette(skin, hair, eyes, primary, secondary, armorType)` generates full color set from base colors + armor material.
 - **Attachment slots** — `root`, `head-top`, `hand-R`, `hand-L`, `torso`, `torso-back`, `legs`, `feet-L`, `feet-R`
 
-## Current State (2026-03-27, session 4)
+## Current State (2026-03-27, session 5)
 
 ### Workbench UI
 - [x] 3-panel layout: left nav (model browser), center (PixiJS canvas), right (config panel)
@@ -123,10 +123,10 @@ Read this file at the start of each model workbench session. Update after signif
 - [ ] Torch (offhand)
 
 #### NPC/Monster models (MEDIUM)
-- [ ] Imp — small, wings, horns
+- [x] Imp — DONE. Dark red body, bat wings with flap animation, curved horns, glowing yellow slit-pupil eyes, arrow-tipped tail with sway, fangs. Can hold weapons.
 - [ ] Ogre — large, bulky
 - [ ] Wraith — ethereal, translucent
-- [ ] Wolf — four-legged animal
+- [x] Wolf — DONE. Four-legged grey predator, snout, pointed ears, amber eyes, bushy tail with sway, shoulder hump, trotting gait. No weapon slots.
 - [ ] Bear — large four-legged
 - [ ] Boss variants (King Rabbit, Skeleton Lord, etc.)
 
@@ -142,7 +142,8 @@ Priority for each session (tackle 1-2 items per run):
 4. ~~Armor leg/boot pieces~~ — DONE (8 models: 4 legs + 4 boots)
 5. ~~Clean up legacy files~~ — DONE (CharacterModel.ts, Controls.ts deleted)
 6. ~~Gauntlet + shoulder armor~~ — DONE (8 models: 4 shoulders + 4 gauntlets). Full armor sets complete!
-7. More NPC models (imp, ogre, wraith, wolf, bear)
-8. Additional offhand items (tower shield, buckler, tome, torch)
-9. Armor race variants (dragon, skeleton, ogre, elven)
-10. Auto-equip matching armor set when armor type radio changes (currently only changes torso+head)
+7. ~~More NPC models (imp, wolf)~~ — DONE (2 new NPCs)
+8. ~~Auto-equip matching armor set~~ — DONE (clicking armor type equips full set: head, shoulders, torso, gauntlets, legs, boots)
+9. Remaining NPC models (ogre, wraith, bear, boss variants)
+10. Additional offhand items (tower shield, buckler, tome, torch)
+11. Armor race variants (dragon, skeleton, ogre, elven)
