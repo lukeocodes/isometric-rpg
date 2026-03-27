@@ -119,13 +119,17 @@ export class ParticleSystem {
   }
 
   update(dt: number): void {
-    for (let i = this.particles.length - 1; i >= 0; i--) {
+    let i = 0;
+    while (i < this.particles.length) {
       const p = this.particles[i];
       p.life -= dt;
 
       if (p.life <= 0) {
         p.g.destroy();
-        this.particles.splice(i, 1);
+        // Swap with last element and pop — O(1) instead of O(n) splice
+        const last = this.particles.length - 1;
+        if (i < last) this.particles[i] = this.particles[last];
+        this.particles.length = last;
         continue;
       }
 
@@ -136,6 +140,7 @@ export class ParticleSystem {
       const t = 1 - p.life / p.maxLife; // 0 → 1 as particle ages
       if (p.fadeOut) p.g.alpha = 1 - t;
       if (p.shrink) p.g.scale.set(1 - t * 0.5);
+      i++;
     }
   }
 

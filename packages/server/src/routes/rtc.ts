@@ -120,6 +120,7 @@ export async function rtcRoutes(app: FastifyInstance) {
       const positionChannel = pc.createDataChannel("position", {
         ordered: false,
         maxRetransmits: 0,
+        maxPacketLifeTime: 200, // Drop stale position packets after 200ms
       });
       const reliableChannel = pc.createDataChannel("reliable", {
         ordered: true,

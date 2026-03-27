@@ -1,7 +1,9 @@
 import { EntityManager } from "../EntityManager";
 import type { PositionComponent } from "../components/Position";
 
-const LERP_SPEED = 10; // Higher = snappier, lower = smoother
+// Tuned to reach target in ~1 server tick (50ms at 20Hz).
+// Higher = snappier but can overshoot, lower = smoother but sluggish.
+const LERP_SPEED = 18;
 
 export class InterpolationSystem {
   private entityManager: EntityManager;

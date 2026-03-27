@@ -24,6 +24,8 @@ class EntityStore {
   private byCharacter = new Map<string, string>();
   private spatialGrid = new Map<string, Set<string>>();
   private entityCells = new Map<string, string>();
+  private awakeSet = new Set<string>();
+  private awakeSetTick = -1;
 
   add(entity: ServerEntity) {
     this.entities.set(entity.entityId, entity);
@@ -153,12 +155,39 @@ class EntityStore {
     return results;
   }
 
+  /**
+   * Recompute the set of awake entity IDs. Call once per tick before
+   * combat/wander/broadcast. Iterates players once and marks all entities
+   * within AWAKE_RADIUS as awake — O(players * nearby_cells) instead of
+   * O(npcs * nearby_cells).
+   */
+  refreshAwakeSet(tick: number = 0): void {
+    if (tick === this.awakeSetTick && tick !== 0) return; // already computed this tick
+    this.awakeSetTick = tick;
+    this.awakeSet.clear();
+
+    const players = this.getByType("player");
+    for (const player of players) {
+      this.awakeSet.add(player.entityId);
+      const nearby = this.getNearbyEntities(player.x, player.z, AWAKE_RADIUS);
+      for (const entity of nearby) {
+        this.awakeSet.add(entity.entityId);
+      }
+    }
+  }
+
   /** Returns true if a player is within AWAKE_RADIUS. Players are always awake. */
   isAwake(entityId: string): boolean {
     const entity = this.entities.get(entityId);
     if (!entity) return false;
     if (entity.entityType === "player") return true;
 
+    // If refreshAwakeSet was called this tick, use cached set
+    if (this.awakeSetTick >= 0) {
+      return this.awakeSet.has(entityId);
+    }
+
+    // Fallback: direct spatial query (for tests or code that doesn't call refresh)
     return this.getPlayersNear(entity.x, entity.z, AWAKE_RADIUS).length > 0;
   }
 }

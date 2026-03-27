@@ -92,6 +92,25 @@ export class EntityRenderer {
     this.entityManager = entityManager;
     this.container = new Container();
     this.container.sortableChildren = true;
+
+    // Clean up internal Maps when entities are removed to prevent memory leaks
+    entityManager.onEntityRemoved((id) => {
+      this.flashTimers.delete(id);
+      this.prevPositions.delete(id);
+      this.derivedFacing.delete(id);
+
+      const hpBar = this.hpBars.get(id);
+      if (hpBar) {
+        hpBar.destroy();
+        this.hpBars.delete(id);
+      }
+
+      const spGraphics = this.spawnPointGraphics.get(id);
+      if (spGraphics) {
+        spGraphics.destroy();
+        this.spawnPointGraphics.delete(id);
+      }
+    });
   }
 
   setLocalEntityId(id: string) { this.localEntityId = id; }

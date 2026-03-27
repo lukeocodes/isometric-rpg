@@ -11,6 +11,13 @@ export class AnimationSystem {
 
   constructor(entityManager: EntityManager) {
     this.entityManager = entityManager;
+
+    // Clean up internal Maps when entities are removed to prevent memory leaks
+    entityManager.onEntityRemoved((id) => {
+      this.bobPhase.delete(id);
+      this.baseScale.delete(id);
+      this.prevPos.delete(id);
+    });
   }
 
   update(dt: number) {

@@ -25,6 +25,12 @@ const SPATIAL_CELL_SIZE = 16;
 export class EntityManager {
   private entities = new Map<string, Entity>();
   private spatialGrid = new Map<string, Set<string>>();
+  private onRemoveCallbacks: Array<(id: string) => void> = [];
+
+  /** Register a callback that fires when an entity is about to be removed. */
+  onEntityRemoved(callback: (id: string) => void): void {
+    this.onRemoveCallbacks.push(callback);
+  }
 
   addEntity(id: string): Entity {
     const entity: Entity = { id, components: new Map() };
@@ -35,6 +41,11 @@ export class EntityManager {
   removeEntity(id: string) {
     const entity = this.entities.get(id);
     if (!entity) return;
+
+    // Notify listeners before deletion so they can clean up
+    for (const cb of this.onRemoveCallbacks) {
+      cb(id);
+    }
 
     // Remove from spatial grid
     const pos = entity.components.get("position") as PositionComponent | undefined;

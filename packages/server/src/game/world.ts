@@ -84,6 +84,7 @@ const STATE_BROADCAST_INTERVAL = 500;
 
 let timer: ReturnType<typeof setInterval> | null = null;
 let stateBroadcastAccum = 0;
+let tickCounter = 0;
 
 // Track per-player enemy-nearby state (playerId -> wasNearby)
 const enemyNearbyState = new Map<string, boolean>();
@@ -110,6 +111,10 @@ export function removePlayerProgress(entityId: string): PlayerProgress | undefin
   return prog;
 }
 
+// Delta-only state broadcast: track last-sent hp/maxHp per entity per connection
+// Key: "connectionEntityId:targetEntityId" → { hp, maxHp }
+const lastBroadcastState = new Map<string, { hp: number; maxHp: number }>();
+
 // Pre-allocated position broadcast buffer (resized if needed)
 const MAX_ENTITIES_PER_BATCH = 64;
 const ENTRY_SIZE = 20;
@@ -130,6 +135,13 @@ function getHash(entityId: string): number {
 export function clearHashCache(entityId: string) {
   hashCache.delete(entityId);
   enemyNearbyState.delete(entityId);
+
+  // Clean up delta-state tracking for this entity (as target or connection)
+  for (const key of lastBroadcastState.keys()) {
+    if (key.startsWith(entityId + ":") || key.endsWith(":" + entityId)) {
+      lastBroadcastState.delete(key);
+    }
+  }
 }
 
 export function startGameLoop() {
@@ -143,6 +155,10 @@ export function stopGameLoop() {
 
 function gameTick() {
   const dt = TICK_INTERVAL / 1000;
+  tickCounter++;
+
+  // Pre-compute awake set once per tick (avoids O(N*cells) per NPC)
+  entityStore.refreshAwakeSet(tickCounter);
 
   // NPC wandering
   tickWandering(dt);
@@ -245,23 +261,35 @@ function broadcastState() {
     const self = entityStore.get(conn.entityId);
     if (!self) continue;
 
-    // Own combat state
+    // Own combat state (always send — lightweight, important for UI)
     const ownCombat = getCombatState(conn.entityId);
     if (ownCombat) {
       connectionManager.sendReliable(conn.entityId,
         packCombatState(conn.entityId, ownCombat.inCombat, ownCombat.autoAttacking, ownCombat.targetId));
-      connectionManager.sendReliable(conn.entityId,
-        packEntityState(conn.entityId, ownCombat.hp, ownCombat.maxHp));
+
+      // Delta check for own entity state
+      const ownKey = conn.entityId + ":" + conn.entityId;
+      const ownLast = lastBroadcastState.get(ownKey);
+      if (!ownLast || ownLast.hp !== ownCombat.hp || ownLast.maxHp !== ownCombat.maxHp) {
+        connectionManager.sendReliable(conn.entityId,
+          packEntityState(conn.entityId, ownCombat.hp, ownCombat.maxHp));
+        lastBroadcastState.set(ownKey, { hp: ownCombat.hp, maxHp: ownCombat.maxHp });
+      }
     }
 
-    // Nearby entity states
+    // Nearby entity states — only send if hp/maxHp changed
     for (const other of entityStore.getNearbyEntities(self.x, self.z)) {
       if (other.entityId === conn.entityId) continue;
 
       const combat = getCombatState(other.entityId);
       if (combat) {
-        connectionManager.sendReliable(conn.entityId,
-          packEntityState(other.entityId, combat.hp, combat.maxHp));
+        const stateKey = conn.entityId + ":" + other.entityId;
+        const last = lastBroadcastState.get(stateKey);
+        if (!last || last.hp !== combat.hp || last.maxHp !== combat.maxHp) {
+          connectionManager.sendReliable(conn.entityId,
+            packEntityState(other.entityId, combat.hp, combat.maxHp));
+          lastBroadcastState.set(stateKey, { hp: combat.hp, maxHp: combat.maxHp });
+        }
       }
     }
   }

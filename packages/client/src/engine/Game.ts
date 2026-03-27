@@ -35,7 +35,7 @@ import type { GameHUD } from "../ui/screens/GameHUD";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "../world/WorldConstants";
 
 const PLAYER_SPEED = 7.0;
-const POSITION_SEND_INTERVAL = 1000 / 15;
+const POSITION_SEND_INTERVAL = 1000 / 20; // Match server tick rate (20Hz)
 
 export class Game {
   private pixiApp: PixiApp;
