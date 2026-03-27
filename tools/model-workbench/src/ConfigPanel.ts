@@ -263,6 +263,87 @@ export function createConfigPanel(
     container.appendChild(div);
   }
 
+  function buildExportButton() {
+    const divider = document.createElement("div");
+    divider.className = "section-divider";
+    container.appendChild(divider);
+
+    appendHeading("Export");
+    const div = document.createElement("div");
+    div.className = "control-group";
+
+    const exportBtn = document.createElement("button");
+    exportBtn.textContent = "Copy JSON";
+    exportBtn.style.cssText = "width:auto;padding:4px 12px;";
+    exportBtn.addEventListener("click", () => {
+      const config = state.compositeConfig;
+      const exportData = {
+        baseModelId: config.baseModelId,
+        build: config.build ?? 1,
+        height: config.height ?? 1,
+        attachments: config.attachments.map(a => ({ slot: a.slot, modelId: a.modelId })),
+        palette: {
+          skin: "#" + config.palette.skin.toString(16).padStart(6, "0"),
+          hair: "#" + config.palette.hair.toString(16).padStart(6, "0"),
+          eyes: "#" + config.palette.eyes.toString(16).padStart(6, "0"),
+          primary: "#" + config.palette.primary.toString(16).padStart(6, "0"),
+          secondary: "#" + config.palette.secondary.toString(16).padStart(6, "0"),
+        },
+      };
+      const json = JSON.stringify(exportData, null, 2);
+      navigator.clipboard.writeText(json).then(() => {
+        exportBtn.textContent = "Copied!";
+        setTimeout(() => { exportBtn.textContent = "Copy JSON"; }, 1500);
+      }).catch(() => {
+        // Fallback: show in a textarea
+        const ta = document.createElement("textarea");
+        ta.value = json;
+        ta.style.cssText = "width:100%;height:120px;font-size:10px;background:#1a1a2e;color:#ccc;border:1px solid #333;border-radius:3px;margin-top:4px;resize:vertical;";
+        ta.readOnly = true;
+        div.appendChild(ta);
+        ta.select();
+      });
+    });
+
+    const importBtn = document.createElement("button");
+    importBtn.textContent = "Import JSON";
+    importBtn.style.cssText = "width:auto;padding:4px 12px;margin-left:4px;background:#444;";
+    importBtn.addEventListener("click", () => {
+      navigator.clipboard.readText().then((text) => {
+        try {
+          const data = JSON.parse(text);
+          if (data.baseModelId) {
+            state.compositeConfig.baseModelId = data.baseModelId;
+          }
+          if (data.build != null) state.compositeConfig.build = data.build;
+          if (data.height != null) state.compositeConfig.height = data.height;
+          if (data.attachments) {
+            state.compositeConfig.attachments = data.attachments;
+          }
+          if (data.palette) {
+            const p = state.compositeConfig.palette;
+            for (const key of ["skin", "hair", "eyes", "primary", "secondary"] as const) {
+              if (data.palette[key]) {
+                (p as any)[key] = parseInt(data.palette[key].replace("#", ""), 16);
+              }
+            }
+            rebuildPalette();
+          }
+          importBtn.textContent = "Imported!";
+          setTimeout(() => { importBtn.textContent = "Import JSON"; }, 1500);
+          rebuild();
+        } catch {
+          importBtn.textContent = "Invalid JSON";
+          setTimeout(() => { importBtn.textContent = "Import JSON"; }, 1500);
+        }
+      });
+    });
+
+    div.appendChild(exportBtn);
+    div.appendChild(importBtn);
+    container.appendChild(div);
+  }
+
   // ─── Helpers ───
 
   function createSlider(label: string, initial: number, min: number, max: number, step: number, onChange: (v: number) => void) {

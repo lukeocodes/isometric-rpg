@@ -12,7 +12,7 @@ Read this file at the start of each model workbench session. Update after signif
 - **Palette** — `computePalette(skin, hair, eyes, primary, secondary, armorType)` generates full color set from base colors + armor material.
 - **Attachment slots** — `root`, `head-top`, `hand-R`, `hand-L`, `torso`, `torso-back`, `legs`, `feet-L`, `feet-R`
 
-## Current State (2026-03-27, session 9)
+## Current State (2026-03-27, session 10)
 
 ### Workbench UI
 - [x] 3-panel layout: left nav (model browser), center (PixiJS canvas), right (config panel)
@@ -136,7 +136,9 @@ Read this file at the start of each model workbench session. Update after signif
 - [x] Wraith — DONE. Ethereal hooded figure, translucent dark robe fading into tattered wisps, glowing cyan eyes with halo, trailing shadow tendrils, hovering float animation, spectral arms, ground mist. Can hold weapons.
 - [x] Wolf — DONE. Four-legged grey predator, snout, pointed ears, amber eyes, bushy tail with sway, shoulder hump, trotting gait. No weapon slots.
 - [x] Bear — DONE. Large brown four-legged, shoulder hump, lighter muzzle, rounded ears, black nose, dark eyes, thick clawed legs, stubby tail, lumbering gait with body roll. No weapon slots.
-- [ ] Boss variants (King Rabbit, Skeleton Lord, etc.)
+- [x] King Rabbit — DONE. 1.4x scale, golden-white fur, tiny crown with 3 tines + red gem, gold aura, regal bearing
+- [x] Skeleton Lord — DONE. Larger bones, bone crown (5 tines), purple glowing eyes with halos, dark aura, wider ribs
+- [x] Alpha Wolf — DONE. 1.3x scale, dark grey fur, battle scars (body + face), bared fangs, bright amber glowing eyes, boss aura
 
 ### Legacy Files
 - ~~`src/CharacterModel.ts`~~ — DELETED
@@ -159,5 +161,7 @@ Priority for each session (tackle 1-2 items per run):
 13. ~~Bald hair~~ — DONE
 14. ~~Body customisation sliders~~ — DONE (Build 0.7-1.3 width, Height 0.85-1.15 scale, live preview)
 15. ~~More headgear~~ — DONE (Cloth Hood, Leather Cap, Crown, Horned Helm)
-16. Boss variants (King Rabbit, Skeleton Lord, etc.)
-17. Export model configs to JSON (for integration with game client)
+16. ~~Boss variants~~ — DONE (King Rabbit, Skeleton Lord, Alpha Wolf)
+17. ~~Export/Import JSON~~ — DONE (Copy JSON button + Import from clipboard)
+18. Integration: connect workbench models to game client EntityRenderer
+19. More boss variants (Goblin Chieftain, Imp Overlord, Elder Bear)

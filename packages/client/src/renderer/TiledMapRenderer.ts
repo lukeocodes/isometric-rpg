@@ -110,6 +110,7 @@ export class TiledMapRenderer {
   public spawnPoints: SpawnPoint[] = [];
   public safeZones: SafeZone[] = [];
   public zoneExits: Array<{ name: string; tileX: number; tileZ: number; tileWidth: number; tileHeight: number; exitId: string }> = [];
+  public dungeonEntrances: Array<{ name: string; tileX: number; tileZ: number; tileWidth: number; tileHeight: number; difficulty: number; dungeonName: string }> = [];
   public playerSpawn = { x: 32, z: 32 }; // default center
 
   private lastCenterX = -Infinity;
@@ -222,6 +223,7 @@ export class TiledMapRenderer {
     this.spawnPoints = [];
     this.safeZones = [];
     this.zoneExits = [];
+    this.dungeonEntrances = [];
     console.log(`[TiledMap] Loaded dungeon: ${width}x${height}`);
   }
 
@@ -489,6 +491,16 @@ export class TiledMapRenderer {
           tileWidth: Math.round(obj.width / tileW),
           tileHeight: Math.round(obj.height / tileH),
           exitId: (props.exitId as string) || obj.name,
+        });
+      } else if (obj.type === "dungeon_entrance") {
+        this.dungeonEntrances.push({
+          name: obj.name,
+          tileX,
+          tileZ,
+          tileWidth: Math.round(obj.width / tileW),
+          tileHeight: Math.round(obj.height / tileH),
+          difficulty: (props.difficulty as number) || 1,
+          dungeonName: (props.dungeonName as string) || obj.name,
         });
       } else if (obj.type === "safe_zone" || obj.type === "zone") {
         this.safeZones.push({

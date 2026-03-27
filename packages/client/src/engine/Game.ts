@@ -536,6 +536,19 @@ export class Game {
                 break;
               }
             }
+            // Check dungeon entrances
+            for (const entrance of this.tiledMap.dungeonEntrances) {
+              const dx = pos.x - entrance.tileX;
+              const dz = pos.z - entrance.tileZ;
+              if (dx >= 0 && dx < entrance.tileWidth && dz >= 0 && dz < entrance.tileHeight) {
+                if (!this.zoneChangeRequested && this.network?.isConnected()) {
+                  this.zoneChangeRequested = true;
+                  this.network.sendReliable(packReliable(Opcode.DUNGEON_ENTER, {}));
+                  if (this.hud) this.hud.chatBox.addSystemMessage(`Entering ${entrance.dungeonName}...`);
+                }
+                break;
+              }
+            }
           }
           // Update minimap and world map
           if (this.hud) {

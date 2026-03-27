@@ -10,6 +10,9 @@ import { WolfBody } from "./WolfBody";
 import { OgreBody } from "./OgreBody";
 import { WraithBody } from "./WraithBody";
 import { BearBody } from "./BearBody";
+import { KingRabbit } from "./KingRabbit";
+import { SkeletonLord } from "./SkeletonLord";
+import { AlphaWolf } from "./AlphaWolf";
 
 registry.register(new HumanBody());
 registry.register(new ElfBody());
@@ -22,3 +25,6 @@ registry.register(new WolfBody());
 registry.register(new OgreBody());
 registry.register(new WraithBody());
 registry.register(new BearBody());
+registry.register(new KingRabbit());
+registry.register(new SkeletonLord());
+registry.register(new AlphaWolf());

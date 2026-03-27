@@ -130,7 +130,7 @@ Priority order (game designer perspective):
 7. ~~Equipment/inventory/loot~~ — DONE (f272ca1). Full loop: kill→loot→inventory (I key)→equip/unequip→use potions→stat bonuses in combat. Equipment damage/armor applied to melee + abilities.
 8. ~~More zones~~ — DONE (02e9ba9). All 5 zones live: Human Meadows, Elf Grove, Orc Wastes, Crossroads, Skeleton Wastes. Full zone network with exits connecting all zones.
 9. **Structure pieces (walls/buildings)** — Composite containers for buildings.
-10. ~~Dungeon instances~~ — DONE (c76e2ba). Server-side procedural gen (64x64, 8 rooms, corridors, boss). Per-player instances with difficulty scaling. Still needs: client-side dungeon renderer, dungeon entrance objects on Tiled maps.
+10. ~~Dungeon instances~~ — DONE (0d13905). Full loop: server procedural gen (64x64, 8 rooms, boss) → client renders via loadFromData → player fights through. Still TODO: add dungeon entrance objects to Tiled maps, dungeon exit mechanic.
 
 ## Known Issues
 - Hover cursor position uses synthetic pointermove which doesn't work with Playwright (works with real mouse)
