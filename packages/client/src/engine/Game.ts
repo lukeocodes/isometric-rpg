@@ -3,7 +3,8 @@ import { IsoCamera } from "../renderer/IsoCamera";
 import { EntityRenderer } from "../renderer/EntityRenderer";
 import { TerrainRenderer } from "../renderer/TerrainRenderer";
 import { TiledMapRenderer } from "../renderer/TiledMapRenderer";
-import { StructureRenderer, FLOOR_ELEVATION } from "../renderer/StructureRenderer";
+import { FLOOR_ELEVATION } from "../renderer/StructureRenderer";
+import { WorkbenchStructureRenderer } from "../renderer/WorkbenchStructureRenderer";
 import { WorldItemRenderer } from "../renderer/WorldItemRenderer";
 import { screenToWorld, worldToScreen, TILE_WIDTH_HALF, TILE_HEIGHT_HALF } from "../renderer/IsometricRenderer";
 // Workbench model registration — naked human body only for now
@@ -64,7 +65,7 @@ export class Game {
 
   private chunkManager: ChunkManager;
   private tiledMap: TiledMapRenderer | null = null;
-  private structureRenderer: StructureRenderer | null = null;
+  private structureRenderer: WorkbenchStructureRenderer | null = null;
   private worldItemRenderer: WorldItemRenderer | null = null;
   private useTiledMap = false;
 
@@ -463,7 +464,7 @@ export class Game {
 
         // Load structures from map objects
         if (this.tiledMap.wallPieces.length > 0) {
-          this.structureRenderer = new StructureRenderer();
+          this.structureRenderer = new WorkbenchStructureRenderer(this.pixiApp.app);
           this.structureRenderer.loadWalls(this.tiledMap.wallPieces);
           this.pixiApp.worldContainer.addChild(this.structureRenderer.container);
         }
