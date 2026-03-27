@@ -115,7 +115,14 @@ export class TiledMapRenderer {
   public wallPieces: WallPiece[] = [];
   private blockedByWall = new Set<string>(); // "x,z" tiles blocked by wall pieces
   public stairTiles = new Map<string, { type: "stair_left" | "stair_right"; tileX: number; tileZ: number }>();
+  /** "x,z" → highest floor-panel elevation above that tile (for transparency culling) */
+  private coveredTiles = new Map<string, number>();
   public playerSpawn = { x: 32, z: 32 }; // default center
+
+  /** True if this tile has a floor panel above playerFloor (player is inside a multi-storey building) */
+  isUnderCover(tileX: number, tileZ: number, playerFloor: number): boolean {
+    return (this.coveredTiles.get(`${tileX},${tileZ}`) ?? 0) > playerFloor;
+  }
 
   private lastCenterX = -Infinity;
   private lastCenterZ = -Infinity;
@@ -530,6 +537,11 @@ export class TiledMapRenderer {
           }
           if (p.type === "stair_left" || p.type === "stair_right") {
             this.stairTiles.set(`${p.tileX},${p.tileZ}`, { type: p.type, tileX: p.tileX, tileZ: p.tileZ });
+          }
+          if (p.type === "floor" && (p.elevation ?? 0) > 0) {
+            const key = `${p.tileX},${p.tileZ}`;
+            const prev = this.coveredTiles.get(key) ?? 0;
+            if ((p.elevation ?? 0) > prev) this.coveredTiles.set(key, p.elevation ?? 0);
           }
         }
       } else if (obj.type === "dungeon_entrance") {

@@ -534,6 +534,12 @@ export class Game {
           if (this.useTiledMap && this.tiledMap) {
             this.tiledMap.update(pos.x, pos.z);
             this.updatePlayerFloorElevation(pos);
+            // Fade floors above the player when inside a multi-storey building
+            if (this.structureRenderer) {
+              const playerFloor = pos.y > FLOOR_ELEVATION * 0.5 ? 1 : 0;
+              const underCover = this.tiledMap.isUnderCover(Math.round(pos.x), Math.round(pos.z), playerFloor);
+              this.structureRenderer.updateFloorVisibility(playerFloor, underCover);
+            }
           } else {
             this.chunkManager.updatePlayerPosition(pos.x, pos.z);
             this.terrainRenderer.update(pos.x, pos.z);

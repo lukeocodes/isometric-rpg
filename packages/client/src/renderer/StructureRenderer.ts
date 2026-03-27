@@ -66,6 +66,7 @@ type Pal = typeof PALETTES.stone;
 export class StructureRenderer {
   public container: Container;
   private pieces: Container[] = [];
+  private pieceFloors: number[] = [];  // parallel to pieces — floor index (0, 1, …)
 
   constructor() {
     this.container = new Container();
@@ -83,11 +84,23 @@ export class StructureRenderer {
       piece.zIndex = (w.tileX + w.tileZ) * 10 + (w.elevation ?? 0) * 1000 + 3;
       this.container.addChild(piece);
       this.pieces.push(piece);
+      this.pieceFloors.push(w.elevation ?? 0);
+    }
+  }
+
+  /**
+   * When the player is under cover (inside a building with floors above),
+   * fade all pieces above playerFloor to 10% opacity so the player is visible.
+   */
+  updateFloorVisibility(playerFloor: number, isUnderCover: boolean): void {
+    for (let i = 0; i < this.pieces.length; i++) {
+      this.pieces[i].alpha = (isUnderCover && this.pieceFloors[i] > playerFloor) ? 0.1 : 1.0;
     }
   }
 
   clear(): void {
     for (const p of this.pieces) p.destroy({ children: true });
+    this.pieceFloors = [];
     this.pieces = [];
   }
 
