@@ -85,6 +85,11 @@ export class EntityRenderer {
   private prevPositions = new Map<string, { x: number; z: number }>();
   private derivedFacing = new Map<string, { x: number; z: number }>();
 
+  // Spawn-in animations driven by update() instead of rogue RAF loops
+  private spawnAnims = new Map<string, { targetScale: number; elapsed: number }>();
+  // Fade-out animations driven by update()
+  private fadeAnims: Array<{ obj: Container; startScale: number; duration: number; elapsed: number }> = [];
+
   // Dev mode spawn point graphics
   private spawnPointGraphics = new Map<string, Graphics>();
 
@@ -98,6 +103,7 @@ export class EntityRenderer {
       this.flashTimers.delete(id);
       this.prevPositions.delete(id);
       this.derivedFacing.delete(id);
+      this.spawnAnims.delete(id);
 
       const hpBar = this.hpBars.get(id);
       if (hpBar) {
@@ -350,23 +356,11 @@ export class EntityRenderer {
           targetScale = 0.7 + Math.min(0.6, initStats.maxHp / 60);
         }
 
-        // Spawn-in animation: grow from 0 + fade in
+        // Spawn-in animation: grow from 30% + fade in (driven by update loop)
         render.displayObject.scale.set(targetScale * 0.3);
         render.displayObject.alpha = 0;
         (render.displayObject as any)._spawning = true;
-        const obj = render.displayObject;
-        const ts = targetScale;
-        let elapsed = 0;
-        const animateIn = () => {
-          elapsed += 1 / 60;
-          const t = Math.min(1, elapsed / 0.35);
-          const ease = 1 - (1 - t) * (1 - t); // ease-out quad
-          obj.scale.set(ts * (0.3 + 0.7 * ease));
-          obj.alpha = ease;
-          if (t < 1) requestAnimationFrame(animateIn);
-          else (obj as any)._spawning = false;
-        };
-        requestAnimationFrame(animateIn);
+        this.spawnAnims.set(entity.id, { targetScale, elapsed: 0 });
       }
 
       const { sx, sy } = worldToScreen(pos.x, pos.z, pos.y);
@@ -453,6 +447,40 @@ export class EntityRenderer {
         }
       }
     }
+
+    // Tick spawn-in animations
+    for (const [id, anim] of this.spawnAnims) {
+      const render = this.entityManager.getComponent<RenderableComponent>(id, "renderable");
+      if (!render?.displayObject) { this.spawnAnims.delete(id); continue; }
+      anim.elapsed += dt;
+      const t = Math.min(1, anim.elapsed / 0.35);
+      const ease = 1 - (1 - t) * (1 - t);
+      render.displayObject.scale.set(anim.targetScale * (0.3 + 0.7 * ease));
+      render.displayObject.alpha = ease;
+      if (t >= 1) {
+        (render.displayObject as any)._spawning = false;
+        this.spawnAnims.delete(id);
+      }
+    }
+
+    // Tick fade-out animations
+    let fi = 0;
+    while (fi < this.fadeAnims.length) {
+      const fa = this.fadeAnims[fi];
+      fa.elapsed += dt;
+      const progress = Math.min(1, fa.elapsed / fa.duration);
+      fa.obj.alpha = 1 - progress;
+      fa.obj.scale.set(fa.startScale * (1 - progress * 0.3));
+      fa.obj.position.y -= 0.5 * (dt / (1 / 60)); // Frame-rate independent float up
+      if (progress >= 1) {
+        fa.obj.destroy({ children: true });
+        const last = this.fadeAnims.length - 1;
+        if (fi < last) this.fadeAnims[fi] = this.fadeAnims[last];
+        this.fadeAnims.length = last;
+      } else {
+        fi++;
+      }
+    }
   }
 
   /** Fade out an entity's sprite over duration, then destroy it */
@@ -467,21 +495,8 @@ export class EntityRenderer {
     const startScale = obj.scale.x;
     render.displayObject = null; // Detach from ECS so it won't be updated
 
-    let elapsed = 0;
-    const animate = () => {
-      elapsed += 1 / 60; // approximate frame time
-      const progress = Math.min(1, elapsed / duration);
-      obj.alpha = 1 - progress;
-      obj.scale.set(startScale * (1 - progress * 0.3)); // Shrink slightly
-      obj.position.y -= 0.5; // Float up slightly
-
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      } else {
-        obj.destroy({ children: true });
-      }
-    };
-    requestAnimationFrame(animate);
+    // Driven by update loop instead of rogue RAF
+    this.fadeAnims.push({ obj, startScale, duration, elapsed: 0 });
 
     this.flashTimers.delete(entityId);
     this.hpBars.delete(entityId);
