@@ -317,7 +317,8 @@ export class TiledMapRenderer {
           sprite.texture = texture;
         }
 
-        const { sx, sy } = worldToScreen(tx, tz, 0);
+        // +0.5 centres the sprite on the tile (player uses continuous coords, tile index is top-left corner)
+        const { sx, sy } = worldToScreen(tx + 0.5, tz + 0.5, 0);
         sprite.position.set(sx, sy);
         sprite.zIndex = (tx + tz) * 10;
         sprite.visible = true;
