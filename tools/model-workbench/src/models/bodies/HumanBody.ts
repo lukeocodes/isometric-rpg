@@ -109,9 +109,9 @@ export class HumanBody implements Model {
     g.closePath();
     g.fill({ color: darken(p.skin, 0.2), alpha: 0.3 });
 
-    // Outline
+    // Outline — skin-toned to match arms/legs
     this.torsoPath(g, j, s);
-    g.stroke({ width: s * 0.7, color: p.outline, alpha: 0.5 });
+    g.stroke({ width: s * 0.5, color: darken(p.skin, 0.3), alpha: 0.4 });
 
     // Neck
     const nw = 3 * (Math.abs(chestR.x - chestL.x) / 16);
