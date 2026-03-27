@@ -182,8 +182,7 @@ export function createConfigPanel(
     for (const [slotName, _point] of Object.entries(attachments)) {
       const categories = SLOT_CATEGORIES[slotName];
       if (!categories || categories.length === 0) continue;
-      // Skip torso — handled by armor type selector above
-      if (slotName === "torso") continue;
+
 
       const compatibleModels = categories.flatMap((cat) => registry.list(cat as any));
       if (compatibleModels.length === 0) continue;
