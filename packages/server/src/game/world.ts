@@ -10,6 +10,7 @@ import {
 } from "./protocol.js";
 import { xpForKill, processXpGain, xpToNextLevel, totalXpForLevel } from "./experience.js";
 import { rollAndGiveLoot } from "./inventory.js";
+import { onDungeonNpcDeath } from "./dungeon.js";
 import { config } from "../config.js";
 
 /**
@@ -56,6 +57,8 @@ export function handleKill(killerId: string, deadEntityId: string) {
     if (killerEntity?.entityType === "player") {
       rollAndGiveLoot(killerId, deadEntityId);
     }
+    // Check if this is a dungeon NPC (boss check)
+    onDungeonNpcDeath(deadEntityId);
     handleNpcDeath(deadEntityId);
   }
 

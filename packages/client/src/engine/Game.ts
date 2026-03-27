@@ -76,6 +76,7 @@ export class Game {
   private followTargetId: string | null = null;
   private particles: ParticleSystem;
   private zoneChangeRequested = false;
+  private dungeonExitReady = false;
   private renderTime = 0;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -327,6 +328,16 @@ export class Game {
       this.hideLoadingOverlay();
     });
 
+    this.stateSync.setOnDungeonExit((_exitX, _exitZ, message) => {
+      if (this.hud) {
+        this.hud.chatBox.addSystemMessage(message);
+        this.hud.showZoneNotification("Boss Defeated!");
+      }
+      // Player can now walk to the exit portal and send DUNGEON_EXIT
+      // The exit portal location is tracked server-side
+      this.dungeonExitReady = true;
+    });
+
     this.stateSync.setOnZoneChange(async (zoneId, zoneName, mapFile, spawnX, spawnZ, _levelRange, _musicTag) => {
       console.log(`[Game] Zone change: ${zoneName} (${mapFile})`);
       if (this.hud) {
@@ -381,6 +392,7 @@ export class Game {
       }
       this.hideLoadingOverlay();
       this.zoneChangeRequested = false;
+      this.dungeonExitReady = false;
     });
 
     this.input.setOnLeftClick((sx, sy) => this.handleLeftClick(sx, sy));

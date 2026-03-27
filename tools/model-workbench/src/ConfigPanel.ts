@@ -4,6 +4,7 @@ import { computePalette } from "./models/palette";
 import { registry } from "./models/registry";
 import { computeHumanoidSkeleton } from "./models/skeleton";
 import type { Direction } from "./models/types";
+import { generateManifestJSON } from "./models/manifest";
 
 /** Maps attachment slots to compatible model categories */
 const SLOT_CATEGORIES: Record<string, string[]> = {
@@ -342,6 +343,27 @@ export function createConfigPanel(
     div.appendChild(exportBtn);
     div.appendChild(importBtn);
     container.appendChild(div);
+
+    // Manifest export (all models)
+    const manifestDiv = document.createElement("div");
+    manifestDiv.className = "control-group";
+    manifestDiv.style.marginTop = "6px";
+    const manifestBtn = document.createElement("button");
+    manifestBtn.textContent = "Copy Model Manifest";
+    manifestBtn.style.cssText = "width:auto;padding:4px 12px;font-size:11px;background:#335;";
+    manifestBtn.addEventListener("click", () => {
+      const json = generateManifestJSON();
+      navigator.clipboard.writeText(json).then(() => {
+        manifestBtn.textContent = "Manifest Copied!";
+        setTimeout(() => { manifestBtn.textContent = "Copy Model Manifest"; }, 1500);
+      });
+    });
+    const countSpan = document.createElement("span");
+    countSpan.style.cssText = "font-size:10px;color:#666;margin-left:6px;";
+    countSpan.textContent = `${registry.list().length} models`;
+    manifestDiv.appendChild(manifestBtn);
+    manifestDiv.appendChild(countSpan);
+    container.appendChild(manifestDiv);
   }
 
   // ─── Helpers ───

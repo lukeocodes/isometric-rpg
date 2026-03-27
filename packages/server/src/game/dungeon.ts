@@ -36,6 +36,9 @@ export interface DungeonInstance {
   rooms: Array<{ x: number; z: number; w: number; h: number }>;
   spawnedNpcs: string[];
   bossId: string | null;
+  bossDefeated: boolean;
+  exitX: number;  // Exit portal location (boss room center)
+  exitZ: number;
   createdAt: number;
 }
 
@@ -124,11 +127,18 @@ export function createDungeonInstance(ownerId: string, difficulty: number = 1): 
     collision[pz * DUNGEON_W + px] = 1; // Water is unwalkable
   }
 
+  // Boss room center (for exit portal)
+  const bossRoom = rooms.length >= 2 ? rooms[rooms.length - 1] : rooms[0];
+  const exitX = bossRoom ? bossRoom.x + Math.floor(bossRoom.w / 2) : 32;
+  const exitZ = bossRoom ? bossRoom.z + Math.floor(bossRoom.h / 2) : 32;
+
   const instance: DungeonInstance = {
     instanceId, mapId, ownerId,
     ground, collision, rooms,
     spawnedNpcs: [],
     bossId: null,
+    bossDefeated: false,
+    exitX, exitZ,
     createdAt: Date.now(),
   };
 
@@ -266,6 +276,39 @@ export function isDungeonWalkable(instanceId: string, x: number, z: number): boo
   if (!inst) return false;
   if (x < 0 || x >= DUNGEON_W || z < 0 || z >= DUNGEON_H) return false;
   return inst.collision[z * DUNGEON_W + x] === 0;
+}
+
+/** Called when an NPC dies in a dungeon — checks if it's the boss */
+export function onDungeonNpcDeath(npcId: string): void {
+  // Find which instance this NPC belongs to
+  for (const inst of instances.values()) {
+    if (inst.bossId === npcId) {
+      inst.bossDefeated = true;
+      console.log(`[Dungeon] Boss defeated in ${inst.instanceId}!`);
+
+      // Notify player: exit portal opened
+      connectionManager.sendReliable(inst.ownerId,
+        packReliable(Opcode.DUNGEON_EXIT, {
+          exitX: inst.exitX,
+          exitZ: inst.exitZ,
+          message: "The boss has been defeated! An exit portal has appeared.",
+        }));
+      return;
+    }
+    // Remove dead NPC from tracking
+    const idx = inst.spawnedNpcs.indexOf(npcId);
+    if (idx !== -1) {
+      inst.spawnedNpcs.splice(idx, 1);
+      return;
+    }
+  }
+}
+
+/** Check if a player is at the dungeon exit portal */
+export function isAtDungeonExit(entityId: string, x: number, z: number): boolean {
+  const inst = getPlayerDungeon(entityId);
+  if (!inst || !inst.bossDefeated) return false;
+  return Math.abs(x - inst.exitX) <= 1 && Math.abs(z - inst.exitZ) <= 1;
 }
 
 /** Clean up dungeons for disconnected players */

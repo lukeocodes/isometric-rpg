@@ -25,6 +25,7 @@ export type ChunkDataCallback = (cx: number, cz: number, heights: Float32Array) 
 export type LootDropCallback = (items: Array<{ itemId: string; name: string; icon: string; qty: number }>) => void;
 export type InventorySyncCallback = (items: Array<{ id: string; itemId: string; name: string; icon: string; type: string; quantity: number; equipped: boolean; slot: string | null }>) => void;
 export type DungeonMapCallback = (data: { instanceId: string; width: number; height: number; ground: number[]; collision: number[]; spawnX: number; spawnZ: number }) => void;
+export type DungeonExitCallback = (exitX: number, exitZ: number, message: string) => void;
 
 export class StateSync {
   private entityManager: EntityManager;
@@ -46,6 +47,7 @@ export class StateSync {
   private onLootDrop: LootDropCallback | null = null;
   private onInventorySync: InventorySyncCallback | null = null;
   private onDungeonMap: DungeonMapCallback | null = null;
+  private onDungeonExit: DungeonExitCallback | null = null;
   private terrainYResolver: ((x: number, z: number) => number) | null = null;
 
   // Spawn points (for dev mode rendering)
@@ -86,6 +88,7 @@ export class StateSync {
   setOnLootDrop(handler: LootDropCallback) { this.onLootDrop = handler; }
   setOnInventorySync(handler: InventorySyncCallback) { this.onInventorySync = handler; }
   setOnDungeonMap(handler: DungeonMapCallback) { this.onDungeonMap = handler; }
+  setOnDungeonExit(handler: DungeonExitCallback) { this.onDungeonExit = handler; }
 
   handleChunkData(data: ArrayBuffer): void {
     // Format: [opcode:u8] [cx:i16LE] [cz:i16LE] [heights:2048 bytes Float16]
@@ -278,6 +281,11 @@ export class StateSync {
       case Opcode.DUNGEON_MAP:
         if (this.onDungeonMap) {
           this.onDungeonMap(data as any);
+        }
+        break;
+      case Opcode.DUNGEON_EXIT:
+        if (this.onDungeonExit) {
+          this.onDungeonExit(data.exitX, data.exitZ, data.message);
         }
         break;
     }
