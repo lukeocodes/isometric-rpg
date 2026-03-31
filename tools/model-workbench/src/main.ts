@@ -26,7 +26,7 @@ import "./models/structures/index";
 
 // ─── Constants ──────────────────────────────────────────────────────
 
-const MAIN_SCALE = 5;
+const MAIN_SCALE_DEFAULT = 5;
 const GRID_SCALE = 1.4;
 const WALK_FRAMES = 8;
 const GRID_CELL_SIZE = 90; // CSS px per direction cell
@@ -316,6 +316,45 @@ async function main() {
   mainContainer.addChild(mainGfx);
   app.stage.addChild(mainContainer);
 
+  // ─── Preview drag interaction ─────────────────────────────────────
+  // Horizontal drag → rotate direction (40px per step), vertical drag → zoom
+
+  let mainScale = MAIN_SCALE_DEFAULT;
+  let previewDrag: { startX: number; startY: number; startDir: number; startScale: number } | null = null;
+
+  app.canvas.style.cursor = "grab";
+
+  app.canvas.addEventListener("pointerdown", (e) => {
+    previewDrag = {
+      startX: e.clientX, startY: e.clientY,
+      startDir: state.direction, startScale: mainScale,
+    };
+    app.canvas.setPointerCapture(e.pointerId);
+    app.canvas.style.cursor = "grabbing";
+  });
+
+  app.canvas.addEventListener("pointermove", (e) => {
+    if (!previewDrag) return;
+    const dx = e.clientX - previewDrag.startX;
+    const dy = e.clientY - previewDrag.startY;
+    // 40px horizontal drag = 1 direction step (clockwise)
+    const dirDelta = Math.round(dx / 40);
+    state.direction = ((previewDrag.startDir + dirDelta) % 8 + 8) % 8 as Direction;
+    // 35px vertical drag up = zoom in
+    mainScale = Math.max(2, Math.min(12, previewDrag.startScale - dy / 35));
+  });
+
+  app.canvas.addEventListener("pointerup", () => {
+    previewDrag = null;
+    app.canvas.style.cursor = "grab";
+  });
+
+  // Scroll wheel also zooms
+  app.canvas.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    mainScale = Math.max(2, Math.min(12, mainScale - e.deltaY * 0.025));
+  }, { passive: false });
+
   // ─── Frame scrubber ──────────────────────────────────────────────
 
   const frameScrubberEl = document.getElementById("frame-scrubber")!;
@@ -389,11 +428,10 @@ async function main() {
       : state.walkPhase;
 
     // ─── Main preview ────────────────────────────────────────────
-    const mainW = FRAME_W * MAIN_SCALE;
-    const mainH = FRAME_H * MAIN_SCALE;
+    const mainH = FRAME_H * mainScale;
     mainContainer.position.set(app.renderer.width / 2, app.renderer.height / 2 + mainH / 2);
     mainGfx.clear();
-    renderFrame(mainGfx, staticModel ? 0 : state.direction, staticModel ? 0 : phase, MAIN_SCALE);
+    renderFrame(mainGfx, staticModel ? 0 : state.direction, staticModel ? 0 : phase, mainScale);
 
     // ─── Direction grid (throttled) ──────────────────────────────
     gridFrameAcc += ticker.elapsedMS;

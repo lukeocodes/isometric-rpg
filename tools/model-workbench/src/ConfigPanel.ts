@@ -409,8 +409,6 @@ export function createConfigPanel(
     createColorPicker(section, "Skin", p.skin, (v) => { state.compositeConfig.palette.skin = v; rebuildPalette(); });
     createColorPicker(section, "Hair", p.hair, (v) => { state.compositeConfig.palette.hair = v; rebuildPalette(); });
     createColorPicker(section, "Eyes", p.eyes, (v) => { state.compositeConfig.palette.eyes = v; rebuildPalette(); });
-    createColorPicker(section, "Primary", p.primary, (v) => { state.compositeConfig.palette.primary = v; rebuildPalette(); });
-    createColorPicker(section, "Secondary", p.secondary, (v) => { state.compositeConfig.palette.secondary = v; rebuildPalette(); });
   }
 
   function buildAnimationControls() {
