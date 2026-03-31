@@ -99,6 +99,10 @@ export class NetworkManager {
             try {
               const parsed = JSON.parse(str);
               if (parsed.op === 100) { // WORLD_READY
+                // Server sends authoritative spawn position — override the offer value
+                if (parsed.spawnX != null) {
+                  this.spawnPosition = { x: parsed.spawnX, y: parsed.spawnY ?? 0, z: parsed.spawnZ, mapId: this.spawnPosition.mapId };
+                }
                 if (this.worldReadyResolve) this.worldReadyResolve();
                 return;
               }

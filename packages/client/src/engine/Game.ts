@@ -84,6 +84,11 @@ export class Game {
   private currentZoneName: string | null = null;
   private movePath: Array<{ x: number; z: number }> = []; // A* path queue
   private moveGoal: { x: number; z: number } | null = null;
+  // Click indicators
+  private clickIndicator: Graphics | null = null;
+  private clickIndicatorType: "move" | "attack" | null = null;
+  private clickIndicatorTargetId: string | null = null; // for attack: follows entity
+  private clickIndicatorAlpha = 0;
   private lastCursor = "";
   private followTargetId: string | null = null;
   private particles: ParticleSystem;
@@ -464,8 +469,11 @@ export class Game {
         this.tiledMap.container.zIndex = -100000;
         this.pixiApp.worldContainer.addChild(this.tiledMap.container);
 
-        // Use Tiled map's player spawn as the spawn position
-        this.spawnPosition = { x: this.tiledMap.playerSpawn.x, y: 0, z: this.tiledMap.playerSpawn.z };
+        // Use Tiled map's player spawn only if the server hasn't provided a position.
+        // connectToServer() sets spawnPosition from the offer response before start() is called.
+        if (this.spawnPosition.x === 0 && this.spawnPosition.z === 0) {
+          this.spawnPosition = { x: this.tiledMap.playerSpawn.x, y: 0, z: this.tiledMap.playerSpawn.z };
+        }
 
         // Set up walkability from Tiled collision data
         this.movementSystem.setTerrainResolvers(
@@ -626,6 +634,7 @@ export class Game {
         this.entityRenderer.renderZoneExits(this.tiledMap.zoneExits, this.renderTime);
       }
       this.animationSystem.update(frameDt);
+      this.updateClickIndicator(frameDt);
       this.particles.update(frameDt);
       const playerPos = this.localEntityId
         ? this.entityManager.getComponent<PositionComponent>(this.localEntityId, "position")
@@ -866,34 +875,7 @@ export class Game {
       }
     }
 
-    // Isometric WASD: W=up-left(-X), S=down-right(+X), A=down-left(+Z), D=up-right(-Z)
-    let dx = 0, dz = 0;
-    if (inputState.moveForward) { dx -= 1; }  // W = up-left on screen
-    if (inputState.moveBackward) { dx += 1; }  // S = down-right on screen
-    if (inputState.moveLeft) { dz += 1; }      // A = down-left on screen
-    if (inputState.moveRight) { dz -= 1; }     // D = up-right on screen
-
-    if (dx !== 0 || dz !== 0) {
-      // WASD input cancels click-to-move and follow
-      this.movePath = [];
-      this.moveGoal = null;
-      this.followTargetId = null;
-      if (!movement.moving) {
-        const tx = movement.tileX + dx;
-        const tz = movement.tileZ + dz;
-        if (this.movementSystem.canMoveTo(movement.tileX, movement.tileZ, tx, tz)) {
-          movement.targetX = tx;
-          movement.targetZ = tz;
-          movement.progress = 0;
-          movement.moving = true;
-        } else {
-          this.movementSystem.startBump(movement, dx, dz);
-        }
-      } else {
-        movement.queuedDx = dx;
-        movement.queuedDz = dz;
-      }
-    } else if (this.movePath.length > 0 && !movement.moving) {
+    if (this.movePath.length > 0 && !movement.moving) {
       // A* path following: consume next tile from path
       const next = this.movePath[0];
       if (this.movementSystem.canMoveTo(movement.tileX, movement.tileZ, next.x, next.z)) {
@@ -979,7 +961,17 @@ export class Game {
   }
 
   private handleLeftClick(sx: number, sy: number) {
-    // Check for world item click first
+    // Left-click: select entity only, no movement
+    const entityId = this.pickEntityAt(sx, sy);
+    if (entityId) {
+      this.selectTarget(entityId);
+    } else {
+      this.selectTarget(null);
+    }
+  }
+
+  private handleRightClick(sx: number, sy: number) {
+    // World item pickup on right-click too
     if (this.worldItemRenderer && this.network?.isConnected()) {
       const wc = this.pixiApp.worldContainer;
       const zoom = this.camera.getZoom();
@@ -992,30 +984,6 @@ export class Game {
       }
     }
 
-    const entityId = this.pickEntityAt(sx, sy);
-    if (entityId) {
-      this.selectTarget(entityId);
-      this.movePath = [];
-      this.moveGoal = null;
-      this.followTargetId = null;
-    } else {
-      this.followTargetId = null;
-      this.selectTarget(null);
-      const wc = this.pixiApp.worldContainer;
-      const zoom = this.camera.getZoom();
-      const worldPxX = (sx - wc.x) / zoom;
-      const worldPxY = (sy - wc.y) / zoom;
-      const { tileX, tileZ } = screenToWorld(worldPxX, worldPxY);
-      const movement = this.localEntityId
-        ? this.entityManager.getComponent<MovementComponent>(this.localEntityId, "movement")
-        : null;
-      if (movement) {
-        this.computePath(movement.tileX, movement.tileZ, Math.round(tileX), Math.round(tileZ));
-      }
-    }
-  }
-
-  private handleRightClick(sx: number, sy: number) {
     const entityId = this.pickEntityAt(sx, sy);
     if (entityId) {
       this.selectTarget(entityId);
@@ -1036,6 +1004,7 @@ export class Game {
           if (movement) {
             this.computePath(movement.tileX, movement.tileZ, Math.round(targetPos.x), Math.round(targetPos.z));
           }
+          this.showClickIndicator("attack", Math.round(targetPos.x), Math.round(targetPos.z), entityId);
         }
       }
     } else {
@@ -1046,12 +1015,78 @@ export class Game {
       const worldPxX = (sx - wc.x) / zoom;
       const worldPxY = (sy - wc.y) / zoom;
       const { tileX, tileZ } = screenToWorld(worldPxX, worldPxY);
+      const tx = Math.round(tileX), tz = Math.round(tileZ);
       const movement = this.localEntityId
         ? this.entityManager.getComponent<MovementComponent>(this.localEntityId, "movement")
         : null;
       if (movement) {
-        this.computePath(movement.tileX, movement.tileZ, Math.round(tileX), Math.round(tileZ));
+        this.computePath(movement.tileX, movement.tileZ, tx, tz);
+        this.showClickIndicator("move", tx, tz);
       }
+    }
+  }
+
+  private showClickIndicator(type: "move" | "attack", tileX: number, tileZ: number, targetId?: string) {
+    if (!this.clickIndicator) {
+      this.clickIndicator = new Graphics();
+      this.clickIndicator.zIndex = 9000;
+      this.pixiApp.worldContainer.addChild(this.clickIndicator);
+    }
+    this.clickIndicatorType = type;
+    this.clickIndicatorTargetId = targetId ?? null;
+    this.clickIndicatorAlpha = 1;
+    this.updateClickIndicatorGraphic(tileX, tileZ);
+  }
+
+  private updateClickIndicatorGraphic(tileX: number, tileZ: number) {
+    if (!this.clickIndicator) return;
+    const { sx, sy } = worldToScreen(tileX, tileZ, 0);
+    this.clickIndicator.position.set(sx, sy);
+    this.clickIndicator.clear();
+    const color = this.clickIndicatorType === "attack" ? 0xff4444 : 0x44ddcc;
+    const hw = 16, hh = 8; // half-width, half-height of the iso diamond puddle
+    this.clickIndicator.poly([0, -hh, hw, 0, 0, hh, -hw, 0]);
+    this.clickIndicator.fill({ color, alpha: 0.55 });
+    this.clickIndicator.poly([0, -hh, hw, 0, 0, hh, -hw, 0]);
+    this.clickIndicator.stroke({ width: 1.5, color, alpha: 0.85 });
+  }
+
+  private updateClickIndicator(frameDt: number) {
+    if (!this.clickIndicator || !this.clickIndicatorType) return;
+
+    if (this.clickIndicatorType === "attack") {
+      // Follow the target entity
+      if (this.clickIndicatorTargetId) {
+        const pos = this.entityManager.getComponent<PositionComponent>(this.clickIndicatorTargetId, "position");
+        if (pos) {
+          this.updateClickIndicatorGraphic(pos.x, pos.z);
+        } else {
+          // Entity gone — hide
+          this.clickIndicatorAlpha = 0;
+        }
+      }
+      // Attack indicator stays at full alpha until target is deselected
+      if (!this.followTargetId && !this.selectedTargetId) this.clickIndicatorAlpha = 0;
+    } else {
+      // Move indicator: fade based on remaining distance to goal
+      if (this.moveGoal && this.localEntityId) {
+        const myPos = this.entityManager.getComponent<PositionComponent>(this.localEntityId, "position");
+        if (myPos) {
+          const dist = Math.abs(myPos.x - this.moveGoal.x) + Math.abs(myPos.z - this.moveGoal.z);
+          this.clickIndicatorAlpha = Math.min(1, dist / 3); // fully faded within 3 tiles
+        }
+      } else {
+        // Goal reached or cancelled — fade out quickly
+        this.clickIndicatorAlpha -= frameDt * 3;
+      }
+    }
+
+    this.clickIndicatorAlpha = Math.max(0, this.clickIndicatorAlpha);
+    this.clickIndicator.alpha = this.clickIndicatorAlpha;
+    if (this.clickIndicatorAlpha === 0) {
+      this.clickIndicator.clear();
+      this.clickIndicatorType = null;
+      this.clickIndicatorTargetId = null;
     }
   }
 

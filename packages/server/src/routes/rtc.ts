@@ -500,7 +500,9 @@ export async function rtcRoutes(app: FastifyInstance) {
             reliableChannel.send(Buffer.from(packReliable(Opcode.WORLD_ITEMS_SYNC, { items: worldItems })));
           }
 
-          reliableChannel.send(Buffer.from(packReliable(Opcode.WORLD_READY, {})));
+          reliableChannel.send(Buffer.from(packReliable(Opcode.WORLD_READY, {
+            spawnX: entity.x, spawnY: entity.y, spawnZ: entity.z,
+          })));
 
           // Send inventory after world is ready
           sendInventory(entityId);
