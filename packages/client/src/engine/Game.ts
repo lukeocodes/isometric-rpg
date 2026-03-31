@@ -1003,9 +1003,13 @@ export class Game {
           this.followTargetId = entityId;
           const movement = this.entityManager.getComponent<MovementComponent>(this.localEntityId!, "movement");
           if (movement) {
+            console.log(`[RightClick] follow-attack from=(${movement.tileX},${movement.tileZ}) to=(${Math.round(targetPos.x)},${Math.round(targetPos.z)})`);
             this.computePath(movement.tileX, movement.tileZ, Math.round(targetPos.x), Math.round(targetPos.z));
+            console.log(`[RightClick] follow-attack path length=${this.movePath.length}`);
+            try { this.showClickIndicator("attack", Math.round(targetPos.x), Math.round(targetPos.z), entityId); } catch(e) { /* ignore */ }
+          } else {
+            console.warn("[RightClick] no movement component for follow-attack");
           }
-          this.showClickIndicator("attack", Math.round(targetPos.x), Math.round(targetPos.z), entityId);
         }
       }
     } else {
@@ -1013,18 +1017,19 @@ export class Game {
       this.followTargetId = null;
       const wc = this.pixiApp.worldContainer;
       const zoom = this.camera.getZoom();
+      if (!zoom) { console.warn("[RightClick] zoom is 0 or falsy:", zoom); return; }
       const worldPxX = (sx - wc.x) / zoom;
       const worldPxY = (sy - wc.y) / zoom;
       const { tileX, tileZ } = screenToWorld(worldPxX, worldPxY);
       const tx = Math.round(tileX), tz = Math.round(tileZ);
-      const movement = this.localEntityId
-        ? this.entityManager.getComponent<MovementComponent>(this.localEntityId, "movement")
-        : null;
-      if (movement) {
-        this.computePath(movement.tileX, movement.tileZ, tx, tz);
-        console.log(`[RightClick] move to (${tx},${tz}), path length=${this.movePath.length}`);
-        try { this.showClickIndicator("move", tx, tz); } catch(e) { console.error("[Indicator]", e); }
-      }
+      if (isNaN(tx) || isNaN(tz)) { console.warn("[RightClick] NaN tile coords, sx/sy:", sx, sy, "wc.x/y:", wc.x, wc.y, "zoom:", zoom); return; }
+      if (!this.localEntityId) { console.warn("[RightClick] no localEntityId"); return; }
+      const movement = this.entityManager.getComponent<MovementComponent>(this.localEntityId, "movement");
+      if (!movement) { console.warn("[RightClick] no movement component for", this.localEntityId); return; }
+      console.log(`[RightClick] from=(${movement.tileX},${movement.tileZ}) to=(${tx},${tz})`);
+      this.computePath(movement.tileX, movement.tileZ, tx, tz);
+      console.log(`[RightClick] path length=${this.movePath.length}`);
+      try { this.showClickIndicator("move", tx, tz); } catch(e) { console.error("[Indicator]", e); }
     }
   }
 
