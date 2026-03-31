@@ -1043,11 +1043,10 @@ export class Game {
     this.clickIndicator.position.set(sx, sy);
     this.clickIndicator.clear();
     const color = this.clickIndicatorType === "attack" ? 0xff4444 : 0x44ddcc;
-    const hw = 16, hh = 8; // half-width, half-height of the iso diamond puddle
-    this.clickIndicator.poly([0, -hh, hw, 0, 0, hh, -hw, 0]);
-    this.clickIndicator.fill({ color, alpha: 0.55 });
-    this.clickIndicator.poly([0, -hh, hw, 0, 0, hh, -hw, 0]);
-    this.clickIndicator.stroke({ width: 1.5, color, alpha: 0.85 });
+    this.clickIndicator.ellipse(0, 0, 18, 9);
+    this.clickIndicator.fill({ color, alpha: 0.45 });
+    this.clickIndicator.ellipse(0, 0, 18, 9);
+    this.clickIndicator.stroke({ width: 1.5, color, alpha: 0.9 });
   }
 
   private updateClickIndicator(frameDt: number) {
