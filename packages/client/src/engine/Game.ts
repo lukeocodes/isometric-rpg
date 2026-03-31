@@ -634,7 +634,7 @@ export class Game {
         this.entityRenderer.renderZoneExits(this.tiledMap.zoneExits, this.renderTime);
       }
       this.animationSystem.update(frameDt);
-      this.updateClickIndicator(frameDt);
+      try { this.updateClickIndicator(frameDt); } catch(e) { console.error("[ClickIndicator]", e); }
       this.particles.update(frameDt);
       const playerPos = this.localEntityId
         ? this.entityManager.getComponent<PositionComponent>(this.localEntityId, "position")
@@ -878,6 +878,7 @@ export class Game {
     if (this.movePath.length > 0 && !movement.moving) {
       // A* path following: consume next tile from path
       const next = this.movePath[0];
+      console.log(`[Move] following path, next=(${next.x},${next.z}), from=(${movement.tileX},${movement.tileZ}), canMove=${this.movementSystem.canMoveTo(movement.tileX, movement.tileZ, next.x, next.z)}`);
       if (this.movementSystem.canMoveTo(movement.tileX, movement.tileZ, next.x, next.z)) {
         movement.targetX = next.x;
         movement.targetZ = next.z;
@@ -1021,7 +1022,8 @@ export class Game {
         : null;
       if (movement) {
         this.computePath(movement.tileX, movement.tileZ, tx, tz);
-        this.showClickIndicator("move", tx, tz);
+        console.log(`[RightClick] move to (${tx},${tz}), path length=${this.movePath.length}`);
+        try { this.showClickIndicator("move", tx, tz); } catch(e) { console.error("[Indicator]", e); }
       }
     }
   }

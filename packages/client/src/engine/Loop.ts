@@ -46,10 +46,10 @@ export class Loop {
       this.accumulator -= TICK_MS;
     }
 
-    // Variable render with frame delta
+    // Variable render with frame delta — wrapped so a single bad callback can't kill the loop
     const frameDt = elapsed / 1000;
     for (const cb of this.renderCallbacks) {
-      cb(frameDt);
+      try { cb(frameDt); } catch (e) { console.error("[Loop] render callback threw:", e); }
     }
 
     requestAnimationFrame((t) => this.frame(t));
