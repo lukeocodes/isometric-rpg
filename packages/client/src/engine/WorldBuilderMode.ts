@@ -361,13 +361,19 @@ export class WorldBuilderMode {
     document.body.appendChild(el);
     this.contextMenuEl = el;
 
-    const close = (e: MouseEvent) => {
+    // Close on the NEXT pointerdown outside the menu.
+    // Using pointerdown (rather than click) avoids the issue where the triggering
+    // click's own events close the menu immediately on mouseup.
+    // The timestamp guard drops any event that arrives within 150ms of the open.
+    const openTime = performance.now();
+    const close = (e: PointerEvent) => {
+      if (performance.now() - openTime < 150) return;
       if (!el.contains(e.target as Node)) {
         this.clearContextMenu();
-        document.removeEventListener("click", close, true);
+        document.removeEventListener("pointerdown", close, true);
       }
     };
-    setTimeout(() => document.addEventListener("click", close, true), 10);
+    document.addEventListener("pointerdown", close, true);
   }
 
   private addMenuBtn(parent: HTMLElement, label: string, onClick: () => void): void {
