@@ -17,9 +17,9 @@ import { drawTaperedLimb } from "../draw-helpers";
  * equipment slots. Draws torso, pelvis, glutes, legs, feet, arms,
  * and head (skin + eyes only — no hair, helmet, or armor).
  */
-export class HumanBody implements Model {
-  readonly id = "human-body";
-  readonly name = "Human Body";
+export class HumanBodyV1 implements Model {
+  readonly id = "human-body-v1";
+  readonly name = "Human Body (Legacy)";
   readonly category = "body" as const;
   readonly slot = "root" as const;
 

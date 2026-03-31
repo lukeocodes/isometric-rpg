@@ -24,9 +24,9 @@ import { drawTaperedLimb } from "../draw-helpers";
  *
  * Compatible with the same skeleton joints and attachment points as HumanBody.
  */
-export class HumanBodyV2 implements Model {
-  readonly id   = "human-body-v2";
-  readonly name = "Human Body V2";
+export class HumanBody implements Model {
+  readonly id   = "human-body";
+  readonly name = "Human Body";
   readonly category = "body" as const;
   readonly slot     = "root" as const;
 
