@@ -28,6 +28,7 @@ import "./models/structures/index";
 
 const MAIN_SCALE_DEFAULT = 5;
 const GRID_SCALE = 1.4;
+const GRID_QUALITY  = 3;   // render grid cells at 3× resolution, display at 1×
 const WALK_FRAMES = 8;
 const GRID_CELL_SIZE = 90; // CSS px per direction cell
 
@@ -230,8 +231,12 @@ async function main() {
   // For the direction grid we render into RenderTextures then display as Sprites
   // so we can use a single PixiJS app for all 8 cells.
 
-  const GRID_RT_W = Math.round(FRAME_W * GRID_SCALE * 1.5);
-  const GRID_RT_H = Math.round(FRAME_H * GRID_SCALE * 1.5);
+  // Display size (CSS pixels) — keep the visual footprint the same as before
+  const GRID_DISPLAY_W = Math.round(FRAME_W * GRID_SCALE * 1.5);
+  const GRID_DISPLAY_H = Math.round(FRAME_H * GRID_SCALE * 1.5);
+  // Render at GRID_QUALITY× for crisp display on all screens
+  const GRID_RT_W = GRID_DISPLAY_W * GRID_QUALITY;
+  const GRID_RT_H = GRID_DISPLAY_H * GRID_QUALITY;
 
   interface DirCellRt {
     rt: RenderTexture;
@@ -268,13 +273,14 @@ async function main() {
 
         // Image element to display the RenderTexture
         const img = document.createElement("img");
+        // Display at logical size; texture is GRID_QUALITY× larger for crispness
         img.style.cssText = `
           position: absolute;
           top: 0; left: 50%;
           transform: translateX(-50%);
-          width: ${GRID_RT_W}px;
-          height: ${GRID_RT_H * 0.78}px;
-          image-rendering: pixelated;
+          width: ${GRID_DISPLAY_W}px;
+          height: ${Math.round(GRID_DISPLAY_H * 0.78)}px;
+          image-rendering: auto;
           pointer-events: none;
         `;
         cellEl.appendChild(img);
@@ -291,7 +297,8 @@ async function main() {
         const gfx = new Graphics();
         const offContainer = new Container();
         offContainer.addChild(gfx);
-        gfx.position.set(GRID_RT_W / 2, GRID_RT_H - 4);
+        // Origin at centre-x, near bottom — scaled with GRID_QUALITY
+        gfx.position.set(GRID_RT_W / 2, GRID_RT_H - 4 * GRID_QUALITY);
 
         const rt = RenderTexture.create({ width: GRID_RT_W, height: GRID_RT_H });
 
@@ -439,7 +446,7 @@ async function main() {
       gridFrameAcc = 0;
       for (const [dir, cell] of dirCellRts) {
         cell.gfx.clear();
-        renderFrame(cell.gfx, dir, phase, GRID_SCALE);
+        renderFrame(cell.gfx, dir, phase, GRID_SCALE * GRID_QUALITY);
         app.renderer.render({ container: cell.offContainer, target: cell.rt });
         // Export as data URL for the <img> element
         const canvas = app.renderer.extract.canvas({ target: cell.rt }) as HTMLCanvasElement;

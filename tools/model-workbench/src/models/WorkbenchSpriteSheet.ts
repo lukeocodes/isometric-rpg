@@ -14,13 +14,12 @@ import { registry } from "./registry";
  *   - dispose(): void
  *
  * Quality tiers (renderScale):
- *   Low    = 2  →  96×128px  — minimal memory, low-DPI or low-zoom use
- *   Medium = 3  → 144×192px  — balanced
- *   High   = 4  → 192×256px  — crisp at 2× zoom / Retina  (auto-detected default)
- *   Ultra  = 6  → 288×384px  — crisp at 4× zoom / 4K displays
+ *   Low    =  5  → 240×320px  — low-DPI use, minimal memory
+ *   Medium =  8  → 384×512px  — balanced, default on 1× displays
+ *   High   = 10  → 480×640px  — crisp at 2× zoom / Retina (auto-detected default on HiDPI)
+ *   Ultra  = 15  → 720×960px  — crisp at 4× zoom / 4K
  *
- * Auto-detect default: based on devicePixelRatio so the effective texture coverage
- * stays roughly constant across displays.
+ * Auto-detect default: medium minimum; bumps to high/ultra based on devicePixelRatio.
  */
 
 const WALK_PHASES = 8;
@@ -34,10 +33,10 @@ export type AnimationState = "peace" | "attack-stationary" | "attack-moving";
 export type RenderQuality = "low" | "medium" | "high" | "ultra";
 
 const QUALITY_SCALE: Record<RenderQuality, number> = {
-  low:   2,
-  medium: 3,
-  high:  4,
-  ultra: 6,
+  low:    5,
+  medium: 8,
+  high:   10,
+  ultra:  15,
 };
 
 /**
@@ -46,9 +45,9 @@ const QUALITY_SCALE: Record<RenderQuality, number> = {
  */
 export function autoDetectQuality(): RenderQuality {
   const dpr = (typeof window !== "undefined" ? window.devicePixelRatio : 1) || 1;
-  if (dpr >= 2.5) return "ultra";
-  if (dpr >= 1.5) return "high";
-  if (dpr >= 1.2) return "medium";
+  if (dpr >= 3)   return "ultra";
+  if (dpr >= 2)   return "high";
+  if (dpr >= 1)   return "medium";
   return "low";
 }
 
