@@ -21,8 +21,8 @@ export class LegsPlate implements Model {
 
     const sz = ctx.slotParams.size;
     // Far leg: darker; near leg: base color
-    calls.push({ depth: DEPTH_FAR_LIMB + 0, draw: (g, s) => this.drawLeg(g, j, palette, s, farSide, sz, false) });
-    calls.push({ depth: DEPTH_FAR_LIMB + 2, draw: (g, s) => this.drawLeg(g, j, palette, s, nearSide, sz, true) });
+    calls.push({ depth: DEPTH_FAR_LIMB + 1, draw: (g, s) => this.drawLeg(g, j, palette, s, farSide, sz, false) });
+    calls.push({ depth: DEPTH_FAR_LIMB + 5, draw: (g, s) => this.drawLeg(g, j, palette, s, nearSide, sz, true) });
 
     // Tassets (plate skirt)
     calls.push({

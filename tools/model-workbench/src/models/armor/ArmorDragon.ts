@@ -1,140 +1,133 @@
 import type { Graphics } from "pixi.js";
-import type { Model, RenderContext, DrawCall, AttachmentPoint, V } from "../types";
+import type { Model, RenderContext, DrawCall, AttachmentPoint, FitmentCorners } from "../types";
 import { DEPTH_BODY } from "../types";
-import { darken, lighten } from "../palette";
+import { darken } from "../palette";
+import { drawCornerQuad, quadPoint } from "../draw-helpers";
 
 /**
- * Dragon armor — dark red/black plate with scale pattern, fiery accents.
- * Forged from dragonscale and obsidian. Heavy, prestigious.
- * When facing away: back spine scales replace front crest emblem.
+ * Dragon Scale Armor — overlapping dragonscale plates with gold trim.
+ *
+ * DEPTH: DEPTH_BODY + 3 (= 93) — above torso body.
+ * CORNER-BASED: stretches to fit any body type via fitmentCorners.
+ * FACING AWARE: front crest + ornate belt; back shows spine scales only.
  */
 export class ArmorDragon implements Model {
   readonly id = "armor-dragon";
-  readonly name = "Dragonscale Plate";
+  readonly name = "Dragon Scale Armor";
   readonly category = "armor" as const;
   readonly slot = "torso" as const;
 
-  private readonly SCALE = 0x4a1a1a;    // dark crimson
-  private readonly SCALE_DK = 0x2a0a0a; // near-black red
-  private readonly SCALE_LT = 0x6a2a2a; // lighter crimson
-  private readonly FIRE = 0xff6600;      // fiery orange accent
-  private readonly FIRE_DK = 0xcc3300;   // deep fire
-  private readonly GOLD = 0xccaa44;      // gold trim
-
   getDrawCalls(ctx: RenderContext): DrawCall[] {
-    const { skeleton, facingCamera } = ctx;
-    const j = skeleton.joints;
+    const { skeleton, palette, facingCamera, fitmentCorners } = ctx;
+    const j  = skeleton.joints;
+    const sz = ctx.slotParams.size;
     const wf = skeleton.wf;
+
+    const fc: FitmentCorners = fitmentCorners ?? {
+      tl: { x: j.shoulderL.x, y: j.neckBase.y },
+      tr: { x: j.shoulderR.x, y: j.neckBase.y },
+      bl: { x: j.hipL.x,      y: j.hipL.y },
+      br: { x: j.hipR.x,      y: j.hipR.y },
+    };
+
+    const insetCorners: FitmentCorners = {
+      tl: { x: fc.tl.x + 1.5 * sz, y: fc.tl.y + 1 * sz },
+      tr: { x: fc.tr.x - 1.5 * sz, y: fc.tr.y + 1 * sz },
+      bl: { x: fc.bl.x + 0.5 * sz, y: fc.bl.y - 0.5 * sz },
+      br: { x: fc.br.x - 0.5 * sz, y: fc.br.y - 0.5 * sz },
+    };
 
     return [
       {
         depth: DEPTH_BODY + 3,
         draw: (g: Graphics, s: number) => {
-          const { neckBase, waistL, waistR, hipL, hipR, shoulderL, shoulderR } = j;
-          const cx = neckBase.x;
+          // Base quad
+          drawCornerQuad(g, insetCorners, 0, palette.body, palette.outline, 0.4, s);
 
-          // Scale-textured torso plate
-          // Main body
-          g.moveTo(cx * s, neckBase.y * s);
-          g.quadraticCurveTo((shoulderR.x + 1) * s, (shoulderR.y - 1) * s, (waistR.x + 1) * s, waistR.y * s);
-          g.lineTo((hipR.x + 0.5) * s, hipR.y * s);
-          g.lineTo((hipL.x - 0.5) * s, hipL.y * s);
-          g.lineTo((waistL.x - 1) * s, waistL.y * s);
-          g.quadraticCurveTo((shoulderL.x - 1) * s, (shoulderL.y - 1) * s, cx * s, neckBase.y * s);
-          g.closePath();
-          g.fill(this.SCALE);
-
-          // Scale pattern (overlapping semicircles)
-          const rows = 5;
-          const cols = 4;
-          const scaleW = (waistR.x - waistL.x) / cols;
-          for (let r = 0; r < rows; r++) {
-            const rowY = neckBase.y + 2 + r * 3;
-            const offset = r % 2 === 0 ? 0 : scaleW / 2;
-            for (let c = 0; c < cols; c++) {
-              const sx = waistL.x + c * scaleW + offset;
-              g.moveTo((sx - scaleW * 0.5) * s, rowY * s);
-              g.quadraticCurveTo(sx * s, (rowY + 2) * s, (sx + scaleW * 0.5) * s, rowY * s);
-              g.stroke({ width: s * 0.4, color: this.SCALE_LT, alpha: 0.25 });
-            }
+          // Directional shading
+          const sideAmt = Math.abs(skeleton.iso.x);
+          if (sideAmt > 0.08) {
+            const shadowIsRight = ctx.nearSide === "L";
+            const shadowCorners: FitmentCorners = shadowIsRight ? {
+              tl: insetCorners.tr,
+              tr: { x: (insetCorners.tl.x + insetCorners.tr.x) / 2, y: insetCorners.tl.y },
+              bl: insetCorners.br,
+              br: { x: (insetCorners.bl.x + insetCorners.br.x) / 2, y: insetCorners.bl.y },
+            } : {
+              tl: { x: (insetCorners.tl.x + insetCorners.tr.x) / 2, y: insetCorners.tl.y },
+              tr: insetCorners.tl,
+              bl: { x: (insetCorners.bl.x + insetCorners.br.x) / 2, y: insetCorners.bl.y },
+              br: insetCorners.bl,
+            };
+            drawCornerQuad(g, shadowCorners, 0, darken(palette.body, 0.2), palette.outline, 0, s);
+            g.fill({ color: darken(palette.body, 0.2), alpha: sideAmt * 0.4 });
           }
 
-          // Gold trim at neckline
-          g.moveTo((shoulderL.x - 0.5) * s, (neckBase.y + 1) * s);
-          g.quadraticCurveTo(cx * s, (neckBase.y - 0.5) * s, (shoulderR.x + 0.5) * s, (neckBase.y + 1) * s);
-          g.stroke({ width: s * 1.2, color: this.GOLD, alpha: 0.6 });
+          // Scale rows — overlapping arcs across torso
+          const scaleRows = 5;
+          const scaleCols = 4;
+          for (let row = 0; row < scaleRows; row++) {
+            for (let col = 0; col < scaleCols; col++) {
+              const uOffset = row % 2 === 0 ? 0 : 0.5 / scaleCols;
+              const uC = (col + 0.5) / scaleCols + uOffset;
+              const vMid = (row + 0.5) / scaleRows * 0.85 + 0.05;
+              if (uC <= 0 || uC >= 1) continue;
+              const center = quadPoint(insetCorners, uC, vMid);
+              const scaleW = ((insetCorners.tr.x - insetCorners.tl.x) / scaleCols) * 0.55 * s;
+              const scaleH = ((insetCorners.bl.y - insetCorners.tl.y) / scaleRows) * 0.65 * s;
+              g.ellipse(center.x * s, center.y * s, scaleW, scaleH);
+              g.stroke({ width: s * 0.5, color: palette.accent, alpha: 0.45 });
+            }
+          }
 
           if (facingCamera) {
-            // Front: dragon crest emblem (center chest)
-            const embX = cx;
-            const embY = (neckBase.y + waistL.y) / 2 - 1;
+            // Dragon crest at top-center — wing/claw shape
+            const crest = quadPoint(insetCorners, 0.5, 0.22);
+            // Left wing
+            g.moveTo((crest.x - 4 * sz * wf) * s, (crest.y + 1 * sz) * s);
+            g.quadraticCurveTo((crest.x - 2 * sz * wf) * s, (crest.y - 2 * sz) * s, crest.x * s, (crest.y - 0.5 * sz) * s);
+            g.stroke({ width: s * 1.2, color: palette.accent, alpha: 0.75 });
+            // Right wing
+            g.moveTo((crest.x + 4 * sz * wf) * s, (crest.y + 1 * sz) * s);
+            g.quadraticCurveTo((crest.x + 2 * sz * wf) * s, (crest.y - 2 * sz) * s, crest.x * s, (crest.y - 0.5 * sz) * s);
+            g.stroke({ width: s * 1.2, color: palette.accent, alpha: 0.75 });
+            // Claw
+            g.moveTo(crest.x * s, (crest.y - 2 * sz) * s);
+            g.lineTo(crest.x * s, (crest.y + 1.5 * sz) * s);
+            g.stroke({ width: s * 0.9, color: palette.accent, alpha: 0.6 });
+            // Crest jewel
+            g.circle(crest.x * s, (crest.y - 0.3 * sz) * s, 1.1 * sz * s);
+            g.fill(palette.accent);
+            g.circle(crest.x * s, (crest.y - 0.3 * sz) * s, 1.1 * sz * s);
+            g.stroke({ width: s * 0.3, color: palette.outline, alpha: 0.5 });
 
-            // Wings of crest
-            g.moveTo(embX * s, (embY - 1) * s);
-            g.quadraticCurveTo((embX - 3 * wf) * s, (embY - 2) * s, (embX - 4 * wf) * s, embY * s);
-            g.quadraticCurveTo((embX - 2 * wf) * s, (embY + 1) * s, embX * s, (embY + 0.5) * s);
-            g.quadraticCurveTo((embX + 2 * wf) * s, (embY + 1) * s, (embX + 4 * wf) * s, embY * s);
-            g.quadraticCurveTo((embX + 3 * wf) * s, (embY - 2) * s, embX * s, (embY - 1) * s);
-            g.closePath();
-            g.fill({ color: this.FIRE, alpha: 0.5 });
+            // Ornate belt at 0.65
+            const beltL = quadPoint(insetCorners, 0.05, 0.65);
+            const beltR = quadPoint(insetCorners, 0.95, 0.65);
+            const beltMid = quadPoint(insetCorners, 0.5, 0.65);
+            g.moveTo(beltL.x * s, beltL.y * s);
+            g.lineTo(beltR.x * s, beltR.y * s);
+            g.stroke({ width: s * 2, color: palette.accent, alpha: 0.55 });
+            // Belt buckle
+            g.roundRect((beltMid.x - 2 * sz) * s, (beltMid.y - 1.2 * sz) * s, 4 * sz * s, 2.4 * sz * s, 0.5 * s);
+            g.fill(palette.accent);
+            g.roundRect((beltMid.x - 2 * sz) * s, (beltMid.y - 1.2 * sz) * s, 4 * sz * s, 2.4 * sz * s, 0.5 * s);
+            g.stroke({ width: s * 0.4, color: palette.outline, alpha: 0.5 });
 
-            // Central diamond
-            g.poly([
-              embX * s, (embY - 2) * s,
-              (embX + 1.5 * wf) * s, embY * s,
-              embX * s, (embY + 2) * s,
-              (embX - 1.5 * wf) * s, embY * s,
-            ]);
-            g.fill(this.FIRE_DK);
-            g.poly([
-              embX * s, (embY - 2) * s,
-              (embX + 1.5 * wf) * s, embY * s,
-              embX * s, (embY + 2) * s,
-              (embX - 1.5 * wf) * s, embY * s,
-            ]);
-            g.stroke({ width: s * 0.4, color: this.GOLD, alpha: 0.6 });
           } else {
-            // Back view: spine scale column instead of front emblem
-            const spineX = cx;
-            const spineTop = neckBase.y + 2;
-            const spineBot = (waistL.y + hipL.y) / 2;
-            const spineH = spineBot - spineTop;
+            // Back: darker overlay
+            drawCornerQuad(g, insetCorners, 0, darken(palette.body, 0.1), palette.outline, 0, s);
+            g.fill({ color: darken(palette.body, 0.1), alpha: 0.3 });
 
-            // Central spine ridge
-            g.moveTo(spineX * s, spineTop * s);
-            g.lineTo(spineX * s, spineBot * s);
-            g.stroke({ width: s * 1.0, color: this.GOLD, alpha: 0.4 });
-
-            // Back spine scale bumps (overlapping ovals along the ridge)
-            const spineScales = 5;
-            for (let i = 0; i < spineScales; i++) {
-              const t = (i + 0.5) / spineScales;
-              const sy = spineTop + spineH * t;
-              g.ellipse(spineX * s, sy * s, 1.5 * s, 1.2 * s);
-              g.fill({ color: this.SCALE_LT, alpha: 0.35 });
-              g.ellipse(spineX * s, sy * s, 1.5 * s, 1.2 * s);
-              g.stroke({ width: s * 0.3, color: this.GOLD, alpha: 0.3 });
+            // Spine column of 5 scale bumps
+            for (let i = 0; i < 5; i++) {
+              const spPt = quadPoint(insetCorners, 0.5, 0.1 + i * 0.17);
+              g.circle(spPt.x * s, spPt.y * s, 1.5 * sz * s);
+              g.fill(palette.accent);
+              g.circle(spPt.x * s, spPt.y * s, 1.5 * sz * s);
+              g.stroke({ width: s * 0.4, color: palette.outline, alpha: 0.4 });
             }
           }
-
-          // Belt with fiery buckle (visible from both sides)
-          const beltY = waistL.y + 0.5;
-          g.rect((waistL.x + 0.5) * s, (beltY - 1) * s, (waistR.x - waistL.x - 1) * s, 2.5 * s);
-          g.fill(this.SCALE_DK);
-          g.rect((cx - 1.5) * s, (beltY - 1.5) * s, 3 * s, 3.5 * s);
-          g.fill(this.GOLD);
-          g.circle(cx * s, beltY * s, 1 * s);
-          g.fill(this.FIRE);
-
-          // Outline
-          g.moveTo(cx * s, neckBase.y * s);
-          g.quadraticCurveTo((shoulderR.x + 1) * s, (shoulderR.y - 1) * s, (waistR.x + 1) * s, waistR.y * s);
-          g.lineTo((hipR.x + 0.5) * s, hipR.y * s);
-          g.lineTo((hipL.x - 0.5) * s, hipL.y * s);
-          g.lineTo((waistL.x - 1) * s, waistL.y * s);
-          g.quadraticCurveTo((shoulderL.x - 1) * s, (shoulderL.y - 1) * s, cx * s, neckBase.y * s);
-          g.closePath();
-          g.stroke({ width: s * 0.6, color: this.SCALE_DK, alpha: 0.5 });
         },
       },
     ];

@@ -21,11 +21,11 @@ export class GauntletsLeather implements Model {
     const sz = ctx.slotParams.size;
     // Far arm (isNear=false) darkened 10%; near arm (isNear=true) base color
     calls.push({
-      depth: facingCamera ? DEPTH_FAR_LIMB + 4 : DEPTH_NEAR_LIMB + 0,
+      depth: facingCamera ? DEPTH_FAR_LIMB + 9 : DEPTH_NEAR_LIMB + 1,
       draw: (g, s) => this.drawGauntlet(g, j, palette, s, farSide, sz, false),
     });
     calls.push({
-      depth: facingCamera ? DEPTH_NEAR_LIMB + 5 : DEPTH_FAR_LIMB + 5,
+      depth: facingCamera ? DEPTH_NEAR_LIMB + 6 : DEPTH_FAR_LIMB + 11,
       draw: (g, s) => this.drawGauntlet(g, j, palette, s, nearSide, sz, true),
     });
 

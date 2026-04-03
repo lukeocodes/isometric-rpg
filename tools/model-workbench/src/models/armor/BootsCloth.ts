@@ -20,8 +20,8 @@ export class BootsCloth implements Model {
 
     const sz = ctx.slotParams.size;
     // Far boot darkened, near boot base color
-    calls.push({ depth: DEPTH_FAR_LIMB + 0, draw: (g, s) => this.drawBoot(g, j, iso, palette, s, farSide, sz, false) });
-    calls.push({ depth: DEPTH_FAR_LIMB + 2, draw: (g, s) => this.drawBoot(g, j, iso, palette, s, nearSide, sz, true) });
+    calls.push({ depth: DEPTH_FAR_LIMB + 3, draw: (g, s) => this.drawBoot(g, j, iso, palette, s, farSide, sz, false) });
+    calls.push({ depth: DEPTH_FAR_LIMB + 7, draw: (g, s) => this.drawBoot(g, j, iso, palette, s, nearSide, sz, true) });
     return calls;
   }
 

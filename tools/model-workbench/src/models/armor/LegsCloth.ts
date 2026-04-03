@@ -21,8 +21,8 @@ export class LegsCloth implements Model {
 
     const sz = ctx.slotParams.size;
     // Far leg: darker and slightly wider; near leg: base color
-    calls.push({ depth: DEPTH_FAR_LIMB + 0, draw: (g, s) => this.drawLeg(g, j, palette.body, palette.bodyDk, palette.outline, s, farSide, sz, false) });
-    calls.push({ depth: DEPTH_FAR_LIMB + 2, draw: (g, s) => this.drawLeg(g, j, palette.body, palette.bodyDk, palette.outline, s, nearSide, sz, true) });
+    calls.push({ depth: DEPTH_FAR_LIMB + 1, draw: (g, s) => this.drawLeg(g, j, palette.body, palette.bodyDk, palette.outline, s, farSide, sz, false) });
+    calls.push({ depth: DEPTH_FAR_LIMB + 5, draw: (g, s) => this.drawLeg(g, j, palette.body, palette.bodyDk, palette.outline, s, nearSide, sz, true) });
 
     // Waist sash
     calls.push({

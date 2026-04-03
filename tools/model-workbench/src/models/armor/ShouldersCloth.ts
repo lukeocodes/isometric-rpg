@@ -1,6 +1,6 @@
 import type { Graphics } from "pixi.js";
 import type { Model, RenderContext, DrawCall, AttachmentPoint } from "../types";
-import { DEPTH_NEAR_LIMB } from "../types";
+import { DEPTH_FAR_LIMB, DEPTH_BODY } from "../types";
 import { darken } from "../palette";
 
 /**
@@ -20,15 +20,15 @@ export class ShouldersCloth implements Model {
     const wf = skeleton.wf;
     const calls: DrawCall[] = [];
 
-    // Far side drape — over far arm (darkened 10%)
+    // Far side drape — behind body when facingCamera, in front when !facingCamera
     calls.push({
-      depth: DEPTH_NEAR_LIMB + 6,
+      depth: facingCamera ? DEPTH_FAR_LIMB + 8 : DEPTH_BODY + 3,
       draw: (g, s) => this.drawDrape(g, j, palette, s, farSide, sz, wf, false),
     });
 
-    // Yoke connecting panel — center stays at base color
+    // Yoke connecting panel — center stays at body level
     calls.push({
-      depth: DEPTH_NEAR_LIMB + 7,
+      depth: DEPTH_BODY + 3,
       draw: (g, s) => {
         const sL = j.shoulderL;
         const sR = j.shoulderR;
@@ -46,9 +46,9 @@ export class ShouldersCloth implements Model {
       },
     });
 
-    // Near side drape — over near arm (highest depth = front of everything, base color)
+    // Near side drape — in front of body when facingCamera, behind when !facingCamera
     calls.push({
-      depth: DEPTH_NEAR_LIMB + 8,
+      depth: facingCamera ? DEPTH_BODY + 3 : DEPTH_FAR_LIMB + 8,
       draw: (g, s) => this.drawDrape(g, j, palette, s, nearSide, sz, wf, true),
     });
 
