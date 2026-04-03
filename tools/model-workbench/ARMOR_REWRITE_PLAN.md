@@ -89,23 +89,35 @@ export interface FitmentCorners {
 - [x] ArmorLeather — corner stitching, belt/buckle, shoulder straps ✓
 - [x] ArmorCloth — hem extension, sash, corner collar ✓
 - [x] RobeCloth — animated skirt, V-neck chest panel, sash knot ✓
-- [ ] ArmorDragon — NEXT: scale pattern over corner quad, dragon crest
-- [ ] ArmorElven — leaf/vine motifs over corner quad
-- [ ] ArmorOgreskin — rough hide, bone toggles
-- [ ] ArmorSkeleton — rib pattern, skull emblem
+- [x] ArmorDragon — scale rows + gold crest/belt (front), spine bumps (back) ✓
+- [x] ArmorElven — leaf motifs + vine diagonals + silver sash (front), mail rows (back) ✓
+- [x] ArmorOgreskin — jagged hide, cross-stitch seams, bone toggles, fur trim, hanging charm ✓
+- [x] ArmorSkeleton — ribcage arcs, skull emblem, pelvis buckle (front), vertebrae column (back) ✓
 
 ### Phase 3: Shoulders (next loop)
 4 shoulder pieces — fix depth to BODY+3 (near) / FAR_LIMB+8 (far), draw wider pauldrons:
-- [ ] ShouldersPlate, ShouldersMail, ShouldersLeather, ShouldersCloth
+- [x] ShouldersPlate — depths already correct ✓
+- [x] ShouldersMail — depths already correct ✓
+- [x] ShouldersLeather — depths already correct ✓
+- [x] ShouldersCloth — fixed: was NEAR_LIMB+6/7/8, now FAR_LIMB+8/BODY+3 ✓
 
 ### Phase 4: Legs + Boots (next loop)
 Fix depth to FAR_LIMB+1/5 (legs), FAR_LIMB+3/7 (boots):
-- [ ] LegsPlate, LegsMail, LegsLeather, LegsCloth
-- [ ] BootsPlate, BootsMail, BootsLeather, BootsCloth
+- [x] LegsPlate — FAR_LIMB+1 (far), FAR_LIMB+5 (near) ✓
+- [x] LegsMail — FAR_LIMB+1 (far), FAR_LIMB+5 (near) ✓
+- [x] LegsLeather — FAR_LIMB+1 (far), FAR_LIMB+5 (near) ✓
+- [x] LegsCloth — FAR_LIMB+1 (far), FAR_LIMB+5 (near) ✓
+- [x] BootsPlate — FAR_LIMB+3 (far), FAR_LIMB+7 (near) ✓
+- [x] BootsMail — FAR_LIMB+3 (far), FAR_LIMB+7 (near) ✓
+- [x] BootsLeather — FAR_LIMB+3 (far), FAR_LIMB+7 (near) ✓
+- [x] BootsCloth — FAR_LIMB+3 (far), FAR_LIMB+7 (near) ✓
 
 ### Phase 5: Gauntlets (next loop)
 Fix depth to FAR_LIMB+9/NEAR_LIMB+6:
-- [ ] GauntletsPlate, GauntletsMail, GauntletsLeather, GauntletsCloth
+- [x] GauntletsPlate — far: FAR_LIMB+9/NEAR_LIMB+1, near: NEAR_LIMB+6/FAR_LIMB+11 ✓
+- [x] GauntletsMail — same ✓
+- [x] GauntletsLeather — same ✓
+- [x] GauntletsCloth — same ✓
 
 ### Phase 6: Weapons + Offhand (next loop)
 Redraw all 12 weapons + 5 offhand items (sword, axe, etc.):
@@ -128,11 +140,11 @@ Once all wearable items are done:
 ## Sign-off Checklist
 Mark each model with ✓ when redrawn + depth verified:
 
-### Torso: [ ] Plate [ ] Mail [ ] Leather [ ] Cloth [ ] Robe [ ] Dragon [ ] Elven [ ] Ogreskin [ ] Skeleton
-### Shoulders: [ ] Plate [ ] Mail [ ] Leather [ ] Cloth
-### Legs: [ ] Plate [ ] Mail [ ] Leather [ ] Cloth
-### Boots: [ ] Plate [ ] Mail [ ] Leather [ ] Cloth
-### Gauntlets: [ ] Plate [ ] Mail [ ] Leather [ ] Cloth
+### Torso: [x] Plate [x] Mail [x] Leather [x] Cloth [x] Robe [x] Dragon [x] Elven [x] Ogreskin [x] Skeleton
+### Shoulders: [x] Plate [x] Mail [x] Leather [x] Cloth
+### Legs: [x] Plate [x] Mail [x] Leather [x] Cloth
+### Boots: [x] Plate [x] Mail [x] Leather [x] Cloth
+### Gauntlets: [x] Plate [x] Mail [x] Leather [x] Cloth
 ### Weapons: [ ] Sword [ ] Axe [ ] Dagger [ ] Mace [ ] Flail [ ] Wand [ ] Staff [ ] Bow [ ] Crossbow [ ] Halberd [ ] Spear [ ] ThrowingKnife
 ### Offhand: [ ] TowerShield [ ] KiteShield [ ] Buckler [ ] Torch [ ] Tome
 ### Headgear: [ ] Plate [ ] Horned [ ] Crown [ ] Coif [ ] Leather [ ] Hood
