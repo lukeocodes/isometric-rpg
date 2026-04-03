@@ -1,10 +1,5 @@
-import type { Skeleton, V, Direction, AttachmentPoint } from "./types";
+import type { Skeleton, V, Direction, AttachmentPoint, FitmentCorners } from "./types";
 import { ISO_OFFSETS, DEFAULT_SLOT_PARAMS } from "./types";
-
-/** Helper: neutral attachment point (override params in body models) */
-function ap(position: V, angle: number, wf: number): AttachmentPoint {
-  return { position, angle, wf, params: { ...DEFAULT_SLOT_PARAMS } };
-}
 
 /**
  * Compute a humanoid skeleton for the given direction and walk phase.
@@ -71,18 +66,115 @@ export function computeHumanoidSkeleton(
     toeR: p(2, 1, lsBck * fwdX * 0.3, lsBck * fwdY * 0.2 + liftR * 0.5),
   };
 
+  // ─── Helper: make attachment point with optional fitment corners ─────────
+  const apc = (position: V, angle: number, wf: number, corners?: FitmentCorners): AttachmentPoint => ({
+    position, angle, wf, params: { ...DEFAULT_SLOT_PARAMS }, corners,
+  });
+
   // Compute attachment points from joints (neutral params — bodies override per their proportions)
   const attachments: Record<string, AttachmentPoint> = {
-    "head-top": ap({ x: joints.head.x, y: joints.head.y - 8 }, 0, wf),
-    "hand-R": ap(joints.wristR, Math.atan2(joints.wristR.y - joints.elbowR.y, joints.wristR.x - joints.elbowR.x), wf),
-    "hand-L": ap(joints.wristL, Math.atan2(joints.wristL.y - joints.elbowL.y, joints.wristL.x - joints.elbowL.x), wf),
-    torso: ap({ x: (joints.shoulderL.x + joints.shoulderR.x) / 2, y: (joints.neckBase.y + joints.hipL.y) / 2 }, 0, wf),
-    "torso-back": ap({ x: (joints.shoulderL.x + joints.shoulderR.x) / 2, y: (joints.neckBase.y + joints.hipL.y) / 2 }, Math.PI, wf),
-    shoulders: ap({ x: (joints.shoulderL.x + joints.shoulderR.x) / 2, y: (joints.shoulderL.y + joints.shoulderR.y) / 2 }, 0, wf),
-    gauntlets: ap({ x: (joints.elbowL.x + joints.elbowR.x) / 2, y: (joints.elbowL.y + joints.elbowR.y) / 2 }, 0, wf),
-    legs: ap({ x: (joints.hipL.x + joints.hipR.x) / 2, y: joints.hipL.y }, 0, wf),
-    "feet-L": ap(joints.ankleL, Math.atan2(joints.toeL.y - joints.ankleL.y, joints.toeL.x - joints.ankleL.x), wf),
-    "feet-R": ap(joints.ankleR, Math.atan2(joints.toeR.y - joints.ankleR.y, joints.toeR.x - joints.ankleR.x), wf),
+    "head-top": apc(
+      { x: joints.head.x, y: joints.head.y - 8 }, 0, wf,
+      // Head corners: square around the head
+      {
+        tl: { x: joints.head.x - 7 * wf, y: joints.head.y - 8 },
+        tr: { x: joints.head.x + 7 * wf, y: joints.head.y - 8 },
+        bl: { x: joints.head.x - 7 * wf, y: joints.head.y + 4 },
+        br: { x: joints.head.x + 7 * wf, y: joints.head.y + 4 },
+      }
+    ),
+
+    "hand-R": apc(
+      joints.wristR,
+      Math.atan2(joints.wristR.y - joints.elbowR.y, joints.wristR.x - joints.elbowR.x),
+      wf
+    ),
+    "hand-L": apc(
+      joints.wristL,
+      Math.atan2(joints.wristL.y - joints.elbowL.y, joints.wristL.x - joints.elbowL.x),
+      wf
+    ),
+
+    torso: apc(
+      { x: (joints.shoulderL.x + joints.shoulderR.x) / 2, y: (joints.neckBase.y + joints.hipL.y) / 2 },
+      0, wf,
+      // Torso corners: shoulder-to-hip bounding quad (adapts to all body shapes)
+      {
+        tl: { x: joints.shoulderL.x, y: joints.neckBase.y },
+        tr: { x: joints.shoulderR.x, y: joints.neckBase.y },
+        bl: { x: joints.hipL.x,      y: joints.hipL.y },
+        br: { x: joints.hipR.x,      y: joints.hipR.y },
+      }
+    ),
+    "torso-back": apc(
+      { x: (joints.shoulderL.x + joints.shoulderR.x) / 2, y: (joints.neckBase.y + joints.hipL.y) / 2 },
+      Math.PI, wf,
+      {
+        tl: { x: joints.shoulderL.x, y: joints.neckBase.y },
+        tr: { x: joints.shoulderR.x, y: joints.neckBase.y },
+        bl: { x: joints.hipL.x,      y: joints.hipL.y },
+        br: { x: joints.hipR.x,      y: joints.hipR.y },
+      }
+    ),
+
+    shoulders: apc(
+      { x: (joints.shoulderL.x + joints.shoulderR.x) / 2, y: (joints.shoulderL.y + joints.shoulderR.y) / 2 },
+      0, wf,
+      // Shoulder corners: from shoulder joints down to elbow level
+      {
+        tl: { x: joints.shoulderL.x - 3 * wf, y: joints.shoulderL.y - 2 },
+        tr: { x: joints.shoulderR.x + 3 * wf, y: joints.shoulderR.y - 2 },
+        bl: { x: joints.elbowL.x,             y: joints.elbowL.y },
+        br: { x: joints.elbowR.x,             y: joints.elbowR.y },
+      }
+    ),
+
+    gauntlets: apc(
+      { x: (joints.elbowL.x + joints.elbowR.x) / 2, y: (joints.elbowL.y + joints.elbowR.y) / 2 },
+      0, wf,
+      // Gauntlet corners: elbow-to-wrist (both sides, averaged — per-side handled in model)
+      {
+        tl: { x: joints.elbowL.x,  y: joints.elbowL.y },
+        tr: { x: joints.elbowR.x,  y: joints.elbowR.y },
+        bl: { x: joints.wristL.x,  y: joints.wristL.y },
+        br: { x: joints.wristR.x,  y: joints.wristR.y },
+      }
+    ),
+
+    legs: apc(
+      { x: (joints.hipL.x + joints.hipR.x) / 2, y: joints.hipL.y },
+      0, wf,
+      // Leg corners: hip-to-ankle (both sides, averaged — per-side handled in model)
+      {
+        tl: { x: joints.hipL.x,    y: joints.hipL.y },
+        tr: { x: joints.hipR.x,    y: joints.hipR.y },
+        bl: { x: joints.ankleL.x,  y: joints.ankleL.y },
+        br: { x: joints.ankleR.x,  y: joints.ankleR.y },
+      }
+    ),
+
+    "feet-L": apc(
+      joints.ankleL,
+      Math.atan2(joints.toeL.y - joints.ankleL.y, joints.toeL.x - joints.ankleL.x),
+      wf,
+      {
+        tl: { x: joints.ankleL.x - 2 * wf, y: joints.ankleL.y - 1 },
+        tr: { x: joints.ankleL.x + 2 * wf, y: joints.ankleL.y - 1 },
+        bl: { x: joints.toeL.x - 1,         y: joints.toeL.y + 1 },
+        br: { x: joints.toeL.x + 1,         y: joints.toeL.y + 1 },
+      }
+    ),
+    "feet-R": apc(
+      joints.ankleR,
+      Math.atan2(joints.toeR.y - joints.ankleR.y, joints.toeR.x - joints.ankleR.x),
+      wf,
+      {
+        tl: { x: joints.ankleR.x - 2 * wf, y: joints.ankleR.y - 1 },
+        tr: { x: joints.ankleR.x + 2 * wf, y: joints.ankleR.y - 1 },
+        bl: { x: joints.toeR.x - 1,         y: joints.toeR.y + 1 },
+        br: { x: joints.toeR.x + 1,         y: joints.toeR.y + 1 },
+      }
+    ),
   };
 
   return {

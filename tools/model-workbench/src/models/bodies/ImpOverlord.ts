@@ -79,9 +79,9 @@ export class ImpOverlord implements Model {
     }});
 
     calls.push({ depth: DEPTH_FAR_LIMB,     draw: (g, s) => this.drawLeg(g, j, skeleton, s, farSide,  false, SC) });
-    calls.push({ depth: DEPTH_FAR_LIMB + 2, draw: (g, s) => this.drawLeg(g, j, skeleton, s, nearSide, true,  SC) });
+    calls.push({ depth: DEPTH_FAR_LIMB + 4, draw: (g, s) => this.drawLeg(g, j, skeleton, s, nearSide, true,  SC) });
 
-    calls.push({ depth: facingCamera ? DEPTH_FAR_LIMB + 4 : DEPTH_NEAR_LIMB,
+    calls.push({ depth: facingCamera ? DEPTH_FAR_LIMB + 8 : DEPTH_NEAR_LIMB + 0,
       draw: (g, s) => this.drawArm(g, j, s, farSide, false, SC) });
 
     // Torso
@@ -103,7 +103,7 @@ export class ImpOverlord implements Model {
 
     calls.push({ depth: DEPTH_HEAD,     draw: (g, s) => this.drawHead(g, j, skeleton, s, SC) });
 
-    calls.push({ depth: facingCamera ? DEPTH_NEAR_LIMB + 5 : DEPTH_FAR_LIMB + 5,
+    calls.push({ depth: facingCamera ? DEPTH_NEAR_LIMB + 5 : DEPTH_FAR_LIMB + 10,
       draw: (g, s) => this.drawArm(g, j, s, nearSide, true, SC) });
 
     return calls;

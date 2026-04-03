@@ -1,5 +1,5 @@
 import type { Graphics } from "pixi.js";
-import type { V } from "./types";
+import type { V, FitmentCorners } from "./types";
 import { darken, lighten } from "./palette";
 
 /**
@@ -137,4 +137,58 @@ export function drawBlade(
     (y1 + dy * fEnd + py * 0.15) * s
   );
   g.stroke({ width: s * 0.3, color: darken(color, 0.15), alpha: 0.4 });
+}
+
+/**
+ * Draw a quad using four fitment corner points with fill + outline.
+ * The quad naturally shears/stretches to match any body type.
+ *
+ * @param inset  Shrink each corner inward by this many model units (0 = full fit)
+ */
+export function drawCornerQuad(
+  g: Graphics,
+  corners: FitmentCorners,
+  inset: number,
+  color: number,
+  outlineColor: number,
+  outlineAlpha: number,
+  s: number,
+): void {
+  const { tl, tr, bl, br } = corners;
+  // Apply inset: move each corner toward the centre
+  const cx = (tl.x + tr.x + bl.x + br.x) / 4;
+  const cy = (tl.y + tr.y + bl.y + br.y) / 4;
+  const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+  const f = inset > 0 ? inset / Math.max(1, Math.abs(tr.x - tl.x)) : 0;
+
+  const iTL = { x: lerp(tl.x, cx, f), y: lerp(tl.y, cy, f) };
+  const iTR = { x: lerp(tr.x, cx, f), y: lerp(tr.y, cy, f) };
+  const iBL = { x: lerp(bl.x, cx, f), y: lerp(bl.y, cy, f) };
+  const iBR = { x: lerp(br.x, cx, f), y: lerp(br.y, cy, f) };
+
+  g.moveTo(iTL.x * s, iTL.y * s);
+  g.lineTo(iTR.x * s, iTR.y * s);
+  g.lineTo(iBR.x * s, iBR.y * s);
+  g.lineTo(iBL.x * s, iBL.y * s);
+  g.closePath();
+  g.fill(color);
+
+  g.moveTo(iTL.x * s, iTL.y * s);
+  g.lineTo(iTR.x * s, iTR.y * s);
+  g.lineTo(iBR.x * s, iBR.y * s);
+  g.lineTo(iBL.x * s, iBL.y * s);
+  g.closePath();
+  g.stroke({ width: s * 0.5, color: outlineColor, alpha: outlineAlpha });
+}
+
+/**
+ * Interpolate a point inside a corner quad using (u, v) in [0,1]×[0,1].
+ * u=0 → left edge, u=1 → right edge, v=0 → top, v=1 → bottom.
+ * Useful for placing rivets, emblems, or decoration inside corner-fit armor.
+ */
+export function quadPoint(corners: FitmentCorners, u: number, v: number): V {
+  const { tl, tr, bl, br } = corners;
+  const top = { x: tl.x + (tr.x - tl.x) * u, y: tl.y + (tr.y - tl.y) * u };
+  const bot = { x: bl.x + (br.x - bl.x) * u, y: bl.y + (br.y - bl.y) * u };
+  return { x: top.x + (bot.x - top.x) * v, y: top.y + (bot.y - top.y) * v };
 }

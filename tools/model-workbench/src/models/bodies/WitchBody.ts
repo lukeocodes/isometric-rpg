@@ -74,7 +74,7 @@ export class WitchBody implements Model {
       g.stroke({ width: s * 0.5, color: this.ROBE_DK, alpha: 0.25 });
     }});
 
-    calls.push({ depth: facingCamera ? DEPTH_FAR_LIMB + 4 : DEPTH_NEAR_LIMB,
+    calls.push({ depth: facingCamera ? DEPTH_FAR_LIMB + 8 : DEPTH_NEAR_LIMB + 0,
       draw: (g, s) => this.drawArm(g, j, skeleton, s, farSide, false) });
 
     // Torso
@@ -126,7 +126,7 @@ export class WitchBody implements Model {
 
     calls.push({ depth: DEPTH_HEAD,     draw: (g, s) => this.drawHead(g, j, skeleton, s) });
 
-    calls.push({ depth: facingCamera ? DEPTH_NEAR_LIMB + 5 : DEPTH_FAR_LIMB + 5,
+    calls.push({ depth: facingCamera ? DEPTH_NEAR_LIMB + 5 : DEPTH_FAR_LIMB + 10,
       draw: (g, s) => this.drawArm(g, j, skeleton, s, nearSide, true) });
 
     return calls;

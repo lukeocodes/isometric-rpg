@@ -49,16 +49,18 @@ export class HumanBody implements Model {
     });
 
     // ─── Far leg (behind torso) ───────────────────────────────────────
+    // Body uses even offsets; equipment uses odd offsets (+1, +3, +5, +7) above each part.
     calls.push({ depth: DEPTH_FAR_LIMB + 0, draw: (g, s) => this.drawLeg(g, j, skeleton, palette, s, farSide,  false) });
-    calls.push({ depth: DEPTH_FAR_LIMB + 1, draw: (g, s) => this.drawFoot(g, j, skeleton, palette, s, farSide, false) });
+    calls.push({ depth: DEPTH_FAR_LIMB + 2, draw: (g, s) => this.drawFoot(g, j, skeleton, palette, s, farSide, false) });
 
     // ─── Near leg ─────────────────────────────────────────────────────
-    calls.push({ depth: DEPTH_FAR_LIMB + 2, draw: (g, s) => this.drawLeg(g, j, skeleton, palette, s, nearSide, true) });
-    calls.push({ depth: DEPTH_FAR_LIMB + 3, draw: (g, s) => this.drawFoot(g, j, skeleton, palette, s, nearSide, true) });
+    calls.push({ depth: DEPTH_FAR_LIMB + 4, draw: (g, s) => this.drawLeg(g, j, skeleton, palette, s, nearSide, true) });
+    calls.push({ depth: DEPTH_FAR_LIMB + 6, draw: (g, s) => this.drawFoot(g, j, skeleton, palette, s, nearSide, true) });
 
     // ─── Far arm ──────────────────────────────────────────────────────
+    // Arm body uses +8/NEAR_LIMB+0; gauntlet equipment slots at +9/NEAR_LIMB+1
     calls.push({
-      depth: facingCamera ? DEPTH_FAR_LIMB + 4 : DEPTH_NEAR_LIMB + 0,
+      depth: facingCamera ? DEPTH_FAR_LIMB + 8 : DEPTH_NEAR_LIMB + 0,
       draw: (g, s) => this.drawArm(g, j, skeleton, palette, s, farSide,  false),
     });
 
@@ -77,8 +79,9 @@ export class HumanBody implements Model {
     calls.push({ depth: DEPTH_HEAD + 0, draw: (g, s) => this.drawHead(g, j, skeleton, palette, s) });
 
     // ─── Near arm ─────────────────────────────────────────────────────
+    // Near arm body uses NEAR_LIMB+5/FAR_LIMB+10; gauntlet equipment at +6/+11
     calls.push({
-      depth: facingCamera ? DEPTH_NEAR_LIMB + 5 : DEPTH_FAR_LIMB + 5,
+      depth: facingCamera ? DEPTH_NEAR_LIMB + 5 : DEPTH_FAR_LIMB + 10,
       draw: (g, s) => this.drawArm(g, j, skeleton, palette, s, nearSide, true),
     });
 

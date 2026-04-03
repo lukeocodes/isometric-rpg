@@ -91,7 +91,12 @@ export function renderComposite(
     // Merge body-defined params with any per-slot overrides from the config
     const resolvedParams = resolveSlotParams(bodyAP.params, att.overrides);
 
-    const childCtx: RenderContext = { ...baseCtx, slotParams: resolvedParams };
+    // Pass fitment corners from body attachment point so equipment can stretch to fit
+    const childCtx: RenderContext = {
+      ...baseCtx,
+      slotParams: resolvedParams,
+      fitmentCorners: bodyAP.corners,
+    };
     calls.push(...childModel.getDrawCalls(childCtx));
   }
 

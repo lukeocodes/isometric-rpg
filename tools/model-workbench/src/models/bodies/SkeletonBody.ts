@@ -32,16 +32,16 @@ export class SkeletonBody implements Model {
     }});
 
     calls.push({ depth: DEPTH_FAR_LIMB,     draw: (g, s) => this.drawBoneLeg(g, j, skeleton, s, farSide) });
-    calls.push({ depth: DEPTH_FAR_LIMB + 2, draw: (g, s) => this.drawBoneLeg(g, j, skeleton, s, nearSide) });
+    calls.push({ depth: DEPTH_FAR_LIMB + 4, draw: (g, s) => this.drawBoneLeg(g, j, skeleton, s, nearSide) });
 
-    calls.push({ depth: facingCamera ? DEPTH_FAR_LIMB + 4 : DEPTH_NEAR_LIMB,
+    calls.push({ depth: facingCamera ? DEPTH_FAR_LIMB + 8 : DEPTH_NEAR_LIMB + 0,
       draw: (g, s) => this.drawBoneArm(g, j, s, farSide, false) });
 
     calls.push({ depth: DEPTH_BODY,     draw: (g, s) => this.drawRibCage(g, j, skeleton, s) });
     calls.push({ depth: DEPTH_BODY + 2, draw: (g, s) => this.drawPelvis(g, j, skeleton, s) });
     calls.push({ depth: DEPTH_HEAD,     draw: (g, s) => this.drawSkull(g, j, skeleton, s) });
 
-    calls.push({ depth: facingCamera ? DEPTH_NEAR_LIMB + 5 : DEPTH_FAR_LIMB + 5,
+    calls.push({ depth: facingCamera ? DEPTH_NEAR_LIMB + 5 : DEPTH_FAR_LIMB + 10,
       draw: (g, s) => this.drawBoneArm(g, j, s, nearSide, true) });
 
     return calls;

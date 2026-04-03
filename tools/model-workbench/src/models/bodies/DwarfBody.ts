@@ -29,11 +29,11 @@ export class DwarfBody implements Model {
     }});
 
     calls.push({ depth: DEPTH_FAR_LIMB + 0, draw: (g, s) => this.drawLeg(g, j, palette, s, farSide,  false) });
-    calls.push({ depth: DEPTH_FAR_LIMB + 1, draw: (g, s) => this.drawFoot(g, j, skeleton, palette, s, farSide, false) });
-    calls.push({ depth: DEPTH_FAR_LIMB + 2, draw: (g, s) => this.drawLeg(g, j, palette, s, nearSide, true)  });
-    calls.push({ depth: DEPTH_FAR_LIMB + 3, draw: (g, s) => this.drawFoot(g, j, skeleton, palette, s, nearSide, true) });
+    calls.push({ depth: DEPTH_FAR_LIMB + 2, draw: (g, s) => this.drawFoot(g, j, skeleton, palette, s, farSide, false) });
+    calls.push({ depth: DEPTH_FAR_LIMB + 4, draw: (g, s) => this.drawLeg(g, j, palette, s, nearSide, true)  });
+    calls.push({ depth: DEPTH_FAR_LIMB + 6, draw: (g, s) => this.drawFoot(g, j, skeleton, palette, s, nearSide, true) });
 
-    calls.push({ depth: facingCamera ? DEPTH_FAR_LIMB + 4 : DEPTH_NEAR_LIMB, draw: (g, s) => this.drawArm(g, j, skeleton, palette, s, farSide,  false) });
+    calls.push({ depth: facingCamera ? DEPTH_FAR_LIMB + 8 : DEPTH_NEAR_LIMB + 0, draw: (g, s) => this.drawArm(g, j, skeleton, palette, s, farSide,  false) });
 
     if (!facingCamera) {
       calls.push({ depth: DEPTH_BODY - 1, draw: (g, s) => this.drawGlutes(g, j, skeleton, palette, s) });
@@ -43,7 +43,7 @@ export class DwarfBody implements Model {
     calls.push({ depth: DEPTH_BODY + 2, draw: (g, s) => this.drawPelvis(g, j, palette, s) });
     calls.push({ depth: DEPTH_HEAD,     draw: (g, s) => this.drawHead(g, j, skeleton, palette, s) });
 
-    calls.push({ depth: facingCamera ? DEPTH_NEAR_LIMB + 5 : DEPTH_FAR_LIMB + 5, draw: (g, s) => this.drawArm(g, j, skeleton, palette, s, nearSide, true) });
+    calls.push({ depth: facingCamera ? DEPTH_NEAR_LIMB + 5 : DEPTH_FAR_LIMB + 10, draw: (g, s) => this.drawArm(g, j, skeleton, palette, s, nearSide, true) });
 
     return calls;
   }

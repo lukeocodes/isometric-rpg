@@ -10,18 +10,41 @@ export const DEPTH_S = 20;  // south-facing planes
 export const DEPTH_W = 30;  // west-facing planes  — closest to camera
 
 // ─── Character composite depth layers ────────────────────────────────
-// Used by all body models and their attachments. Starts at 40 so bodies
-// always render above structural elements in a shared composite render.
-// Assign part depths as DEPTH_LAYER + small offset (0–9).
-export const DEPTH_SHADOW    =  0;  // ground shadow (shared with structural base)
-export const DEPTH_FAR_LIMB  = 40;  // limb/appendage away from camera
-export const DEPTH_BODY      = 50;  // torso, pelvis, core
-export const DEPTH_COLLAR    = 58;  // neck/collar pieces — behind face, above torso armor
-export const DEPTH_HEAD      = 60;  // head
-export const DEPTH_NEAR_LIMB = 70;  // limb/appendage toward camera
-// For direction-conditional arm depth use:
-//   far arm:  facingCamera ? DEPTH_FAR_LIMB + x : DEPTH_NEAR_LIMB + x
-//   near arm: facingCamera ? DEPTH_NEAR_LIMB + x : DEPTH_FAR_LIMB + x
+// Starts at 40 so bodies always render above structural elements.
+//
+// SPACING RULES:
+//   Body parts use EVEN offsets from their tier base.
+//   Equipment (armor/weapons) uses the ODD offset immediately above its body part.
+//
+//   FAR_LIMB tier  (40–89, 50 slots):
+//     +0  far leg body        +1  far leg armor
+//     +2  far foot body       +3  far boot armor
+//     +4  near leg body       +5  near leg armor
+//     +6  near foot body      +7  near boot armor
+//     +8  far arm body        +9  far gauntlet armor
+//     +10 near arm body*      +11 near gauntlet armor*
+//     (* when !facingCamera — near arm swaps to FAR_LIMB range)
+//
+//   BODY tier (90–109):
+//     +0  torso, pelvis, glutes    +3  torso armor
+//
+//   HEAD tier (110–129):
+//     +0  head body                +1  hair / headgear
+//
+//   NEAR_LIMB tier (130–159):
+//     +0  far arm body*            +1  far gauntlet armor*
+//     +5  near arm body            +6  near gauntlet armor
+//     (* when !facingCamera — far arm swaps to NEAR_LIMB range)
+//
+// For direction-conditional arm depth:
+//   far arm:  facingCamera ? DEPTH_FAR_LIMB  + 8 : DEPTH_NEAR_LIMB + 0
+//   near arm: facingCamera ? DEPTH_NEAR_LIMB + 5 : DEPTH_FAR_LIMB  + 10
+export const DEPTH_SHADOW    =   0;  // ground shadow
+export const DEPTH_FAR_LIMB  =  40;  // limbs/appendages away from camera (range 40–89)
+export const DEPTH_BODY      =  90;  // torso, pelvis, core               (range 90–109)
+export const DEPTH_COLLAR    = 108;  // neck/collar — behind face, above torso armor
+export const DEPTH_HEAD      = 110;  // head                              (range 110–129)
+export const DEPTH_NEAR_LIMB = 130;  // limbs/appendages toward camera    (range 130–159)
 
 // ─── Primitives ─────────────────────────────────────────────────────
 
@@ -64,6 +87,25 @@ export interface SlotParams {
   offset: V;
 }
 
+/**
+ * Four-corner fitment region for an attachment slot.
+ * Derived from skeleton joints so armor automatically stretches to fit
+ * any body type (dwarf, elf, gnome, ogre, etc.).
+ *
+ *   tl ─── tr
+ *   │         │
+ *   bl ─── br
+ *
+ * Equipment models should use these corners to draw their outline shape
+ * instead of hardcoded widths/heights.
+ */
+export interface FitmentCorners {
+  tl: V;  // top-left
+  tr: V;  // top-right
+  bl: V;  // bottom-left
+  br: V;  // bottom-right
+}
+
 export interface AttachmentPoint {
   position: V;
   /** Angle in radians for attached model orientation */
@@ -72,6 +114,12 @@ export interface AttachmentPoint {
   wf: number;
   /** Default slot rendering parameters — equipment reads these to scale correctly */
   params: SlotParams;
+  /**
+   * Bounding corners for this attachment slot, derived from skeleton joints.
+   * Equipment should stretch to fit these rather than using hardcoded dimensions.
+   * Automatically adapts to different body proportions (race, build, height).
+   */
+  corners?: FitmentCorners;
 }
 
 export interface Skeleton {
@@ -123,6 +171,13 @@ export interface RenderContext {
    * Equipment models use this for all scaling — never hardcode dimensions.
    */
   slotParams: SlotParams;
+  /**
+   * Fitment corners for the attachment slot, passed from the body model's
+   * attachment point definition. Equipment should draw itself to fit these
+   * 4 corners so it automatically adapts to any body type.
+   * May be undefined for old/simple equipment that ignores corners.
+   */
+  fitmentCorners?: FitmentCorners;
   /** Optional texture for construction models (PixiJS Texture, typed as unknown to avoid import) */
   texture?: unknown;
 }
