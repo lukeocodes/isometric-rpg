@@ -63,14 +63,46 @@ export class GameScene extends Scene {
     this.camera.pos = new Vector(spawnX, spawnY);
     this.camera.strategy.lockToActor(this.player);
 
-    // Intercept browser wheel zoom (Ctrl+wheel) — use it for in-game zoom instead
-    engine.canvas.addEventListener("wheel", (e: WheelEvent) => {
+    // All zoom interception is scoped to the canvas element only —
+    // does not affect browser chrome, OS zoom, or accessibility tools.
+    const canvas = engine.canvas;
+
+    // Ctrl/Cmd+wheel → in-game zoom (also blocks browser pinch-zoom on trackpads)
+    canvas.addEventListener("wheel", (e: WheelEvent) => {
       e.preventDefault();
       if (e.ctrlKey || e.metaKey) {
-        // Ctrl+wheel → in-game zoom
         const delta = e.deltaY > 0 ? -this.ZOOM_STEP : this.ZOOM_STEP;
         this.camera.zoom = clamp(this.camera.zoom + delta, this.ZOOM_MIN, this.ZOOM_MAX);
       }
+    }, { passive: false });
+
+    // Ctrl/Cmd + / - / 0 on canvas → in-game zoom, block browser shortcut
+    canvas.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === "=" || e.key === "+") {
+          e.preventDefault();
+          this.camera.zoom = clamp(this.camera.zoom + this.ZOOM_STEP, this.ZOOM_MIN, this.ZOOM_MAX);
+        } else if (e.key === "-") {
+          e.preventDefault();
+          this.camera.zoom = clamp(this.camera.zoom - this.ZOOM_STEP, this.ZOOM_MIN, this.ZOOM_MAX);
+        } else if (e.key === "0") {
+          e.preventDefault();
+          this.camera.zoom = this.ZOOM_DEFAULT;
+        }
+      }
+    });
+
+    // iOS Safari gesture events on canvas
+    canvas.addEventListener("gesturestart",  (e) => e.preventDefault(), { passive: false });
+    canvas.addEventListener("gesturechange", (e) => e.preventDefault(), { passive: false });
+    canvas.addEventListener("gestureend",    (e) => e.preventDefault(), { passive: false });
+
+    // Double-tap zoom on canvas
+    let lastTouch = 0;
+    canvas.addEventListener("touchend", (e) => {
+      const now = Date.now();
+      if (now - lastTouch <= 300) e.preventDefault();
+      lastTouch = now;
     }, { passive: false });
   }
 
@@ -78,12 +110,6 @@ export class GameScene extends Scene {
 
   override onPreUpdate(engine: Engine, _delta: number): void {
     const kb = engine.input.keyboard;
-
-    // In-game zoom via + / -
-    if (kb.wasPressed(Keys.Equal) || kb.wasPressed(Keys.NumAdd))
-      this.camera.zoom = clamp(this.camera.zoom + this.ZOOM_STEP, this.ZOOM_MIN, this.ZOOM_MAX);
-    if (kb.wasPressed(Keys.Minus) || kb.wasPressed(Keys.NumSubtract))
-      this.camera.zoom = clamp(this.camera.zoom - this.ZOOM_STEP, this.ZOOM_MIN, this.ZOOM_MAX);
 
     const up    = kb.isHeld(Keys.ArrowUp)    || kb.isHeld(Keys.W);
     const down  = kb.isHeld(Keys.ArrowDown)  || kb.isHeld(Keys.S);
