@@ -7,6 +7,7 @@ import {
   Keys,
   Engine,
   Vector,
+  clamp,
 } from "excalibur";
 import { TILE, tileToWorld } from "../tile.js";
 import { NetworkManager, Opcode } from "../net/NetworkManager.js";
@@ -25,6 +26,12 @@ export class GameScene extends Scene {
   private lastSendTime = 0;
   private readonly SEND_HZ = 15;
   private heldDir: { dx: number; dy: number } | null = null;
+
+  // In-game zoom range (camera.zoom units)
+  private readonly ZOOM_MIN = 1;
+  private readonly ZOOM_MAX = 6;
+  private readonly ZOOM_DEFAULT = 3;
+  private readonly ZOOM_STEP = 0.5;
 
   constructor(net: NetworkManager, characterId: string) {
     super();
@@ -52,15 +59,32 @@ export class GameScene extends Scene {
     this.add(this.player);
 
     // Camera
-    this.camera.zoom = 3;
+    this.camera.zoom = this.ZOOM_DEFAULT;
     this.camera.pos = new Vector(spawnX, spawnY);
     this.camera.strategy.lockToActor(this.player);
+
+    // Intercept browser wheel zoom (Ctrl+wheel) — use it for in-game zoom instead
+    engine.canvas.addEventListener("wheel", (e: WheelEvent) => {
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) {
+        // Ctrl+wheel → in-game zoom
+        const delta = e.deltaY > 0 ? -this.ZOOM_STEP : this.ZOOM_STEP;
+        this.camera.zoom = clamp(this.camera.zoom + delta, this.ZOOM_MIN, this.ZOOM_MAX);
+      }
+    }, { passive: false });
   }
 
   override onActivate(_ctx: SceneActivationContext): void {}
 
   override onPreUpdate(engine: Engine, _delta: number): void {
     const kb = engine.input.keyboard;
+
+    // In-game zoom via + / -
+    if (kb.wasPressed(Keys.Equal) || kb.wasPressed(Keys.NumAdd))
+      this.camera.zoom = clamp(this.camera.zoom + this.ZOOM_STEP, this.ZOOM_MIN, this.ZOOM_MAX);
+    if (kb.wasPressed(Keys.Minus) || kb.wasPressed(Keys.NumSubtract))
+      this.camera.zoom = clamp(this.camera.zoom - this.ZOOM_STEP, this.ZOOM_MIN, this.ZOOM_MAX);
+
     const up    = kb.isHeld(Keys.ArrowUp)    || kb.isHeld(Keys.W);
     const down  = kb.isHeld(Keys.ArrowDown)  || kb.isHeld(Keys.S);
     const left  = kb.isHeld(Keys.ArrowLeft)  || kb.isHeld(Keys.A);

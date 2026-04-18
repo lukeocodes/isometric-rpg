@@ -38,9 +38,7 @@ async function main() {
     setLoading(80, "Loading world...");
 
     const game = new Engine({
-      width: 480,
-      height: 320,
-      displayMode: DisplayMode.FitScreenAndFill,
+      displayMode: DisplayMode.FillScreen,
       backgroundColor: Color.fromHex("#1a1a2e"),
       antialiasing: false,
       pixelArt: true,
