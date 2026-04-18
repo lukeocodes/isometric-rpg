@@ -1,12 +1,13 @@
 import type { Graphics } from "pixi.js";
-import type { Model, RenderContext, DrawCall, AttachmentPoint, V } from "../types";
+import type { Model, RenderContext, DrawCall, AttachmentPoint, FitmentCorners } from "../types";
 import { DEPTH_FAR_LIMB, DEPTH_BODY } from "../types";
 import { darken } from "../palette";
-import { drawTaperedLimb } from "../draw-helpers";
+import { drawCornerQuad, quadPoint, sideCorners } from "../draw-helpers";
 
 /**
- * Mail leg armor — chain mail chausses covering thighs and calves.
- * Metallic sheen, ring pattern detail, padded underneath.
+ * Mail Chausses — chain mail covering the full leg with a hip skirt.
+ *
+ * CORNER-BASED: Uses fitmentCorners (legs slot) split per-side.
  */
 export class LegsMail implements Model {
   readonly id = "legs-mail";
@@ -15,42 +16,44 @@ export class LegsMail implements Model {
   readonly slot = "legs" as const;
 
   getDrawCalls(ctx: RenderContext): DrawCall[] {
-    const { skeleton, palette, farSide, nearSide } = ctx;
-    const j = skeleton.joints;
+    const { skeleton, palette, farSide, nearSide, fitmentCorners } = ctx;
+    const j  = skeleton.joints;
+    const sz = ctx.slotParams.size;
+
+    const fc: FitmentCorners = fitmentCorners ?? {
+      tl: { x: j.hipL.x,   y: j.hipL.y   },
+      tr: { x: j.hipR.x,   y: j.hipR.y   },
+      bl: { x: j.ankleL.x, y: j.ankleL.y },
+      br: { x: j.ankleR.x, y: j.ankleR.y },
+    };
+
     const calls: DrawCall[] = [];
 
-    const sz = ctx.slotParams.size;
-    // Far leg: darker; near leg: base color
-    calls.push({ depth: DEPTH_FAR_LIMB + 1, draw: (g, s) => this.drawLeg(g, j, palette, s, farSide, sz, false) });
-    calls.push({ depth: DEPTH_FAR_LIMB + 5, draw: (g, s) => this.drawLeg(g, j, palette, s, nearSide, sz, true) });
+    calls.push({ depth: DEPTH_FAR_LIMB + 1, draw: (g, s) => this.drawChausse(g, j, palette, s, farSide,  fc, sz, false) });
+    calls.push({ depth: DEPTH_FAR_LIMB + 5, draw: (g, s) => this.drawChausse(g, j, palette, s, nearSide, fc, sz, true)  });
 
-    // Waist mail skirt
+    // Hip mail skirt at BODY+3
     calls.push({
       depth: DEPTH_BODY + 3,
       draw: (g, s) => {
         const { hipL, hipR, crotch } = j;
-        const skirtY = crotch.y + 1;
-        g.moveTo(hipL.x * s, hipL.y * s);
-        g.lineTo((hipL.x - 0.5) * s, skirtY * s);
-        g.lineTo((hipR.x + 0.5) * s, skirtY * s);
-        g.lineTo(hipR.x * s, hipR.y * s);
+        const skirtY = crotch.y + 1.5 * sz;
+        g.moveTo((hipL.x - 0.5) * s, hipL.y * s);
+        g.lineTo((hipL.x - 1) * s, skirtY * s);
+        g.lineTo((hipR.x + 1) * s, skirtY * s);
+        g.lineTo((hipR.x + 0.5) * s, hipR.y * s);
         g.closePath();
         g.fill(palette.body);
-        g.moveTo(hipL.x * s, hipL.y * s);
-        g.lineTo((hipL.x - 0.5) * s, skirtY * s);
-        g.lineTo((hipR.x + 0.5) * s, skirtY * s);
-        g.lineTo(hipR.x * s, hipR.y * s);
-        g.closePath();
-        g.stroke({ width: s * 0.4, color: palette.outline, alpha: 0.3 });
+        g.stroke({ width: s * 0.35, color: palette.outline, alpha: 0.28 });
 
-        // Chain pattern on skirt
-        for (let i = 0; i < 3; i++) {
-          const y = hipL.y + (skirtY - hipL.y) * ((i + 0.5) / 3);
-          const w = (hipR.x - hipL.x) * (0.8 + i * 0.05);
-          for (let jj = 0; jj < 4; jj++) {
-            const x = hipL.x + w * ((jj + 0.5) / 4);
-            g.circle(x * s, y * s, 0.6 * s);
-            g.stroke({ width: s * 0.25, color: palette.bodyLt, alpha: 0.3 });
+        // Chain rows on skirt
+        const span = hipR.x - hipL.x + 2;
+        for (let row = 0; row < 2; row++) {
+          const ry = hipL.y + (skirtY - hipL.y) * ((row + 0.5) / 2);
+          for (let col = 0; col < 4; col++) {
+            const rx = hipL.x - 0.5 + span * (col + 0.5) / 4;
+            g.circle(rx * s, ry * s, 0.45 * s);
+            g.stroke({ width: s * 0.18, color: palette.bodyLt, alpha: 0.28 });
           }
         }
       },
@@ -59,37 +62,48 @@ export class LegsMail implements Model {
     return calls;
   }
 
-  private drawLeg(g: Graphics, j: Record<string, V>, p: any, s: number, side: "L" | "R", sz = 1, isNear = false): void {
-    const hip = j[`hip${side}`];
-    const knee = j[`knee${side}`];
-    const ankle = j[`ankle${side}`];
-    const legTop: V = { x: hip.x * 0.5, y: hip.y };
+  private drawChausse(
+    g: Graphics,
+    j: Record<string, any>,
+    p: any,
+    s: number,
+    side: "L" | "R",
+    fc: FitmentCorners,
+    sz: number,
+    isNear: boolean,
+  ): void {
+    const sc    = sideCorners(fc, side);
+    const knee  = j[`knee${side}`];
+    const color = isNear ? p.body : darken(p.body, 0.12);
+    const bodyLt = isNear ? p.bodyLt : darken(p.bodyLt, 0.12);
 
-    // Near leg uses base color, far leg darkened 10%
-    const legColor = isNear ? p.body : darken(p.body, 0.1);
-    const legDk = isNear ? p.bodyDk : darken(p.bodyDk, 0.1);
-    const legLt = isNear ? p.bodyLt : darken(p.bodyLt, 0.1);
+    // Mail fill
+    drawCornerQuad(g, sc, 0, color, p.outline, 0.38, s);
 
-    // Mail-covered thigh
-    drawTaperedLimb(g, legTop, knee, 6.5 * sz, 5 * sz, legColor, legDk, p.outline, s);
-
-    // Knee cop (metal plate over mail)
-    g.roundRect((knee.x - 3 * sz) * s, (knee.y - 2 * sz) * s, 6 * sz * s, 4 * sz * s, 1.5 * s);
-    g.fill(legLt);
-    g.roundRect((knee.x - 3) * s, (knee.y - 2) * s, 6 * s, 4 * s, 1.5 * s);
-    g.stroke({ width: s * 0.4, color: p.outline, alpha: 0.4 });
-
-    // Mail-covered calf
-    drawTaperedLimb(g, knee, ankle, 5 * sz, 3.8 * sz, legColor, legDk, p.outline, s);
-
-    // Ring pattern (small circles along the thigh)
-    for (let i = 0; i < 3; i++) {
-      const t = (i + 1) / 4;
-      const rx = legTop.x + (knee.x - legTop.x) * t;
-      const ry = legTop.y + (knee.y - legTop.y) * t;
-      g.circle(rx * s, ry * s, 0.5 * s);
-      g.stroke({ width: s * 0.2, color: legLt, alpha: 0.25 });
+    // Ring rows (4 horizontal rows)
+    for (let i = 0; i < 4; i++) {
+      const t = 0.08 + i * 0.22;
+      const rowL = quadPoint(sc, 0.04, t);
+      const rowR = quadPoint(sc, 0.96, t);
+      g.moveTo(rowL.x * s, rowL.y * s); g.lineTo(rowR.x * s, rowR.y * s);
+      g.stroke({ width: s * 0.4, color: bodyLt, alpha: 0.28 });
     }
+
+    // Ring dots on 2nd and 4th rows
+    for (const t of [0.3, 0.74]) {
+      for (let col = 0; col < 3; col++) {
+        const u = 0.15 + col * 0.35;
+        const pt = quadPoint(sc, u, t);
+        g.circle(pt.x * s, pt.y * s, 0.45 * s);
+        g.stroke({ width: s * 0.18, color: bodyLt, alpha: 0.25 });
+      }
+    }
+
+    // Padded knee cap
+    g.ellipse(knee.x * s, knee.y * s, Math.abs(sc.tr.x - sc.tl.x) * 0.72 * s, 2.6 * sz * s);
+    g.fill(darken(color, 0.06));
+    g.ellipse(knee.x * s, knee.y * s, Math.abs(sc.tr.x - sc.tl.x) * 0.72 * s, 2.6 * sz * s);
+    g.stroke({ width: s * 0.4, color: p.outline, alpha: 0.3 });
   }
 
   getAttachmentPoints(): Record<string, AttachmentPoint> { return {}; }

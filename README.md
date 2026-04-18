@@ -1,12 +1,12 @@
-# Isometric MMO
+# 16Bit Online
 
-An Ultima Online-inspired isometric multiplayer online game built with modern web technologies. Real-time multiplayer via WebRTC DataChannels, server-authoritative game logic, procedural entities, and hand-crafted Tiled maps — all running in a single browser tab at around 200 MB despite containing a full game engine, huge 256×256 tile maps, and dozens of animated entity types.
+A Pokemon GameBoy-style top-down multiplayer online RPG built with modern web technologies. Real-time multiplayer via WebRTC DataChannels, server-authoritative game logic, and hand-crafted Tiled maps — all running in a single browser tab.
 
 ## Tech Stack
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| Client Engine | [PixiJS v8](https://pixijs.com/) | 2D isometric rendering (WebGL-accelerated) |
+| Client Engine | [PixiJS v8](https://pixijs.com/) | 2D top-down rendering (WebGL-accelerated) |
 | Client Bundler | [Vite](https://vitejs.dev/) | HMR dev server, tree-shaking, chunked builds |
 | Client Runtime | [Bun](https://bun.sh/) | Package manager, Vite runner |
 | Server Framework | [Fastify](https://fastify.dev/) | REST API, HTTP signaling |
@@ -16,7 +16,7 @@ An Ultima Online-inspired isometric multiplayer online game built with modern we
 | Cache | [Redis](https://redis.io/) via [ioredis](https://github.com/redis/ioredis) | Session state, world data |
 | Auth | Dev login + game JWT sessions | Username/password, no external provider required |
 | Audio | [Tone.js](https://tonejs.github.io/) + [Howler.js](https://howlerjs.com/) | Procedural music + sound effects |
-| Maps | [Tiled](https://www.mapeditor.org/) JSON format | Hand-crafted 256×256 tile worlds |
+| Maps | [Tiled](https://www.mapeditor.org/) JSON format | Hand-crafted tile worlds |
 | Model Tool | [PixiJS v8](https://pixijs.com/) + Vite | Standalone visual model workbench |
 
 ## Architecture
@@ -202,7 +202,7 @@ isometric-rpg/
 ├── docker-compose.yml                # PostgreSQL (5433) + Redis (6379)
 ├── .env.example
 ├── package.json                      # Bun workspace root
-└── CLAUDE.md                         # Dev instructions + game state
+└── AGENTS.md                         # Dev instructions + game state
 ```
 
 ---

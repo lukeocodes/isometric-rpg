@@ -182,6 +182,26 @@ export function drawCornerQuad(
 }
 
 /**
+ * Split a symmetric 2-sided fitment region into per-side corners.
+ * Symmetric slots (shoulders, gauntlets, legs) span BOTH sides of the body.
+ * Use this to get the left or right half as a standalone FitmentCorners quad.
+ *
+ *   side "L" → left half:  tl=fc.tl, tr=mid-top, bl=fc.bl, br=mid-bot
+ *   side "R" → right half: tl=mid-top, tr=fc.tr,  bl=mid-bot, br=fc.br
+ *
+ * Pass `farSide` for the far-limb draw call and `nearSide` for the near-limb.
+ */
+export function sideCorners(fc: FitmentCorners, side: "L" | "R"): FitmentCorners {
+  const midTop = { x: (fc.tl.x + fc.tr.x) / 2, y: (fc.tl.y + fc.tr.y) / 2 };
+  const midBot = { x: (fc.bl.x + fc.br.x) / 2, y: (fc.bl.y + fc.br.y) / 2 };
+  if (side === "L") {
+    return { tl: fc.tl, tr: midTop, bl: fc.bl, br: midBot };
+  } else {
+    return { tl: midTop, tr: fc.tr, bl: midBot, br: fc.br };
+  }
+}
+
+/**
  * Interpolate a point inside a corner quad using (u, v) in [0,1]×[0,1].
  * u=0 → left edge, u=1 → right edge, v=0 → top, v=1 → bottom.
  * Useful for placing rivets, emblems, or decoration inside corner-fit armor.

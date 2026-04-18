@@ -1,12 +1,14 @@
 import type { Graphics } from "pixi.js";
-import type { Model, RenderContext, DrawCall, AttachmentPoint, V } from "../types";
+import type { Model, RenderContext, DrawCall, AttachmentPoint, FitmentCorners } from "../types";
 import { DEPTH_FAR_LIMB, DEPTH_BODY } from "../types";
-import { darken } from "../palette";
-import { drawTaperedLimb } from "../draw-helpers";
+import { darken, lighten } from "../palette";
+import { drawCornerQuad, quadPoint, sideCorners } from "../draw-helpers";
 
 /**
- * Plate leg armor — full plate greaves and cuisses.
- * Heavy metal plates with rivets, articulated knee cop.
+ * Plate Greaves — full plate cuisses, knee cops, and greaves.
+ *
+ * CORNER-BASED: Uses fitmentCorners (legs slot) split per-side.
+ * Hip→ankle quad adapts to leg length and body width of any race.
  */
 export class LegsPlate implements Model {
   readonly id = "legs-plate";
@@ -15,40 +17,48 @@ export class LegsPlate implements Model {
   readonly slot = "legs" as const;
 
   getDrawCalls(ctx: RenderContext): DrawCall[] {
-    const { skeleton, palette, farSide, nearSide, facingCamera } = ctx;
-    const j = skeleton.joints;
+    const { skeleton, palette, farSide, nearSide, facingCamera, fitmentCorners } = ctx;
+    const j  = skeleton.joints;
+    const sz = ctx.slotParams.size;
+
+    const fc: FitmentCorners = fitmentCorners ?? {
+      tl: { x: j.hipL.x,   y: j.hipL.y   },
+      tr: { x: j.hipR.x,   y: j.hipR.y   },
+      bl: { x: j.ankleL.x, y: j.ankleL.y },
+      br: { x: j.ankleR.x, y: j.ankleR.y },
+    };
+
     const calls: DrawCall[] = [];
 
-    const sz = ctx.slotParams.size;
-    // Far leg: darker; near leg: base color
-    calls.push({ depth: DEPTH_FAR_LIMB + 1, draw: (g, s) => this.drawLeg(g, j, palette, s, farSide, sz, false) });
-    calls.push({ depth: DEPTH_FAR_LIMB + 5, draw: (g, s) => this.drawLeg(g, j, palette, s, nearSide, sz, true) });
+    calls.push({ depth: DEPTH_FAR_LIMB + 1, draw: (g, s) => this.drawLeg(g, j, palette, s, farSide,  fc, sz, false, facingCamera) });
+    calls.push({ depth: DEPTH_FAR_LIMB + 5, draw: (g, s) => this.drawLeg(g, j, palette, s, nearSide, fc, sz, true,  facingCamera) });
 
-    // Tassets (plate skirt)
+    // Tassets (plate hip flaps) at BODY+3
     calls.push({
       depth: DEPTH_BODY + 3,
       draw: (g, s) => {
         const { hipL, hipR, crotch } = j;
-        const tassetY = crotch.y + 2;
+        const tassetY = crotch.y + 2 * sz;
+        const tassetLFC: FitmentCorners = {
+          tl: { x: hipL.x - 1, y: hipL.y },
+          tr: { x: (hipL.x + crotch.x) / 2, y: hipL.y },
+          bl: { x: hipL.x - 0.5, y: tassetY },
+          br: { x: crotch.x - 1, y: tassetY },
+        };
+        const tassetRFC: FitmentCorners = {
+          tl: { x: (hipR.x + crotch.x) / 2, y: hipR.y },
+          tr: { x: hipR.x + 1, y: hipR.y },
+          bl: { x: crotch.x + 1, y: tassetY },
+          br: { x: hipR.x + 0.5, y: tassetY },
+        };
+        drawCornerQuad(g, tassetLFC, 0, palette.body, palette.outline, 0.4, s);
+        drawCornerQuad(g, tassetRFC, 0, palette.body, palette.outline, 0.4, s);
 
-        // Left tasset plate
-        g.roundRect((hipL.x - 0.5) * s, hipL.y * s, ((-hipL.x + crotch.x) * 0.5 + 1) * s, (tassetY - hipL.y) * s, 1 * s);
-        g.fill(palette.body);
-        g.roundRect((hipL.x - 0.5) * s, hipL.y * s, ((-hipL.x + crotch.x) * 0.5 + 1) * s, (tassetY - hipL.y) * s, 1 * s);
-        g.stroke({ width: s * 0.5, color: palette.outline, alpha: 0.4 });
-
-        // Right tasset plate
-        g.roundRect((crotch.x * 0.5 - 0.5) * s, hipR.y * s, ((hipR.x - crotch.x) * 0.5 + 1) * s, (tassetY - hipR.y) * s, 1 * s);
-        g.fill(palette.body);
-        g.roundRect((crotch.x * 0.5 - 0.5) * s, hipR.y * s, ((hipR.x - crotch.x) * 0.5 + 1) * s, (tassetY - hipR.y) * s, 1 * s);
-        g.stroke({ width: s * 0.5, color: palette.outline, alpha: 0.4 });
-
-        // Highlight on plates (front only — no highlight from back)
         if (facingCamera) {
-          g.roundRect((hipL.x) * s, (hipL.y + 1) * s, 3 * s, (tassetY - hipL.y - 2) * s, 0.5 * s);
-          g.fill({ color: palette.bodyLt, alpha: 0.2 });
-          g.roundRect((crotch.x * 0.5) * s, (hipR.y + 1) * s, 3 * s, (tassetY - hipR.y - 2) * s, 0.5 * s);
-          g.fill({ color: palette.bodyLt, alpha: 0.2 });
+          // Highlight on near tasset
+          const highlightFC = nearSide === "L" ? tassetLFC : tassetRFC;
+          const hl = quadPoint(highlightFC, 0.3, 0.3);
+          g.circle(hl.x * s, hl.y * s, 1.4 * sz * s); g.fill({ color: palette.bodyLt, alpha: 0.2 });
         }
       },
     });
@@ -56,47 +66,58 @@ export class LegsPlate implements Model {
     return calls;
   }
 
-  private drawLeg(g: Graphics, j: Record<string, V>, p: any, s: number, side: "L" | "R", sz = 1, isNear = false): void {
-    const hip = j[`hip${side}`];
-    const knee = j[`knee${side}`];
+  private drawLeg(
+    g: Graphics,
+    j: Record<string, any>,
+    p: any,
+    s: number,
+    side: "L" | "R",
+    fc: FitmentCorners,
+    sz: number,
+    isNear: boolean,
+    facingCamera: boolean,
+  ): void {
+    const sc    = sideCorners(fc, side);
+    const hip   = j[`hip${side}`];
+    const knee  = j[`knee${side}`];
     const ankle = j[`ankle${side}`];
-    const legTop: V = { x: hip.x * 0.5, y: hip.y };
 
-    // Near leg uses base color, far leg darkened 10%
-    const legColor = isNear ? p.body : darken(p.body, 0.1);
-    const legDk = isNear ? p.bodyDk : darken(p.bodyDk, 0.1);
-    const legLt = isNear ? p.bodyLt : darken(p.bodyLt, 0.1);
+    const color  = isNear ? p.body   : darken(p.body, 0.12);
+    const bodyLt = isNear ? p.bodyLt : darken(p.bodyLt, 0.12);
 
-    // Cuisse (thigh plate)
-    drawTaperedLimb(g, legTop, knee, 6.8 * sz, 5.2 * sz, legColor, legDk, p.outline, s);
+    // Split the quad: thigh (top half) and greave (bottom half)
+    const midTL = quadPoint(sc, 0.0, 0.5);
+    const midTR = quadPoint(sc, 1.0, 0.5);
+    const thighFC: FitmentCorners = { tl: sc.tl, tr: sc.tr, bl: midTL, br: midTR };
+    const greaveFC: FitmentCorners = { tl: midTL, tr: midTR, bl: sc.bl, br: sc.br };
 
-    // Plate edge highlight
-    drawTaperedLimb(g, legTop, knee, 6.8 * sz, 5.2 * sz, legLt, legLt, legLt, s);
-    // Redraw main over highlight to create edge effect
-    drawTaperedLimb(g, legTop, { x: knee.x, y: knee.y - 0.5 }, 6 * sz, 4.5 * sz, legColor, legDk, p.outline, s);
+    // Thigh plate (cuisse)
+    drawCornerQuad(g, thighFC, 0, color, p.outline, 0.42, s);
+    // Shin plate (greave)
+    drawCornerQuad(g, greaveFC, 0, color, p.outline, 0.38, s);
 
-    // Articulated knee cop (larger, segmented)
-    g.roundRect((knee.x - 3.5 * sz) * s, (knee.y - 2.5 * sz) * s, 7 * sz * s, 5 * sz * s, 2 * s);
-    g.fill(legLt);
-    g.roundRect((knee.x - 3.5) * s, (knee.y - 2.5) * s, 7 * s, 5 * s, 2 * s);
+    // Highlight on cuisse
+    const cuisseLit = quadPoint(thighFC, isNear ? 0.15 : 0.8, 0.3);
+    g.ellipse(cuisseLit.x * s, cuisseLit.y * s, Math.abs(sc.tr.x - sc.tl.x) * 0.3 * s, 2.5 * sz * s);
+    g.fill({ color: bodyLt, alpha: 0.15 });
+
+    // Knee cop at joint
+    g.ellipse(knee.x * s, knee.y * s, Math.abs(sc.tr.x - sc.tl.x) * 0.7 * s, 2.8 * sz * s);
+    g.fill(bodyLt);
+    g.ellipse(knee.x * s, knee.y * s, Math.abs(sc.tr.x - sc.tl.x) * 0.7 * s, 2.8 * sz * s);
     g.stroke({ width: s * 0.5, color: p.outline, alpha: 0.45 });
+    // Cop articulation
+    g.moveTo((knee.x - Math.abs(sc.tr.x - sc.tl.x) * 0.35) * s, knee.y * s);
+    g.lineTo((knee.x + Math.abs(sc.tr.x - sc.tl.x) * 0.35) * s, knee.y * s);
+    g.stroke({ width: s * 0.4, color: p.outline, alpha: 0.28 });
+    // Cop rivet
+    g.circle(knee.x * s, (knee.y - 1) * s, 0.7 * s); g.fill(p.accent);
 
-    // Knee articulation line
-    g.moveTo((knee.x - 2.5) * s, knee.y * s);
-    g.lineTo((knee.x + 2.5) * s, knee.y * s);
-    g.stroke({ width: s * 0.4, color: p.outline, alpha: 0.3 });
-
-    // Rivet
-    g.circle(knee.x * s, (knee.y - 1) * s, 0.7 * s);
-    g.fill(p.accent);
-
-    // Greave (shin plate)
-    drawTaperedLimb(g, knee, ankle, 5.5 * sz, 4.2 * sz, legColor, legDk, p.outline, s);
-
-    // Shin ridge (center line)
-    g.moveTo(knee.x * s, (knee.y + 2) * s);
-    g.lineTo(ankle.x * s, (ankle.y - 1) * s);
-    g.stroke({ width: s * 0.6, color: legLt, alpha: 0.25 });
+    // Shin ridge
+    const ridgeT = quadPoint(greaveFC, 0.5, 0.08);
+    const ridgeB = quadPoint(greaveFC, 0.5, 0.88);
+    g.moveTo(ridgeT.x * s, ridgeT.y * s); g.lineTo(ridgeB.x * s, ridgeB.y * s);
+    g.stroke({ width: s * 0.6, color: bodyLt, alpha: 0.22 });
   }
 
   getAttachmentPoints(): Record<string, AttachmentPoint> { return {}; }

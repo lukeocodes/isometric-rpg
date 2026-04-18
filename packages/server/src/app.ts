@@ -15,7 +15,7 @@ import { config } from "./config.js";
 export async function buildApp() {
   const app = Fastify({ logger: true });
 
-  const allowedOrigins = config.cors.origins;
+  const allowedOrigins = [...config.cors.origins, "http://localhost:8000"];
   await app.register(cors, {
     origin: (origin, cb) => {
       // Allow requests with no origin (same-origin, curl, etc.)

@@ -21,24 +21,26 @@ export const DEPTH_W = 30;  // west-facing planes  — closest to camera
 //     +2  far foot body       +3  far boot armor
 //     +4  near leg body       +5  near leg armor
 //     +6  near foot body      +7  near boot armor
-//     +8  far arm body        +9  far gauntlet armor
-//     +10 near arm body*      +11 near gauntlet armor*
+//     +8  far arm body        +9  far gauntlet armor / far shoulder armor (facingCamera)
+//     +10 near arm body*      +11 near gauntlet armor* / near shoulder armor (!facingCamera)
 //     (* when !facingCamera — near arm swaps to FAR_LIMB range)
 //
 //   BODY tier (90–109):
-//     +0  torso, pelvis, glutes    +3  torso armor
+//     +0  torso, pelvis, glutes    +3  torso armor / near shoulder armor (facingCamera)
 //
 //   HEAD tier (110–129):
 //     +0  head body                +1  hair / headgear
 //
 //   NEAR_LIMB tier (130–159):
-//     +0  far arm body*            +1  far gauntlet armor*
+//     +0  far arm body*            +1  far gauntlet armor* / far shoulder armor (!facingCamera)
 //     +5  near arm body            +6  near gauntlet armor
 //     (* when !facingCamera — far arm swaps to NEAR_LIMB range)
 //
-// For direction-conditional arm depth:
-//   far arm:  facingCamera ? DEPTH_FAR_LIMB  + 8 : DEPTH_NEAR_LIMB + 0
-//   near arm: facingCamera ? DEPTH_NEAR_LIMB + 5 : DEPTH_FAR_LIMB  + 10
+// For direction-conditional arm/shoulder depth:
+//   far arm:     facingCamera ? DEPTH_FAR_LIMB  + 8 : DEPTH_NEAR_LIMB + 0
+//   near arm:    facingCamera ? DEPTH_NEAR_LIMB + 5 : DEPTH_FAR_LIMB  + 10
+//   far shoulder:  facingCamera ? DEPTH_FAR_LIMB + 9 : DEPTH_NEAR_LIMB + 1  (above arm body)
+//   near shoulder: facingCamera ? DEPTH_BODY    + 3 : DEPTH_FAR_LIMB  + 11  (above near arm body)
 export const DEPTH_SHADOW    =   0;  // ground shadow
 export const DEPTH_FAR_LIMB  =  40;  // limbs/appendages away from camera (range 40–89)
 export const DEPTH_BODY      =  90;  // torso, pelvis, core               (range 90–109)

@@ -91,6 +91,8 @@ interface ZoneMapData {
   safeZones: TiledSafeZone[];
   playerSpawn: { x: number; z: number };
   mapItems: Array<{ tileX: number; tileZ: number; itemId: string; quantity: number }>;
+  /** Tiles blocked by decoration obstacles (trees, rocks placed in object layer) */
+  obstacleSet: Set<string>;
 }
 
 const zoneMaps = new Map<string, ZoneMapData>();
@@ -105,6 +107,7 @@ let tileWalkable = new Map<number, boolean>();
 let spawnPoints: TiledSpawnPoint[] = [];
 let safeZones: TiledSafeZone[] = [];
 let playerSpawn = { x: 64, z: 64 };
+let obstacleSet = new Set<string>();
 let loaded = false;
 
 /**
@@ -145,6 +148,8 @@ export function isZoneWalkable(zoneId: string, tileX: number, tileZ: number): bo
   const walkable = data.tileWalkable.get(gid);
   if (walkable === false) return false;
   if (data.collisionData.length > 0 && data.collisionData[tileZ * data.width + tileX] !== 0) return false;
+  // Decoration obstacles block movement
+  if (data.obstacleSet.has(`${tileX},${tileZ}`)) return false;
   return true;
 }
 
@@ -167,6 +172,7 @@ export function loadTiledMap(mapPath: string): void {
   spawnPoints = data.spawnPoints;
   safeZones = data.safeZones;
   playerSpawn = data.playerSpawn;
+  obstacleSet = data.obstacleSet;
   loaded = true;
 
   console.log(
@@ -190,6 +196,7 @@ function parseTiledMap(mapPath: string): ZoneMapData {
     safeZones: [],
     playerSpawn: { x: 64, z: 64 },
     mapItems: [],
+    obstacleSet: new Set(),
   };
 
   // Load tileset(s) for walkability properties
@@ -210,13 +217,15 @@ function parseTiledMap(mapPath: string): ZoneMapData {
   // Parse layers
   for (const layer of mapJson.layers) {
     if (layer.type === "tilelayer") {
-      if (layer.name === "ground") {
+      if (layer.name === "terrain" || layer.name === "ground") {
         data.groundData = layer.data;
       } else if (layer.name === "collision") {
         data.collisionData = layer.data;
       }
-    } else if (layer.type === "objectgroup" && layer.name === "objects") {
-      parseObjectsInto(data, layer.objects, mapJson.tilewidth, mapJson.tileheight);
+    } else if (layer.type === "objectgroup") {
+      if (layer.name === "objects" || layer.name === "spawn_points" || layer.name === "zone_exits") {
+        parseObjectsInto(data, layer.objects, mapJson.tilewidth, mapJson.tileheight);
+      }
     }
   }
 
@@ -256,6 +265,15 @@ function parseObjectsInto(data: ZoneMapData, objects: TiledObject[], tileW: numb
         zoneName: (props.zoneName as string) ?? obj.name,
         musicTag: (props.musicTag as string) ?? "town",
       });
+    } else if (obj.type === "obstacle" || obj.type === "tree" || obj.type === "rock") {
+      // Decoration obstacles — block walkability at their tile footprint
+      const w = Math.max(1, Math.round((obj.width || tileW) / tileW));
+      const h = Math.max(1, Math.round((obj.height || tileH) / tileH));
+      for (let dz = 0; dz < h; dz++) {
+        for (let dx = 0; dx < w; dx++) {
+          data.obstacleSet.add(`${tileX + dx},${tileZ + dz}`);
+        }
+      }
     }
   }
 }
@@ -305,6 +323,9 @@ export function isTiledWalkable(tileX: number, tileZ: number): boolean {
     const colGid = collisionData[tileZ * mapWidth + tileX];
     if (colGid !== 0) return false;
   }
+
+  // Decoration obstacles
+  if (obstacleSet.has(`${tileX},${tileZ}`)) return false;
 
   return true;
 }

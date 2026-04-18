@@ -1,12 +1,14 @@
 import type { Graphics } from "pixi.js";
-import type { Model, RenderContext, DrawCall, AttachmentPoint, V } from "../types";
+import type { Model, RenderContext, DrawCall, AttachmentPoint, FitmentCorners } from "../types";
 import { DEPTH_FAR_LIMB, DEPTH_BODY } from "../types";
 import { darken } from "../palette";
-import { drawTaperedLimb } from "../draw-helpers";
+import { drawCornerQuad, quadPoint, sideCorners } from "../draw-helpers";
 
 /**
- * Cloth leg armor — loose trousers/robes covering the legs.
- * Flows loosely, slightly wider than limbs.
+ * Cloth Trousers — loose fabric leg covering with ankle hem and waist sash.
+ *
+ * CORNER-BASED: Uses fitmentCorners (legs slot) split per-side.
+ * Wider than body to give a flowing loose look.
  */
 export class LegsCloth implements Model {
   readonly id = "legs-cloth";
@@ -15,87 +17,85 @@ export class LegsCloth implements Model {
   readonly slot = "legs" as const;
 
   getDrawCalls(ctx: RenderContext): DrawCall[] {
-    const { skeleton, palette, farSide, nearSide } = ctx;
-    const j = skeleton.joints;
+    const { skeleton, palette, farSide, nearSide, fitmentCorners } = ctx;
+    const j  = skeleton.joints;
+    const sz = ctx.slotParams.size;
+
+    const fc: FitmentCorners = fitmentCorners ?? {
+      tl: { x: j.hipL.x,   y: j.hipL.y   },
+      tr: { x: j.hipR.x,   y: j.hipR.y   },
+      bl: { x: j.ankleL.x, y: j.ankleL.y },
+      br: { x: j.ankleR.x, y: j.ankleR.y },
+    };
+
     const calls: DrawCall[] = [];
 
-    const sz = ctx.slotParams.size;
-    // Far leg: darker and slightly wider; near leg: base color
-    calls.push({ depth: DEPTH_FAR_LIMB + 1, draw: (g, s) => this.drawLeg(g, j, palette.body, palette.bodyDk, palette.outline, s, farSide, sz, false) });
-    calls.push({ depth: DEPTH_FAR_LIMB + 5, draw: (g, s) => this.drawLeg(g, j, palette.body, palette.bodyDk, palette.outline, s, nearSide, sz, true) });
+    calls.push({ depth: DEPTH_FAR_LIMB + 1, draw: (g, s) => this.drawTrouserLeg(g, j, palette, s, farSide,  fc, sz, false) });
+    calls.push({ depth: DEPTH_FAR_LIMB + 5, draw: (g, s) => this.drawTrouserLeg(g, j, palette, s, nearSide, fc, sz, true)  });
 
-    // Waist sash
+    // Waist sash at BODY+3
     calls.push({
       depth: DEPTH_BODY + 3,
       draw: (g, s) => {
         const { hipL, hipR, crotch } = j;
-        g.moveTo(hipL.x * s, hipL.y * s);
-        g.quadraticCurveTo(
-          (hipL.x - 0.5) * s, ((hipL.y + crotch.y) / 2) * s,
-          ((hipL.x + crotch.x) / 2) * s, crotch.y * s
-        );
-        g.quadraticCurveTo(
-          crotch.x * s, (crotch.y + 1) * s,
-          ((hipR.x + crotch.x) / 2) * s, crotch.y * s
-        );
-        g.quadraticCurveTo(
-          (hipR.x + 0.5) * s, ((hipR.y + crotch.y) / 2) * s,
-          hipR.x * s, hipR.y * s
-        );
-        g.closePath();
-        g.fill(palette.body);
-        g.moveTo(hipL.x * s, hipL.y * s);
-        g.quadraticCurveTo(
-          (hipL.x - 0.5) * s, ((hipL.y + crotch.y) / 2) * s,
-          ((hipL.x + crotch.x) / 2) * s, crotch.y * s
-        );
-        g.quadraticCurveTo(
-          crotch.x * s, (crotch.y + 1) * s,
-          ((hipR.x + crotch.x) / 2) * s, crotch.y * s
-        );
-        g.quadraticCurveTo(
-          (hipR.x + 0.5) * s, ((hipR.y + crotch.y) / 2) * s,
-          hipR.x * s, hipR.y * s
-        );
-        g.closePath();
-        g.stroke({ width: s * 0.4, color: palette.outline, alpha: 0.3 });
+        const sashTL = { x: hipL.x - 1.5 * sz, y: hipL.y };
+        const sashTR = { x: hipR.x + 1.5 * sz, y: hipR.y };
+        const sashBL = { x: (hipL.x + crotch.x) / 2 - 0.5, y: crotch.y + 0.5 };
+        const sashBR = { x: (hipR.x + crotch.x) / 2 + 0.5, y: crotch.y + 0.5 };
+        const sashFC: FitmentCorners = { tl: sashTL, tr: sashTR, bl: sashBL, br: sashBR };
+        drawCornerQuad(g, sashFC, 0, palette.body, palette.outline, 0.3, s);
+        // Sash tie knot at centre
+        const knot = { x: (hipL.x + hipR.x) / 2, y: (hipL.y + hipR.y) / 2 + 1 };
+        g.circle(knot.x * s, knot.y * s, 1.2 * sz * s); g.fill(palette.accent);
+        g.circle(knot.x * s, knot.y * s, 1.2 * sz * s); g.stroke({ width: s * 0.3, color: palette.accentDk, alpha: 0.35 });
       },
     });
 
     return calls;
   }
 
-  private drawLeg(
+  private drawTrouserLeg(
     g: Graphics,
-    j: Record<string, V>,
-    color: number,
-    dk: number,
-    outline: number,
+    j: Record<string, any>,
+    p: any,
     s: number,
     side: "L" | "R",
-    sz = 1,
-    isNear = false
+    fc: FitmentCorners,
+    sz: number,
+    isNear: boolean,
   ): void {
-    const hip = j[`hip${side}`];
-    const knee = j[`knee${side}`];
+    const sc    = sideCorners(fc, side);
+    const knee  = j[`knee${side}`];
     const ankle = j[`ankle${side}`];
-    const legTop: V = { x: hip.x * 0.5, y: hip.y };
+    const color = isNear ? p.body : darken(p.body, 0.1);
+    const dark  = isNear ? p.bodyDk : darken(p.bodyDk, 0.1);
 
-    // Near leg uses base color; far leg darkened 10% and slightly wider for loose cloth effect
-    const legColor = isNear ? color : darken(color, 0.1);
-    const legDk = isNear ? dk : darken(dk, 0.1);
-    const thighW = isNear ? 7 * sz : 7.3 * sz;
-    const calfW  = isNear ? 5.5 * sz : 5.7 * sz;
+    // Looser cloth: expand sc outward slightly for loose trouser look
+    const looseFC: FitmentCorners = {
+      tl: { x: sc.tl.x - 1.5 * sz, y: sc.tl.y },
+      tr: { x: sc.tr.x + 1.5 * sz, y: sc.tr.y },
+      bl: { x: sc.bl.x - 1 * sz,   y: sc.bl.y },
+      br: { x: sc.br.x + 1 * sz,   y: sc.br.y },
+    };
 
-    // Loose cloth over thigh
-    drawTaperedLimb(g, legTop, knee, thighW, calfW * 0.94, legColor, legDk, outline, s);
+    // Cloth fill
+    drawCornerQuad(g, looseFC, 0, color, p.outline, 0.3, s);
 
-    // Cloth over calf — flows wider
-    drawTaperedLimb(g, knee, ankle, calfW, 5 * sz, legColor, legDk, outline, s);
+    // Knee gather crease
+    const creaseL = quadPoint(looseFC, 0.12, 0.46);
+    const creaseR = quadPoint(looseFC, 0.88, 0.46);
+    g.moveTo(creaseL.x * s, creaseL.y * s);
+    g.quadraticCurveTo(
+      quadPoint(looseFC, 0.5, 0.5).x * s, quadPoint(looseFC, 0.5, 0.5).y * s,
+      creaseR.x * s, creaseR.y * s,
+    );
+    g.stroke({ width: s * 0.45, color: dark, alpha: 0.25 });
 
-    // Hem at ankle
-    g.ellipse(ankle.x * s, ankle.y * s, 3 * s, 1.5 * s);
-    g.fill(legDk);
+    // Ankle hem
+    const hemL = quadPoint(looseFC, 0.05, 0.9);
+    const hemR = quadPoint(looseFC, 0.95, 0.9);
+    g.moveTo(hemL.x * s, hemL.y * s); g.lineTo(hemR.x * s, hemR.y * s);
+    g.stroke({ width: s * 1.0, color: p.accent, alpha: 0.5 });
   }
 
   getAttachmentPoints(): Record<string, AttachmentPoint> { return {}; }

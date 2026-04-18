@@ -2,7 +2,7 @@ import "dotenv/config";
 
 export const config = {
   oauth: {
-    issuer: process.env.OAUTH_ISSUER || "https://id.dx.deepgram.com",
+    issuer: process.env.OAUTH_ISSUER || "http://localhost:9999",
     clientId: process.env.OAUTH_CLIENT_ID || "",
     redirectUri: process.env.OAUTH_REDIRECT_URI || "http://localhost:5173/auth/callback",
   },
@@ -34,7 +34,7 @@ export const config = {
   world: {
     seed: parseInt(process.env.WORLD_SEED || "42"),
     /** Default player spawn position (matches Tiled map center) */
-    spawnX: parseInt(process.env.SPAWN_X || "128"),
-    spawnZ: parseInt(process.env.SPAWN_Z || "128"),
+    spawnX: parseInt(process.env.SPAWN_X || "20"),
+    spawnZ: parseInt(process.env.SPAWN_Z || "15"),
   },
 } as const;

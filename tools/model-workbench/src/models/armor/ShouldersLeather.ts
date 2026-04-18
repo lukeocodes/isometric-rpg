@@ -1,10 +1,13 @@
 import type { Graphics } from "pixi.js";
-import type { Model, RenderContext, DrawCall, AttachmentPoint, V } from "../types";
-import { DEPTH_FAR_LIMB, DEPTH_BODY } from "../types";
+import type { Model, RenderContext, DrawCall, AttachmentPoint, FitmentCorners } from "../types";
+import { DEPTH_FAR_LIMB, DEPTH_BODY, DEPTH_NEAR_LIMB } from "../types";
 import { darken } from "../palette";
+import { drawCornerQuad, quadPoint, sideCorners } from "../draw-helpers";
 
 /**
- * Leather shoulders — hardened leather spaulders with stitching and studs.
+ * Leather Spaulders — hardened leather shoulder guards with studs and stitching.
+ *
+ * CORNER-BASED: Uses fitmentCorners split per-side. Adapts to any body width.
  */
 export class ShouldersLeather implements Model {
   readonly id = "shoulders-leather";
@@ -13,77 +16,85 @@ export class ShouldersLeather implements Model {
   readonly slot = "shoulders" as const;
 
   getDrawCalls(ctx: RenderContext): DrawCall[] {
-    const { skeleton, palette, farSide, nearSide, facingCamera } = ctx;
-    const j = skeleton.joints;
-    const calls: DrawCall[] = [];
-
+    const { skeleton, palette, farSide, nearSide, facingCamera, fitmentCorners } = ctx;
+    const j  = skeleton.joints;
     const sz = ctx.slotParams.size;
-    calls.push({
-      depth: facingCamera ? DEPTH_FAR_LIMB + 8 : DEPTH_BODY + 3,
-      draw: (g, s) => this.drawShoulder(g, j, palette, s, farSide, sz, false, facingCamera),
-    });
-    calls.push({
-      depth: facingCamera ? DEPTH_BODY + 3 : DEPTH_FAR_LIMB + 8,
-      draw: (g, s) => this.drawShoulder(g, j, palette, s, nearSide, sz, true, facingCamera),
-    });
+    const wf = skeleton.wf;
 
-    return calls;
+    const fc: FitmentCorners = fitmentCorners ?? {
+      tl: { x: j.shoulderL.x - 3 * wf, y: j.shoulderL.y - 2 },
+      tr: { x: j.shoulderR.x + 3 * wf, y: j.shoulderR.y - 2 },
+      bl: { x: j.elbowL.x, y: j.elbowL.y },
+      br: { x: j.elbowR.x, y: j.elbowR.y },
+    };
+
+    return [
+      {
+        depth: facingCamera ? DEPTH_FAR_LIMB + 9 : DEPTH_NEAR_LIMB + 1,
+        draw: (g, s) => this.drawSpauldron(g, palette, s, farSide, fc, sz, false, facingCamera),
+      },
+      {
+        depth: facingCamera ? DEPTH_BODY + 3 : DEPTH_FAR_LIMB + 11,
+        draw: (g, s) => this.drawSpauldron(g, palette, s, nearSide, fc, sz, true, facingCamera),
+      },
+    ];
   }
 
-  private drawShoulder(
+  private drawSpauldron(
     g: Graphics,
-    j: Record<string, V>,
     p: any,
     s: number,
     side: "L" | "R",
-    sz = 1,
-    isNear = false,
-    facingCamera = true
+    fc: FitmentCorners,
+    sz: number,
+    isNear: boolean,
+    facingCamera: boolean,
   ): void {
-    const shoulder = j[`shoulder${side}`];
-    const sign = side === "L" ? -1 : 1;
+    const sc = sideCorners(fc, side);
+    const fillColor = isNear ? p.body : darken(p.body, 0.12);
+    const aColor = isNear ? p.accent : darken(p.accent, 0.08);
 
-    // Near side uses base color, far side darkened 10%
-    const fillColor = isNear ? p.body : darken(p.body, 0.1);
+    // Main spaulder body
+    drawCornerQuad(g, sc, 0.5, fillColor, p.outline, 0.42, s);
 
-    // Rounded leather spaulder
-    const cx = shoulder.x + sign * 1;
-    const cy = shoulder.y - 0.5;
-    const w = 6 * sz;
-    const h = 5 * sz;
+    // Edge accent band (bottom quarter of the plate)
+    const bandTL = quadPoint(sc, 0.0, 0.72);
+    const bandTR = quadPoint(sc, 1.0, 0.72);
+    const bandBL = quadPoint(sc, 0.0, 1.0);
+    const bandBR = quadPoint(sc, 1.0, 1.0);
+    const bandCorners: FitmentCorners = { tl: bandTL, tr: bandTR, bl: bandBL, br: bandBR };
+    drawCornerQuad(g, bandCorners, 0, aColor, p.accentDk, 0.3, s);
 
-    g.ellipse(cx * s, cy * s, w * s, h * s);
-    g.fill(fillColor);
-    g.ellipse(cx * s, cy * s, w * s, h * s);
-    g.stroke({ width: s * 0.5, color: p.outline, alpha: 0.4 });
+    if (facingCamera) {
+      // Studs along the upper edge (front only)
+      for (let i = 0; i < 3; i++) {
+        const u = 0.2 + i * 0.3;
+        const pt = quadPoint(sc, u, 0.15);
+        g.circle(pt.x * s, pt.y * s, 0.8 * sz * s);
+        g.fill(p.accentDk);
+      }
 
-    // Edge band
-    g.ellipse(cx * s, (cy + h * 0.6) * s, (w - 0.5) * s, 1.5 * s);
-    g.fill(p.accent);
-    g.ellipse(cx * s, (cy + h * 0.6) * s, (w - 0.5) * s, 1.5 * s);
-    g.stroke({ width: s * 0.3, color: p.accentDk, alpha: 0.3 });
+      // Stitching arc
+      const stitchL = quadPoint(sc, 0.08, 0.4);
+      const stitchM = quadPoint(sc, 0.5, 0.25);
+      const stitchR = quadPoint(sc, 0.92, 0.4);
+      g.moveTo(stitchL.x * s, stitchL.y * s);
+      g.quadraticCurveTo(stitchM.x * s, stitchM.y * s, stitchR.x * s, stitchR.y * s);
+      g.stroke({ width: s * 0.35, color: p.accentDk, alpha: 0.3 });
 
-    if (!facingCamera) {
-      // Back view: no studs, slightly darker overall, simpler surface
-      // Subtle back crease instead of stud pattern
-      g.moveTo((cx - w * 0.3) * s, (cy - h * 0.3) * s);
-      g.lineTo((cx + w * 0.3) * s, (cy - h * 0.3) * s);
-      g.stroke({ width: s * 0.3, color: p.bodyDk, alpha: 0.2 });
-      return;
+      // Lit shoulder cap
+      const capMid = quadPoint(sc, 0.5, 0.0);
+      const capW = Math.abs(sc.tr.x - sc.tl.x) * 0.5;
+      g.ellipse(capMid.x * s, capMid.y * s, capW * s, 2.0 * sz * s);
+      g.fill({ color: p.bodyLt, alpha: 0.18 });
+
+    } else {
+      // Back: subtle crease, no studs
+      const creaseT = quadPoint(sc, 0.5, 0.2);
+      const creaseB = quadPoint(sc, 0.5, 0.68);
+      g.moveTo(creaseT.x * s, creaseT.y * s); g.lineTo(creaseB.x * s, creaseB.y * s);
+      g.stroke({ width: s * 0.4, color: p.bodyDk, alpha: 0.22 });
     }
-
-    // Studs (3 along the top curve) — front view only
-    for (let i = -1; i <= 1; i++) {
-      const sx = cx + i * 2.5;
-      const sy = cy - h * 0.3;
-      g.circle(sx * s, sy * s, 0.7 * s);
-      g.fill(p.accentDk);
-    }
-
-    // Stitching line
-    g.moveTo((cx - w * 0.5) * s, cy * s);
-    g.quadraticCurveTo(cx * s, (cy - h * 0.5) * s, (cx + w * 0.5) * s, cy * s);
-    g.stroke({ width: s * 0.3, color: p.accentDk, alpha: 0.25 });
   }
 
   getAttachmentPoints(): Record<string, AttachmentPoint> { return {}; }

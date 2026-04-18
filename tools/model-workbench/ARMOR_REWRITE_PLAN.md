@@ -94,30 +94,31 @@ export interface FitmentCorners {
 - [x] ArmorOgreskin — jagged hide, cross-stitch seams, bone toggles, fur trim, hanging charm ✓
 - [x] ArmorSkeleton — ribcage arcs, skull emblem, pelvis buckle (front), vertebrae column (back) ✓
 
-### Phase 3: Shoulders (next loop)
-4 shoulder pieces — fix depth to BODY+3 (near) / FAR_LIMB+8 (far), draw wider pauldrons:
-- [x] ShouldersPlate — depths already correct ✓
-- [x] ShouldersMail — depths already correct ✓
-- [x] ShouldersLeather — depths already correct ✓
-- [x] ShouldersCloth — fixed: was NEAR_LIMB+6/7/8, now FAR_LIMB+8/BODY+3 ✓
+### Phase 3: Shoulders — COMPLETE ✓ (2026-04-03)
+All 4 shoulder models redrawn with fitmentCorners (sideCorners per-side):
+- [x] ShouldersPlate — drawCornerQuad pauldrons + segmentation lines + rivets ✓
+- [x] ShouldersMail — drawCornerQuad mantlet + ring rows + leather hem ✓
+- [x] ShouldersLeather — drawCornerQuad spaulder + studs + stitching arc ✓
+- [x] ShouldersCloth — drawCornerQuad per drape + yoke panel ✓
 
-### Phase 4: Legs + Boots (next loop)
-Fix depth to FAR_LIMB+1/5 (legs), FAR_LIMB+3/7 (boots):
-- [x] LegsPlate — FAR_LIMB+1 (far), FAR_LIMB+5 (near) ✓
-- [x] LegsMail — FAR_LIMB+1 (far), FAR_LIMB+5 (near) ✓
-- [x] LegsLeather — FAR_LIMB+1 (far), FAR_LIMB+5 (near) ✓
-- [x] LegsCloth — FAR_LIMB+1 (far), FAR_LIMB+5 (near) ✓
-- [x] BootsPlate — FAR_LIMB+3 (far), FAR_LIMB+7 (near) ✓
-- [x] BootsMail — FAR_LIMB+3 (far), FAR_LIMB+7 (near) ✓
-- [x] BootsLeather — FAR_LIMB+3 (far), FAR_LIMB+7 (near) ✓
-- [x] BootsCloth — FAR_LIMB+3 (far), FAR_LIMB+7 (near) ✓
+### Phase 4: Legs + Boots — COMPLETE ✓ (2026-04-03)
+All 8 leg/boot models redrawn with fitmentCorners:
+- [x] LegsPlate — sideCorners thigh+greave quads + knee cop + tassets ✓
+- [x] LegsMail — sideCorners + ring rows + padded knee + hip skirt ✓
+- [x] LegsLeather — sideCorners + stitching + knee pad + ankle cuff ✓
+- [x] LegsCloth — sideCorners + loose expand + gather crease + hem ✓
+- [x] BootsPlate — fitmentCorners scale hints, armoured shaft, toe plates ✓
+- [x] BootsMail — fitmentCorners scale, short shaft, ring pattern ✓
+- [x] BootsLeather — fitmentCorners scale, mid-calf shaft, buckle ✓
+- [x] BootsCloth — fitmentCorners scale, wrap bands ✓
+- [x] EntityRenderer.ts feet-R duplicate removed (was drawing boots 4x) ✓
 
-### Phase 5: Gauntlets (next loop)
-Fix depth to FAR_LIMB+9/NEAR_LIMB+6:
-- [x] GauntletsPlate — far: FAR_LIMB+9/NEAR_LIMB+1, near: NEAR_LIMB+6/FAR_LIMB+11 ✓
-- [x] GauntletsMail — same ✓
-- [x] GauntletsLeather — same ✓
-- [x] GauntletsCloth — same ✓
+### Phase 5: Gauntlets — COMPLETE ✓ (2026-04-03)
+All 4 gauntlet models redrawn with fitmentCorners (sideCorners per-side):
+- [x] GauntletsPlate — drawCornerQuad vambrace + elbow cop + finger plates ✓
+- [x] GauntletsMail — drawCornerQuad + ring rows + padded cuff + mitten ✓
+- [x] GauntletsLeather — drawCornerQuad + wrist guard + buckle + glove ✓
+- [x] GauntletsCloth — drawCornerQuad + wrap bands + hand ✓
 
 ### Phase 6: Weapons + Offhand (COMPLETE ✓)
 All 12 weapons + 5 offhand items verified:

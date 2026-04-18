@@ -1,11 +1,13 @@
 import type { Graphics } from "pixi.js";
-import type { Model, RenderContext, DrawCall, AttachmentPoint, V } from "../types";
+import type { Model, RenderContext, DrawCall, AttachmentPoint, FitmentCorners } from "../types";
 import { DEPTH_FAR_LIMB, DEPTH_NEAR_LIMB } from "../types";
 import { darken } from "../palette";
-import { drawTaperedLimb } from "../draw-helpers";
+import { drawCornerQuad, quadPoint, sideCorners } from "../draw-helpers";
 
 /**
- * Leather gauntlets — hardened leather bracers with wrist guard and fingerless gloves.
+ * Leather Bracers — hardened leather forearm guards with wrist plate and fingerless glove.
+ *
+ * CORNER-BASED: Uses fitmentCorners (gauntlets slot) split per-side.
  */
 export class GauntletsLeather implements Model {
   readonly id = "gauntlets-leather";
@@ -14,69 +16,78 @@ export class GauntletsLeather implements Model {
   readonly slot = "gauntlets" as const;
 
   getDrawCalls(ctx: RenderContext): DrawCall[] {
-    const { skeleton, palette, farSide, nearSide, facingCamera } = ctx;
-    const j = skeleton.joints;
-    const calls: DrawCall[] = [];
-
+    const { skeleton, palette, farSide, nearSide, facingCamera, fitmentCorners } = ctx;
+    const j  = skeleton.joints;
     const sz = ctx.slotParams.size;
-    // Far arm (isNear=false) darkened 10%; near arm (isNear=true) base color
-    calls.push({
-      depth: facingCamera ? DEPTH_FAR_LIMB + 9 : DEPTH_NEAR_LIMB + 1,
-      draw: (g, s) => this.drawGauntlet(g, j, palette, s, farSide, sz, false),
-    });
-    calls.push({
-      depth: facingCamera ? DEPTH_NEAR_LIMB + 6 : DEPTH_FAR_LIMB + 11,
-      draw: (g, s) => this.drawGauntlet(g, j, palette, s, nearSide, sz, true),
-    });
+    const wf = skeleton.wf;
 
-    return calls;
+    const fc: FitmentCorners = fitmentCorners ?? {
+      tl: { x: j.elbowL.x, y: j.elbowL.y },
+      tr: { x: j.elbowR.x, y: j.elbowR.y },
+      bl: { x: j.wristL.x, y: j.wristL.y },
+      br: { x: j.wristR.x, y: j.wristR.y },
+    };
+
+    return [
+      {
+        depth: facingCamera ? DEPTH_FAR_LIMB + 9 : DEPTH_NEAR_LIMB + 1,
+        draw: (g, s) => this.drawBracer(g, j, palette, s, farSide, fc, sz, wf, false),
+      },
+      {
+        depth: facingCamera ? DEPTH_NEAR_LIMB + 6 : DEPTH_FAR_LIMB + 11,
+        draw: (g, s) => this.drawBracer(g, j, palette, s, nearSide, fc, sz, wf, true),
+      },
+    ];
   }
 
-  private drawGauntlet(
+  private drawBracer(
     g: Graphics,
-    j: Record<string, V>,
+    j: Record<string, any>,
     p: any,
     s: number,
     side: "L" | "R",
-    sz = 1,
-    isNear = false
+    fc: FitmentCorners,
+    sz: number,
+    wf: number,
+    isNear: boolean,
   ): void {
+    const sc    = sideCorners(fc, side);
     const elbow = j[`elbow${side}`];
     const wrist = j[`wrist${side}`];
+    const color  = isNear ? p.body    : darken(p.body, 0.12);
+    const accent = isNear ? p.accent  : darken(p.accent, 0.1);
 
-    // Near arm uses base color, far arm darkened 10%
-    const armColor = isNear ? p.body : darken(p.body, 0.1);
-    const armDk = isNear ? p.bodyDk : darken(p.bodyDk, 0.1);
-    const accentColor = isNear ? p.accent : darken(p.accent, 0.1);
+    // Leather bracer body
+    drawCornerQuad(g, sc, 0, color, p.outline, 0.4, s);
 
-    // Leather bracer covering forearm
-    drawTaperedLimb(g, elbow, wrist, 4 * sz, 3.5 * sz, armColor, armDk, p.outline, s);
+    // Wrist guard — accent band at bottom 25%
+    const guardTL = quadPoint(sc, 0.0, 0.72);
+    const guardTR = quadPoint(sc, 1.0, 0.72);
+    const guardBL = quadPoint(sc, 0.0, 1.0);
+    const guardBR = quadPoint(sc, 1.0, 1.0);
+    const guardFC: FitmentCorners = { tl: guardTL, tr: guardTR, bl: guardBL, br: guardBR };
+    drawCornerQuad(g, guardFC, 0, accent, p.accentDk, 0.4, s);
 
-    // Wrist guard (wider band)
-    const dx = wrist.x - elbow.x;
-    const dy = wrist.y - elbow.y;
-    const len = Math.sqrt(dx * dx + dy * dy) || 1;
-    const px = -dy / len;
-    const py = dx / len;
-
-    const guardX = wrist.x - dx / len * 2;
-    const guardY = wrist.y - dy / len * 2;
-    g.roundRect((guardX - 2.5) * s, (guardY - 1.5) * s, 5 * s, 3 * s, 1 * s);
-    g.fill(accentColor);
-    g.roundRect((guardX - 2.5) * s, (guardY - 1.5) * s, 5 * s, 3 * s, 1 * s);
-    g.stroke({ width: s * 0.4, color: p.accentDk, alpha: 0.4 });
-
-    // Buckle on bracer
-    const buckleX = elbow.x + dx * 0.3;
-    const buckleY = elbow.y + dy * 0.3;
-    g.rect((buckleX - 0.8) * s, (buckleY - 0.6) * s, 1.6 * s, 1.2 * s);
+    // Buckle on bracer (1/3 from elbow)
+    const buckle = quadPoint(sc, 0.5, 0.3);
+    g.rect((buckle.x - 0.9 * sz) * s, (buckle.y - 0.6 * sz) * s, 1.8 * sz * s, 1.2 * sz * s);
     g.fill(p.accentDk);
 
-    // Leather glove
-    g.circle(wrist.x * s, wrist.y * s, 2.6 * s);
-    g.fill(armColor);
-    g.circle(wrist.x * s, wrist.y * s, 2.6 * s);
-    g.stroke({ width: s * 0.3, color: p.outline, alpha: 0.3 });
+    // Stitching lines
+    const stL_t = quadPoint(sc, 0.12, 0.08);
+    const stL_b = quadPoint(sc, 0.12, 0.68);
+    const stR_t = quadPoint(sc, 0.88, 0.08);
+    const stR_b = quadPoint(sc, 0.88, 0.68);
+    g.moveTo(stL_t.x * s, stL_t.y * s); g.lineTo(stL_b.x * s, stL_b.y * s);
+    g.moveTo(stR_t.x * s, stR_t.y * s); g.lineTo(stR_b.x * s, stR_b.y * s);
+    g.stroke({ width: s * 0.3, color: p.accentDk, alpha: 0.28 });
+
+    // Fingerless glove
+    const handR = Math.abs(sc.br.x - sc.bl.x) * 0.58;
+    g.circle(wrist.x * s, wrist.y * s, handR * s);
+    g.fill(color);
+    g.circle(wrist.x * s, wrist.y * s, handR * s);
+    g.stroke({ width: s * 0.3, color: p.outline, alpha: 0.28 });
   }
 
   getAttachmentPoints(): Record<string, AttachmentPoint> { return {}; }

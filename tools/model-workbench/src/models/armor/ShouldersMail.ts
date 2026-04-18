@@ -1,10 +1,14 @@
 import type { Graphics } from "pixi.js";
-import type { Model, RenderContext, DrawCall, AttachmentPoint, V } from "../types";
-import { DEPTH_FAR_LIMB, DEPTH_BODY } from "../types";
+import type { Model, RenderContext, DrawCall, AttachmentPoint, FitmentCorners } from "../types";
+import { DEPTH_FAR_LIMB, DEPTH_BODY, DEPTH_NEAR_LIMB } from "../types";
 import { darken } from "../palette";
+import { drawCornerQuad, quadPoint, sideCorners } from "../draw-helpers";
 
 /**
- * Mail shoulders — chain mail mantlets draped over shoulders.
+ * Mail Mantlets — chain-mail shoulder drapes.
+ *
+ * CORNER-BASED: Uses fitmentCorners (shoulders slot) split per-side via sideCorners().
+ * Ring rows and leather hem adapt to any body width.
  */
 export class ShouldersMail implements Model {
   readonly id = "shoulders-mail";
@@ -13,135 +17,71 @@ export class ShouldersMail implements Model {
   readonly slot = "shoulders" as const;
 
   getDrawCalls(ctx: RenderContext): DrawCall[] {
-    const { skeleton, palette, farSide, nearSide, facingCamera } = ctx;
-    const j = skeleton.joints;
-    const calls: DrawCall[] = [];
-
+    const { skeleton, palette, farSide, nearSide, facingCamera, fitmentCorners } = ctx;
+    const j  = skeleton.joints;
     const sz = ctx.slotParams.size;
-    calls.push({
-      depth: facingCamera ? DEPTH_FAR_LIMB + 8 : DEPTH_BODY + 3,
-      draw: (g, s) => this.drawShoulder(g, j, palette, s, farSide, sz, false, facingCamera),
-    });
-    calls.push({
-      depth: facingCamera ? DEPTH_BODY + 3 : DEPTH_FAR_LIMB + 8,
-      draw: (g, s) => this.drawShoulder(g, j, palette, s, nearSide, sz, true, facingCamera),
-    });
+    const wf = skeleton.wf;
 
-    return calls;
+    const fc: FitmentCorners = fitmentCorners ?? {
+      tl: { x: j.shoulderL.x - 3 * wf, y: j.shoulderL.y - 2 },
+      tr: { x: j.shoulderR.x + 3 * wf, y: j.shoulderR.y - 2 },
+      bl: { x: j.elbowL.x, y: j.elbowL.y },
+      br: { x: j.elbowR.x, y: j.elbowR.y },
+    };
+
+    return [
+      {
+        depth: facingCamera ? DEPTH_FAR_LIMB + 9 : DEPTH_NEAR_LIMB + 1,
+        draw: (g, s) => this.drawMantlet(g, palette, s, farSide, fc, sz, false, facingCamera),
+      },
+      {
+        depth: facingCamera ? DEPTH_BODY + 3 : DEPTH_FAR_LIMB + 11,
+        draw: (g, s) => this.drawMantlet(g, palette, s, nearSide, fc, sz, true, facingCamera),
+      },
+    ];
   }
 
-  private drawShoulder(
+  private drawMantlet(
     g: Graphics,
-    j: Record<string, V>,
     p: any,
     s: number,
     side: "L" | "R",
-    sz = 1,
-    isNear = false,
-    facingCamera = true
+    fc: FitmentCorners,
+    sz: number,
+    isNear: boolean,
+    facingCamera: boolean,
   ): void {
-    const shoulder = j[`shoulder${side}`];
-    const sign = side === "L" ? -1 : 1;
+    const sc = sideCorners(fc, side);
+    const fillColor = isNear ? p.body : darken(p.body, 0.12);
+    const alpha = facingCamera ? 1 : 0.88;
 
-    const cx = shoulder.x + sign * 1;
-    const cy = shoulder.y;
+    // Mantlet fill — slightly inset so outer edge shows as drape shadow
+    drawCornerQuad(g, sc, 0, darken(fillColor, facingCamera ? 0 : 0.06), p.outline, 0.38 * alpha, s);
 
-    // Near side slightly brighter, far side darkened
-    const fillColor = isNear ? p.body : darken(p.body, 0.1);
-
-    if (!facingCamera) {
-      // Back view: slightly wider drape, darker, single ring row instead of 2
-      const w = 7 * sz;
-      const h = 5.5 * sz;
-
-      g.moveTo((cx - w * sign * 0.3) * s, (cy - h * 0.6) * s);
-      g.quadraticCurveTo(
-        (cx + sign * w) * s, (cy - h * 0.3) * s,
-        (cx + sign * w * 0.85) * s, (cy + h * 0.5) * s
-      );
-      g.quadraticCurveTo(
-        (cx + sign * w * 0.5) * s, (cy + h * 0.8) * s,
-        (cx - sign * 0.5) * s, (cy + h * 0.4) * s
-      );
-      g.quadraticCurveTo(
-        (cx - sign * 2) * s, cy * s,
-        (cx - w * sign * 0.3) * s, (cy - h * 0.6) * s
-      );
-      g.closePath();
-      g.fill(darken(fillColor, 0.1));
-
-      // Single ring row for back view
-      for (let col = 0; col < 3; col++) {
-        const rx = cx + sign * (col * 1.8 + 0.5);
-        const ry = cy;
-        g.circle(rx * s, ry * s, 0.5 * s);
-        g.stroke({ width: s * 0.2, color: p.bodyLt, alpha: 0.25 });
-      }
-
-      // Leather edge band at bottom
-      g.moveTo((cx + sign * w * 0.85) * s, (cy + h * 0.5) * s);
-      g.quadraticCurveTo(
-        (cx + sign * w * 0.5) * s, (cy + h * 0.8) * s,
-        (cx - sign * 0.5) * s, (cy + h * 0.4) * s
-      );
-      g.stroke({ width: s * 1, color: p.accent, alpha: 0.4 });
-      return;
+    // Ring rows — 3 horizontal lines spaced evenly
+    for (let row = 0; row < 3; row++) {
+      const t = 0.15 + row * 0.28;
+      const rowL = quadPoint(sc, 0.05, t);
+      const rowR = quadPoint(sc, 0.95, t);
+      g.moveTo(rowL.x * s, rowL.y * s); g.lineTo(rowR.x * s, rowR.y * s);
+      g.stroke({ width: s * 0.45, color: p.bodyLt, alpha: (facingCamera ? 0.32 : 0.2) });
     }
 
-    const w = 6.5 * sz;
-    const h = 5.5 * sz;
-
-    // Mail drape shape (slightly longer, flows down more)
-    g.moveTo((cx - w * sign * 0.3) * s, (cy - h * 0.6) * s);
-    g.quadraticCurveTo(
-      (cx + sign * w) * s, (cy - h * 0.3) * s,
-      (cx + sign * w * 0.8) * s, (cy + h * 0.5) * s
-    );
-    g.quadraticCurveTo(
-      (cx + sign * w * 0.5) * s, (cy + h * 0.8) * s,
-      (cx - sign * 0.5) * s, (cy + h * 0.4) * s
-    );
-    g.quadraticCurveTo(
-      (cx - sign * 2) * s, cy * s,
-      (cx - w * sign * 0.3) * s, (cy - h * 0.6) * s
-    );
-    g.closePath();
-    g.fill(fillColor);
-
-    // Outline
-    g.moveTo((cx - w * sign * 0.3) * s, (cy - h * 0.6) * s);
-    g.quadraticCurveTo(
-      (cx + sign * w) * s, (cy - h * 0.3) * s,
-      (cx + sign * w * 0.8) * s, (cy + h * 0.5) * s
-    );
-    g.quadraticCurveTo(
-      (cx + sign * w * 0.5) * s, (cy + h * 0.8) * s,
-      (cx - sign * 0.5) * s, (cy + h * 0.4) * s
-    );
-    g.quadraticCurveTo(
-      (cx - sign * 2) * s, cy * s,
-      (cx - w * sign * 0.3) * s, (cy - h * 0.6) * s
-    );
-    g.closePath();
-    g.stroke({ width: s * 0.4, color: p.outline, alpha: 0.35 });
-
-    // Ring pattern (scattered circles)
-    for (let row = 0; row < 2; row++) {
-      for (let col = 0; col < 3; col++) {
-        const rx = cx + sign * (col * 1.8 + 0.5);
-        const ry = cy - 1 + row * 2;
-        g.circle(rx * s, ry * s, 0.5 * s);
-        g.stroke({ width: s * 0.2, color: p.bodyLt, alpha: 0.3 });
-      }
+    // Ring circles along the middle row
+    for (let i = 0; i < 3; i++) {
+      const u = 0.2 + i * 0.3;
+      const pt = quadPoint(sc, u, 0.43);
+      g.circle(pt.x * s, pt.y * s, 0.55 * sz * s);
+      g.stroke({ width: s * 0.25, color: p.bodyLt, alpha: 0.28 * alpha });
     }
 
-    // Leather edge band at bottom
-    g.moveTo((cx + sign * w * 0.8) * s, (cy + h * 0.5) * s);
-    g.quadraticCurveTo(
-      (cx + sign * w * 0.5) * s, (cy + h * 0.8) * s,
-      (cx - sign * 0.5) * s, (cy + h * 0.4) * s
-    );
-    g.stroke({ width: s * 1, color: p.accent, alpha: 0.5 });
+    // Leather hem along bottom edge
+    const hemL = quadPoint(sc, 0.0, 0.9);
+    const hemR = quadPoint(sc, 1.0, 0.9);
+    g.moveTo(hemL.x * s, hemL.y * s); g.lineTo(hemR.x * s, hemR.y * s);
+    g.stroke({ width: s * 1.4, color: p.accent, alpha: 0.55 * alpha });
+    g.moveTo(hemL.x * s, hemL.y * s); g.lineTo(hemR.x * s, hemR.y * s);
+    g.stroke({ width: s * 0.35, color: p.accentDk, alpha: 0.35 * alpha });
   }
 
   getAttachmentPoints(): Record<string, AttachmentPoint> { return {}; }

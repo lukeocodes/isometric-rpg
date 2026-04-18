@@ -20,7 +20,7 @@ async function main() {
 
   // Load Tiled maps for all registered zones
   const mapsDir = resolve(__dirname, "../../client/public/maps");
-  const defaultMapPath = resolve(mapsDir, "starter.json");
+  const defaultMapPath = resolve(mapsDir, "starter-area.json");
   loadTiledMap(defaultMapPath); // Legacy default (backward compatible)
   for (const zone of getAllZones()) {
     try {

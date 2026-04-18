@@ -1,11 +1,13 @@
 import type { Graphics } from "pixi.js";
-import type { Model, RenderContext, DrawCall, AttachmentPoint, V } from "../types";
+import type { Model, RenderContext, DrawCall, AttachmentPoint, FitmentCorners } from "../types";
 import { DEPTH_FAR_LIMB, DEPTH_NEAR_LIMB } from "../types";
 import { darken } from "../palette";
-import { drawTaperedLimb } from "../draw-helpers";
+import { drawCornerQuad, quadPoint, sideCorners } from "../draw-helpers";
 
 /**
- * Cloth gauntlets — wrapped cloth bracers and fingerless gloves.
+ * Cloth Wrappings — linen wrap bands and fingerless cloth gloves.
+ *
+ * CORNER-BASED: Uses fitmentCorners (gauntlets slot) split per-side.
  */
 export class GauntletsCloth implements Model {
   readonly id = "gauntlets-cloth";
@@ -14,65 +16,79 @@ export class GauntletsCloth implements Model {
   readonly slot = "gauntlets" as const;
 
   getDrawCalls(ctx: RenderContext): DrawCall[] {
-    const { skeleton, palette, farSide, nearSide, facingCamera } = ctx;
-    const j = skeleton.joints;
-    const calls: DrawCall[] = [];
-
+    const { skeleton, palette, farSide, nearSide, facingCamera, fitmentCorners } = ctx;
+    const j  = skeleton.joints;
     const sz = ctx.slotParams.size;
-    // Far arm (isNear=false) darkened 10%; near arm (isNear=true) base color
-    calls.push({
-      depth: facingCamera ? DEPTH_FAR_LIMB + 9 : DEPTH_NEAR_LIMB + 1,
-      draw: (g, s) => this.drawGauntlet(g, j, palette, s, farSide, sz, false),
-    });
-    calls.push({
-      depth: facingCamera ? DEPTH_NEAR_LIMB + 6 : DEPTH_FAR_LIMB + 11,
-      draw: (g, s) => this.drawGauntlet(g, j, palette, s, nearSide, sz, true),
-    });
+    const wf = skeleton.wf;
 
-    return calls;
+    const fc: FitmentCorners = fitmentCorners ?? {
+      tl: { x: j.elbowL.x, y: j.elbowL.y },
+      tr: { x: j.elbowR.x, y: j.elbowR.y },
+      bl: { x: j.wristL.x, y: j.wristL.y },
+      br: { x: j.wristR.x, y: j.wristR.y },
+    };
+
+    return [
+      {
+        depth: facingCamera ? DEPTH_FAR_LIMB + 9 : DEPTH_NEAR_LIMB + 1,
+        draw: (g, s) => this.drawWrap(g, j, palette, s, farSide, fc, sz, wf, false),
+      },
+      {
+        depth: facingCamera ? DEPTH_NEAR_LIMB + 6 : DEPTH_FAR_LIMB + 11,
+        draw: (g, s) => this.drawWrap(g, j, palette, s, nearSide, fc, sz, wf, true),
+      },
+    ];
   }
 
-  private drawGauntlet(
+  private drawWrap(
     g: Graphics,
-    j: Record<string, V>,
+    j: Record<string, any>,
     p: any,
     s: number,
     side: "L" | "R",
-    sz = 1,
-    isNear = false
+    fc: FitmentCorners,
+    sz: number,
+    wf: number,
+    isNear: boolean,
   ): void {
+    const sc    = sideCorners(fc, side);
     const elbow = j[`elbow${side}`];
     const wrist = j[`wrist${side}`];
+    const color = isNear ? p.body   : darken(p.body, 0.12);
+    const dark  = isNear ? p.bodyDk : darken(p.bodyDk, 0.12);
 
-    // Near arm uses base color, far arm darkened 10%
-    const armColor = isNear ? p.body : darken(p.body, 0.1);
-    const armDk = isNear ? p.bodyDk : darken(p.bodyDk, 0.1);
+    // Base cloth wrap fill
+    drawCornerQuad(g, sc, 0, color, p.outline, 0.32, s);
 
-    // Cloth wrap over forearm
-    drawTaperedLimb(g, elbow, wrist, 3.8 * sz, 3.2 * sz, armColor, armDk, p.outline, s);
+    // Wrap bands — 3 diagonal-ish horizontal lines
+    for (let i = 0; i < 3; i++) {
+      const t = 0.15 + i * 0.27;
+      const bandL = quadPoint(sc, 0.04, t);
+      const bandR = quadPoint(sc, 0.96, t);
+      g.moveTo(bandL.x * s, bandL.y * s); g.lineTo(bandR.x * s, bandR.y * s);
+      g.stroke({ width: s * 0.5, color: dark, alpha: 0.28 });
+    }
 
-    // Wrap bands (horizontal)
+    // Accent colour end-tuck line at wrist
+    const tuckL = quadPoint(sc, 0.06, 0.86);
+    const tuckR = quadPoint(sc, 0.94, 0.86);
+    g.moveTo(tuckL.x * s, tuckL.y * s); g.lineTo(tuckR.x * s, tuckR.y * s);
+    g.stroke({ width: s * 0.7, color: p.accent, alpha: 0.55 });
+
+    // Cloth hand (fingerless — slightly wider circle)
+    const handR = Math.abs(sc.br.x - sc.bl.x) * 0.6;
+    g.circle(wrist.x * s, wrist.y * s, handR * s);
+    g.fill(color);
+    g.circle(wrist.x * s, wrist.y * s, handR * s);
+    g.stroke({ width: s * 0.3, color: p.outline, alpha: 0.25 });
+
+    // Knuckle line on hand
     const dx = wrist.x - elbow.x;
     const dy = wrist.y - elbow.y;
     const len = Math.sqrt(dx * dx + dy * dy) || 1;
-    const px = -dy / len;
-    const py = dx / len;
-
-    for (let i = 0; i < 3; i++) {
-      const t = (i + 0.5) / 3.5;
-      const bx = elbow.x + dx * t;
-      const by = elbow.y + dy * t;
-      const bw = 3.5 - i * 0.3;
-      g.moveTo((bx + px * bw) * s, (by + py * bw) * s);
-      g.lineTo((bx - px * bw) * s, (by - py * bw) * s);
-      g.stroke({ width: s * 0.5, color: armDk, alpha: 0.3 });
-    }
-
-    // Wrapped hand
-    g.circle(wrist.x * s, wrist.y * s, 2.5 * s);
-    g.fill(armColor);
-    g.circle(wrist.x * s, wrist.y * s, 2.5 * s);
-    g.stroke({ width: s * 0.3, color: p.outline, alpha: 0.25 });
+    g.moveTo((wrist.x + dx / len * (handR - 0.4)) * s, (wrist.y + dy / len * (handR - 0.4)) * s);
+    g.lineTo((wrist.x + dx / len * handR) * s, (wrist.y + dy / len * handR) * s);
+    g.stroke({ width: s * 1.2, color: dark, alpha: 0.2 });
   }
 
   getAttachmentPoints(): Record<string, AttachmentPoint> { return {}; }

@@ -120,10 +120,12 @@ export function computeHumanoidSkeleton(
     shoulders: apc(
       { x: (joints.shoulderL.x + joints.shoulderR.x) / 2, y: (joints.shoulderL.y + joints.shoulderR.y) / 2 },
       0, wf,
-      // Shoulder corners: from shoulder joints down to elbow level
+      // Shoulder corners: from shoulder joints down to elbow level.
+      // Top is 4 units above shoulder joint to fully cover the deltoid cap (radius 3.2).
+      // Width is 4*wf to cover the full arm width at shoulder (arm half-width ≈ 1.9, deltoid cap ≈ 3.2).
       {
-        tl: { x: joints.shoulderL.x - 3 * wf, y: joints.shoulderL.y - 2 },
-        tr: { x: joints.shoulderR.x + 3 * wf, y: joints.shoulderR.y - 2 },
+        tl: { x: joints.shoulderL.x - 4 * wf, y: joints.shoulderL.y - 4 },
+        tr: { x: joints.shoulderR.x + 4 * wf, y: joints.shoulderR.y - 4 },
         bl: { x: joints.elbowL.x,             y: joints.elbowL.y },
         br: { x: joints.elbowR.x,             y: joints.elbowR.y },
       }

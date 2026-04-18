@@ -1,10 +1,12 @@
 {
-  "playwright": {
-    "command": "npx",
-    "args": [
-      "@playwright/mcp@latest",
-      "--browser", "chromium",
-      "--user-data-dir", ".playwright-chrome"
-    ]
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest",
+        "--browser", "chromium",
+        "--user-data-dir", ".playwright-chrome"
+      ]
+    }
   }
 }
