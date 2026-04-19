@@ -122,7 +122,14 @@ export class GameScene extends Scene {
     else if (right) this.heldDir = { dx:  TILE, dy: 0 };
     else            this.heldDir = null;
 
-    if (this.heldDir) this.player.tryMove(this.heldDir.dx, this.heldDir.dy);
+    if (this.heldDir) {
+      const { dx, dy } = this.heldDir;
+      const destCol = Math.floor((this.player.pos.x + dx) / TILE);
+      const destRow = Math.floor((this.player.pos.y + dy) / TILE);
+      if (this.isTilePassable(destCol, destRow)) {
+        this.player.tryMove(dx, dy);
+      }
+    }
 
     // Throttled position send
     const now = performance.now();
@@ -163,21 +170,70 @@ export class GameScene extends Scene {
     if (actor) { actor.kill(); this.remotePlayers.delete(entityId); }
   }
 
+  // Which tiles are impassable (forest border)
+  private forestTiles = new Set<string>();
+
+  isTilePassable(col: number, row: number): boolean {
+    return !this.forestTiles.has(`${col},${row}`);
+  }
+
   private buildMap(img: ImageSource): TileMap {
     const map = new TileMap({
       rows: MAP_H, columns: MAP_W,
       tileWidth: TILE, tileHeight: TILE,
     });
+
     // summer forest.png: 512×336, 32 cols × 21 rows at 16×16
     const sheet = SpriteSheet.fromImageSource({
       image: img,
       grid: { rows: 21, columns: 32, spriteWidth: TILE, spriteHeight: TILE },
     });
-    // col 4, row 0 = solid grass
-    const grass = sheet.getSprite(4, 0);
-    for (let r = 0; r < MAP_H; r++)
-      for (let c = 0; c < MAP_W; c++)
-        map.getTile(c, r)?.addGraphic(grass);
+
+    // Tile sprites — confirmed from TSX + tileset image:
+    //   col 4, row 0 = light grass (primary ground)
+    //   col 4, row 1 = dark grass  (forest floor under canopy)
+    //
+    // Forest canopy tiles from summer forest.png (col, row):
+    //   These are the dense round tree-top tiles visible in the sheet.
+    //   Verified from sample map Over Sprite layer usage:
+    //   (21,2)=85  (22,2)=86  — upper canopy pair
+    //   (21,3)=117 (22,3)=118 — lower canopy pair
+    //   (17,1)=49  (18,1)=50  — left canopy
+    //   (19,1)=51  (20,1)=52  — right canopy
+    //   (13,3)=109 (14,3)=110 — deep forest left
+    //   (13,4)=141 (14,4)=142 — deep forest lower
+    const grass     = sheet.getSprite(4, 0);
+    const darkGrass = sheet.getSprite(4, 1);
+
+    // 2×2 repeating canopy pattern (wraps at edges)
+    const canopy = [
+      [sheet.getSprite(21, 2), sheet.getSprite(22, 2)],
+      [sheet.getSprite(21, 3), sheet.getSprite(22, 3)],
+    ];
+
+    const BORDER = 2; // forest border thickness in tiles
+
+    for (let r = 0; r < MAP_H; r++) {
+      for (let c = 0; c < MAP_W; c++) {
+        const tile = map.getTile(c, r);
+        if (!tile) continue;
+
+        const isBorder = c < BORDER || c >= MAP_W - BORDER
+                      || r < BORDER || r >= MAP_H - BORDER;
+
+        if (isBorder) {
+          // Forest floor under the canopy
+          tile.addGraphic(darkGrass);
+          // Canopy overlay — 2×2 tile pattern
+          tile.addGraphic(canopy[r % 2][c % 2]);
+          tile.solid = true;
+          this.forestTiles.add(`${c},${r}`);
+        } else {
+          tile.addGraphic(grass);
+        }
+      }
+    }
+
     return map;
   }
 }
