@@ -48,6 +48,8 @@ export class GameScene extends Scene {
     });
 
     const loader = new Loader([this.tiledMap]);
+    // Skip Excalibur's "Play game" gate so automated testing + cold-load works
+    loader.suppressPlayButton = true;
     await engine.load(loader);
 
     // Add map layers to scene (ground, wall solid layer, canopy above player)
