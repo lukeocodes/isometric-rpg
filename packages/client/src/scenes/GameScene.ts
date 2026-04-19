@@ -1,23 +1,18 @@
 import {
   Scene,
   SceneActivationContext,
-  TileMap,
   ImageSource,
-  SpriteSheet,
-  Actor,
   Keys,
   Engine,
   Vector,
   clamp,
+  Loader,
 } from "excalibur";
+import { TiledResource } from "@excaliburjs/plugin-tiled";
 import { TILE, tileToWorld } from "../tile.js";
 import { NetworkManager, Opcode } from "../net/NetworkManager.js";
 import { PlayerActor } from "../actors/PlayerActor.js";
 import { RemotePlayerActor } from "../actors/RemotePlayerActor.js";
-import { WALL_TILE, WALL_FRAME_PX, WALL_COLS, WALL_ROWS } from "../sprites/tilewall.js";
-
-const MAP_W = 40;
-const MAP_H = 30;
 
 export class GameScene extends Scene {
   private net: NetworkManager;
@@ -29,11 +24,13 @@ export class GameScene extends Scene {
   private readonly SEND_HZ = 15;
   private heldDir: { dx: number; dy: number } | null = null;
 
-  // In-game zoom range (camera.zoom units)
-  private readonly ZOOM_MIN = 1;
-  private readonly ZOOM_MAX = 6;
+  private readonly ZOOM_MIN     = 1;
+  private readonly ZOOM_MAX     = 6;
   private readonly ZOOM_DEFAULT = 3;
-  private readonly ZOOM_STEP = 0.5;
+  private readonly ZOOM_STEP    = 0.5;
+
+  // TiledResource — loads TMX, tilesets, renders layers, wires collision
+  private tiledMap!: TiledResource;
 
   constructor(net: NetworkManager, characterId: string) {
     super();
@@ -45,20 +42,21 @@ export class GameScene extends Scene {
     this.net.setOnEvent((msg) => this.handleEvent(msg));
     this.net.setOnPosition((buf) => this.handlePositionUpdate(buf));
 
-    // Ground tilemap
-    const tilesetImg = new ImageSource("/assets/tilesets/summer forest.png");
-    await tilesetImg.load();
-    this.add(this.buildMap(tilesetImg));
+    // Load TMX via plugin — handles tileset loading, layer rendering, collision
+    this.tiledMap = new TiledResource("/maps/starter-area.tmx", {
+      useTilemapCameraStrategy: true,
+    });
 
-    // Tree wall border (128×128 autotiles, rendered over the ground)
-    const wallImg = new ImageSource("/assets/tilesets/summer forest tree wall 128x128.png");
-    const canopyImg = new ImageSource("/assets/tilesets/summer forest tree wall canopy 128x128.png");
-    await Promise.all([wallImg.load(), canopyImg.load()]);
-    this.buildWallBorder(wallImg, canopyImg);
+    const loader = new Loader([this.tiledMap]);
+    await engine.load(loader);
 
-    // Player — spawned at server tile position
-    const spawnX = tileToWorld(this.net.spawn.x);
-    const spawnY = tileToWorld(this.net.spawn.z);
+    // Add map layers to scene (ground, wall solid layer, canopy above player)
+    this.tiledMap.addToScene(this);
+
+    // Spawn player at the server-given position
+    // (server spawns at tile 20,15 by default; use that if no spawn object found)
+    const spawnX = tileToWorld(this.net.spawn.x || 20);
+    const spawnY = tileToWorld(this.net.spawn.z || 15);
 
     const spriteImg = new ImageSource("/assets/sprites/player.png");
     await spriteImg.load();
@@ -68,14 +66,12 @@ export class GameScene extends Scene {
 
     // Camera
     this.camera.zoom = this.ZOOM_DEFAULT;
-    this.camera.pos = new Vector(spawnX, spawnY);
+    this.camera.pos  = new Vector(spawnX, spawnY);
     this.camera.strategy.lockToActor(this.player);
 
-    // All zoom interception is scoped to the canvas element only —
-    // does not affect browser chrome, OS zoom, or accessibility tools.
+    // Zoom interception — scoped to canvas only
     const canvas = engine.canvas;
 
-    // Ctrl/Cmd+wheel → in-game zoom (also blocks browser pinch-zoom on trackpads)
     canvas.addEventListener("wheel", (e: WheelEvent) => {
       e.preventDefault();
       if (e.ctrlKey || e.metaKey) {
@@ -84,7 +80,6 @@ export class GameScene extends Scene {
       }
     }, { passive: false });
 
-    // Ctrl/Cmd + / - / 0 on canvas → in-game zoom, block browser shortcut
     canvas.addEventListener("keydown", (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey) {
         if (e.key === "=" || e.key === "+") {
@@ -100,12 +95,10 @@ export class GameScene extends Scene {
       }
     });
 
-    // iOS Safari gesture events on canvas
     canvas.addEventListener("gesturestart",  (e) => e.preventDefault(), { passive: false });
     canvas.addEventListener("gesturechange", (e) => e.preventDefault(), { passive: false });
     canvas.addEventListener("gestureend",    (e) => e.preventDefault(), { passive: false });
 
-    // Double-tap zoom on canvas
     let lastTouch = 0;
     canvas.addEventListener("touchend", (e) => {
       const now = Date.now();
@@ -118,7 +111,6 @@ export class GameScene extends Scene {
 
   override onPreUpdate(engine: Engine, _delta: number): void {
     const kb = engine.input.keyboard;
-
     const up    = kb.isHeld(Keys.ArrowUp)    || kb.isHeld(Keys.W);
     const down  = kb.isHeld(Keys.ArrowDown)  || kb.isHeld(Keys.S);
     const left  = kb.isHeld(Keys.ArrowLeft)  || kb.isHeld(Keys.A);
@@ -132,19 +124,26 @@ export class GameScene extends Scene {
 
     if (this.heldDir) {
       const { dx, dy } = this.heldDir;
-      const destCol = Math.floor((this.player.pos.x + dx) / TILE);
-      const destRow = Math.floor((this.player.pos.y + dy) / TILE);
-      if (this.isTilePassable(destCol, destRow)) {
+      // Check tile passability via the Tiled map's solid layer
+      const destX = this.player.pos.x + dx;
+      const destY = this.player.pos.y + dy;
+      if (this.isPassable(destX, destY)) {
         this.player.tryMove(dx, dy);
       }
     }
 
-    // Throttled position send
     const now = performance.now();
     if (now - this.lastSendTime > 1000 / this.SEND_HZ) {
       this.net.sendPosition(this.player.pos.x / TILE, 0, this.player.pos.y / TILE, this.player.rotation);
       this.lastSendTime = now;
     }
+  }
+
+  private isPassable(worldX: number, worldY: number): boolean {
+    // Ask the Tiled plugin's solid wall layer if this point is blocked
+    const tile = this.tiledMap.getTileByPoint("wall", new Vector(worldX, worldY));
+    if (!tile) return true; // outside map = let the map edges stop us
+    return tile.exTile.solid === false || !tile.exTile.solid;
   }
 
   private handleEvent(raw: string): void {
@@ -176,104 +175,5 @@ export class GameScene extends Scene {
   private despawnRemote(entityId: string): void {
     const actor = this.remotePlayers.get(entityId);
     if (actor) { actor.kill(); this.remotePlayers.delete(entityId); }
-  }
-
-  // Which ground tiles are impassable (forest border, in TILE units)
-  private forestTiles = new Set<string>();
-
-  isTilePassable(col: number, row: number): boolean {
-    return !this.forestTiles.has(`${col},${row}`);
-  }
-
-  private buildMap(img: ImageSource): TileMap {
-    const map = new TileMap({
-      rows: MAP_H, columns: MAP_W,
-      tileWidth: TILE, tileHeight: TILE,
-    });
-    const sheet = SpriteSheet.fromImageSource({
-      image: img,
-      grid: { rows: 21, columns: 32, spriteWidth: TILE, spriteHeight: TILE },
-    });
-    const grass = sheet.getSprite(4, 0);
-    // Fill entirely with grass — wall border drawn separately as sprites
-    for (let r = 0; r < MAP_H; r++)
-      for (let c = 0; c < MAP_W; c++)
-        map.getTile(c, r)?.addGraphic(grass);
-    return map;
-  }
-
-  // Wall border thickness in 128px wall-tile units.
-  // 1 wall tile = WALL_FRAME_PX / TILE = 128/16 = 8 ground tiles.
-  private readonly WALL_THICKNESS = 1; // wall tiles deep (= 8 ground tiles)
-
-  private buildWallBorder(wallImg: ImageSource, canopyImg: ImageSource): void {
-    const WALL_GT = WALL_FRAME_PX / TILE; // ground tiles per wall tile = 8
-
-    // Wall tile sheet: 6 cols × 4 rows of 128×128 sprites
-    const wallSheet = SpriteSheet.fromImageSource({
-      image: wallImg,
-      grid: { rows: WALL_ROWS, columns: WALL_COLS, spriteWidth: WALL_FRAME_PX, spriteHeight: WALL_FRAME_PX },
-    });
-    const canopySheet = SpriteSheet.fromImageSource({
-      image: canopyImg,
-      grid: { rows: WALL_ROWS, columns: WALL_COLS, spriteWidth: WALL_FRAME_PX, spriteHeight: WALL_FRAME_PX },
-    });
-
-    // Map is MAP_W × MAP_H ground tiles.
-    // Wall tiles occupy the outermost WALL_THICKNESS wall-tile rows.
-    // Wall grid size (in wall-tile units, ceiling to cover full map):
-    const wCols = Math.ceil(MAP_W / WALL_GT);
-    const wRows = Math.ceil(MAP_H / WALL_GT);
-
-    // Directly assign the correct tile for each border position.
-    // With a 1-tile-thick border on a wCols×wRows grid, position determines
-    // the tile — no neighbour masking needed.
-    const T = this.WALL_THICKNESS;
-    const placements = [];
-    for (let wr = 0; wr < wRows; wr++) {
-      for (let wc = 0; wc < wCols; wc++) {
-        const isTop    = wr < T;
-        const isBottom = wr >= wRows - T;
-        const isLeft   = wc < T;
-        const isRight  = wc >= wCols - T;
-        if (!isTop && !isBottom && !isLeft && !isRight) continue; // interior
-
-        let wallTile: [number, number];
-        if      (isTop    && isLeft)  wallTile = WALL_TILE.CLEAR_TL;
-        else if (isTop    && isRight) wallTile = WALL_TILE.CLEAR_TR;
-        else if (isBottom && isLeft)  wallTile = WALL_TILE.CLEAR_BL;
-        else if (isBottom && isRight) wallTile = WALL_TILE.CLEAR_BR;
-        else if (isTop)               wallTile = WALL_TILE.CLEAR_T;
-        else if (isBottom)            wallTile = WALL_TILE.CLEAR_B;
-        else if (isLeft)              wallTile = WALL_TILE.CLEAR_L;
-        else                          wallTile = WALL_TILE.CLEAR_R;
-
-        placements.push({ tileCol: wc, tileRow: wr, wallTile, solid: true });
-      }
-    }
-
-    for (const { tileCol, tileRow, wallTile: [sc, sr] } of placements) {
-      // World position: top-left corner of this 128px tile
-      // Excalibur Actor anchor defaults to centre (0.5, 0.5), so offset by half
-      const wx = tileCol * WALL_FRAME_PX + WALL_FRAME_PX / 2;
-      const wy = tileRow * WALL_FRAME_PX + WALL_FRAME_PX / 2;
-
-      // Ground layer: z=1 renders above the grass TileMap (z=0) but below player (z=0 default)
-      const wallActor = new Actor({ x: wx, y: wy, z: 1 });
-      wallActor.graphics.use(wallSheet.getSprite(sc, sr));
-      this.add(wallActor);
-
-      // Canopy layer: z=10 renders above player
-      const canopyActor = new Actor({ x: wx, y: wy, z: 10 });
-      canopyActor.graphics.use(canopySheet.getSprite(sc, sr));
-      this.add(canopyActor);
-
-      // Mark ground tiles under this wall tile as impassable
-      const gc0 = tileCol * WALL_GT;
-      const gr0 = tileRow * WALL_GT;
-      for (let dr = 0; dr < WALL_GT; dr++)
-        for (let dc = 0; dc < WALL_GT; dc++)
-          this.forestTiles.add(`${gc0 + dc},${gr0 + dr}`);
-    }
   }
 }
