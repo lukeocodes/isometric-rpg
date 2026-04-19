@@ -4,6 +4,7 @@ import {
   TileMap,
   ImageSource,
   SpriteSheet,
+  Actor,
   Keys,
   Engine,
   Vector,
@@ -13,6 +14,7 @@ import { TILE, tileToWorld } from "../tile.js";
 import { NetworkManager, Opcode } from "../net/NetworkManager.js";
 import { PlayerActor } from "../actors/PlayerActor.js";
 import { RemotePlayerActor } from "../actors/RemotePlayerActor.js";
+import { computeWallPlacements, WALL_FRAME_PX, WALL_COLS, WALL_ROWS } from "../sprites/tilewall.js";
 
 const MAP_W = 40;
 const MAP_H = 30;
@@ -43,10 +45,16 @@ export class GameScene extends Scene {
     this.net.setOnEvent((msg) => this.handleEvent(msg));
     this.net.setOnPosition((buf) => this.handlePositionUpdate(buf));
 
-    // Tilemap — 16×16 tiles from the summer forest sheet
+    // Ground tilemap
     const tilesetImg = new ImageSource("/assets/tilesets/summer forest.png");
     await tilesetImg.load();
     this.add(this.buildMap(tilesetImg));
+
+    // Tree wall border (128×128 autotiles, rendered over the ground)
+    const wallImg = new ImageSource("/assets/tilesets/summer forest tree wall 128x128.png");
+    const canopyImg = new ImageSource("/assets/tilesets/summer forest tree wall canopy 128x128.png");
+    await Promise.all([wallImg.load(), canopyImg.load()]);
+    this.buildWallBorder(wallImg, canopyImg);
 
     // Player — spawned at server tile position
     const spawnX = tileToWorld(this.net.spawn.x);
@@ -170,7 +178,7 @@ export class GameScene extends Scene {
     if (actor) { actor.kill(); this.remotePlayers.delete(entityId); }
   }
 
-  // Which tiles are impassable (forest border)
+  // Which ground tiles are impassable (forest border, in TILE units)
   private forestTiles = new Set<string>();
 
   isTilePassable(col: number, row: number): boolean {
@@ -182,58 +190,71 @@ export class GameScene extends Scene {
       rows: MAP_H, columns: MAP_W,
       tileWidth: TILE, tileHeight: TILE,
     });
-
-    // summer forest.png: 512×336, 32 cols × 21 rows at 16×16
     const sheet = SpriteSheet.fromImageSource({
       image: img,
       grid: { rows: 21, columns: 32, spriteWidth: TILE, spriteHeight: TILE },
     });
-
-    // Tile sprites — confirmed from TSX + tileset image:
-    //   col 4, row 0 = light grass (primary ground)
-    //   col 4, row 1 = dark grass  (forest floor under canopy)
-    //
-    // Forest canopy tiles from summer forest.png (col, row):
-    //   These are the dense round tree-top tiles visible in the sheet.
-    //   Verified from sample map Over Sprite layer usage:
-    //   (21,2)=85  (22,2)=86  — upper canopy pair
-    //   (21,3)=117 (22,3)=118 — lower canopy pair
-    //   (17,1)=49  (18,1)=50  — left canopy
-    //   (19,1)=51  (20,1)=52  — right canopy
-    //   (13,3)=109 (14,3)=110 — deep forest left
-    //   (13,4)=141 (14,4)=142 — deep forest lower
-    const grass     = sheet.getSprite(4, 0);
-    const darkGrass = sheet.getSprite(4, 1);
-
-    // 2×2 repeating canopy pattern (wraps at edges)
-    const canopy = [
-      [sheet.getSprite(21, 2), sheet.getSprite(22, 2)],
-      [sheet.getSprite(21, 3), sheet.getSprite(22, 3)],
-    ];
-
-    const BORDER = 2; // forest border thickness in tiles
-
-    for (let r = 0; r < MAP_H; r++) {
-      for (let c = 0; c < MAP_W; c++) {
-        const tile = map.getTile(c, r);
-        if (!tile) continue;
-
-        const isBorder = c < BORDER || c >= MAP_W - BORDER
-                      || r < BORDER || r >= MAP_H - BORDER;
-
-        if (isBorder) {
-          // Forest floor under the canopy
-          tile.addGraphic(darkGrass);
-          // Canopy overlay — 2×2 tile pattern
-          tile.addGraphic(canopy[r % 2][c % 2]);
-          tile.solid = true;
-          this.forestTiles.add(`${c},${r}`);
-        } else {
-          tile.addGraphic(grass);
-        }
-      }
-    }
-
+    const grass = sheet.getSprite(4, 0);
+    // Fill entirely with grass — wall border drawn separately as sprites
+    for (let r = 0; r < MAP_H; r++)
+      for (let c = 0; c < MAP_W; c++)
+        map.getTile(c, r)?.addGraphic(grass);
     return map;
+  }
+
+  // Wall border thickness in 128px wall-tile units.
+  // 1 wall tile = WALL_FRAME_PX / TILE = 128/16 = 8 ground tiles.
+  private readonly WALL_THICKNESS = 1; // wall tiles deep (= 8 ground tiles)
+
+  private buildWallBorder(wallImg: ImageSource, canopyImg: ImageSource): void {
+    const WALL_GT = WALL_FRAME_PX / TILE; // ground tiles per wall tile = 8
+
+    // Wall tile sheet: 6 cols × 4 rows of 128×128 sprites
+    const wallSheet = SpriteSheet.fromImageSource({
+      image: wallImg,
+      grid: { rows: WALL_ROWS, columns: WALL_COLS, spriteWidth: WALL_FRAME_PX, spriteHeight: WALL_FRAME_PX },
+    });
+    const canopySheet = SpriteSheet.fromImageSource({
+      image: canopyImg,
+      grid: { rows: WALL_ROWS, columns: WALL_COLS, spriteWidth: WALL_FRAME_PX, spriteHeight: WALL_FRAME_PX },
+    });
+
+    // Map is MAP_W × MAP_H ground tiles.
+    // Wall tiles occupy the outermost WALL_THICKNESS wall-tile rows.
+    // Wall grid size (in wall-tile units, ceiling to cover full map):
+    const wCols = Math.ceil(MAP_W / WALL_GT);
+    const wRows = Math.ceil(MAP_H / WALL_GT);
+
+    // isForest in wall-tile coords
+    const isForest = (wc: number, wr: number): boolean => {
+      if (wc < 0 || wr < 0 || wc >= wCols || wr >= wRows) return true; // outside = forest
+      return wc < this.WALL_THICKNESS || wc >= wCols - this.WALL_THICKNESS
+          || wr < this.WALL_THICKNESS || wr >= wRows - this.WALL_THICKNESS;
+    };
+
+    const placements = computeWallPlacements(wCols, wRows, isForest);
+
+    for (const { tileCol, tileRow, wallTile: [sc, sr] } of placements) {
+      // World position: centre of this 128px tile
+      const wx = tileCol * WALL_FRAME_PX + WALL_FRAME_PX / 2;
+      const wy = tileRow * WALL_FRAME_PX + WALL_FRAME_PX / 2;
+
+      // Ground layer wall actor (z-order: below player)
+      const wallActor = new Actor({ x: wx, y: wy, z: -1 });
+      wallActor.graphics.use(wallSheet.getSprite(sc, sr));
+      this.add(wallActor);
+
+      // Canopy layer actor (z-order: above player)
+      const canopyActor = new Actor({ x: wx, y: wy, z: 10 });
+      canopyActor.graphics.use(canopySheet.getSprite(sc, sr));
+      this.add(canopyActor);
+
+      // Mark ground tiles under this wall tile as impassable
+      const gc0 = tileCol * WALL_GT;
+      const gr0 = tileRow * WALL_GT;
+      for (let dr = 0; dr < WALL_GT; dr++)
+        for (let dc = 0; dc < WALL_GT; dc++)
+          this.forestTiles.add(`${gc0 + dc},${gr0 + dr}`);
+    }
   }
 }
