@@ -9,9 +9,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@excaliburjs/plugin-tiled": "^0.32.0",
     "excalibur": "^0.30.0"
   },
   "devDependencies": {
+    "@mapeditor/tiled-api": "^1.11.0",
     "@types/node": "^20.0.0",
     "typescript": "^5.4.0",
     "vite": "^5.0.0"
