@@ -134,7 +134,7 @@ function processCategory(category: string): void {
   }
 }
 
-const CATEGORIES = ["furniture", "lights", "crops", "signs", "effects", "roofs"];
+const CATEGORIES = ["furniture", "lights", "crops", "signs", "effects", "roofs", "forest-gentle", "containers"];
 for (const c of CATEGORIES) processCategory(c);
 
 console.log("\nDone.");

@@ -92,6 +92,12 @@ export class TilePicker {
   private dmExport   = document.getElementById("dm-export")   as HTMLButtonElement;
   private dmStatus   = document.getElementById("dm-status")!;
 
+  // Source-spritesheet viewer refs. The canvas mirrors the full PNG of the
+  // selected tile's parent sheet with a dashed outline on the tile's cell.
+  private dmSheetPath   = document.getElementById("dm-sheet-path")!;
+  private dmSheetCanvas = document.getElementById("dm-sheet-canvas") as HTMLCanvasElement;
+  private dmSheetZoom   = 2;  // pixel multiplier; 1×, 2×, 4× buttons
+
   private activeCategory: CategoryId | null = null;
   private onPick: TilePickHandler | null = null;
   private tiles: TileTile[] = [];
@@ -166,6 +172,22 @@ export class TilePicker {
     this.dmRevert.addEventListener("click", () => this.revertSelected());
     this.dmDelete.addEventListener("click", () => this.deleteSelected());
     this.dmExport.addEventListener("click", () => this.exportOverrides());
+
+    // Sheet-view zoom buttons. Each carries data-zoom="1|2|4"; re-render the
+    // sheet after toggling the active class on the bar.
+    const zoomBar = document.querySelector("#picker-detail .dsheet-zoom");
+    zoomBar?.querySelectorAll<HTMLButtonElement>("button[data-zoom]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const z = +(btn.dataset.zoom ?? "2");
+        this.dmSheetZoom = z;
+        zoomBar.querySelectorAll("button").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        if (this.selectedEntry) {
+          const m = this.index.getTileset(this.selectedEntry.tileset);
+          if (m) this.renderSheetView(m, this.selectedEntry);
+        }
+      });
+    });
   }
 
   private showDetailEmpty(): void {
@@ -211,6 +233,67 @@ export class TilePicker {
     this.dmHide.checked   = ov.hide    ?? entry.hidden;
 
     this.dmStatus.textContent = "";
+
+    this.renderSheetView(meta, entry);
+  }
+
+  /** Render the full parent PNG with a dashed outline on the selected
+   *  tile's source cell. Lets the reviewer see the tile in the sheet's
+   *  original context while categorizing. */
+  private renderSheetView(meta: TilesetMeta, entry: TileEntry): void {
+    if (!meta.image) return;
+    this.dmSheetPath.textContent = `${meta.imageUrl}  (${meta.imageWidth}×${meta.imageHeight}px, ${meta.columns}×${Math.ceil(meta.tilecount / meta.columns)} cells)`;
+
+    const canvas = this.dmSheetCanvas;
+    const scale = this.dmSheetZoom;
+    canvas.width  = meta.imageWidth  * scale;
+    canvas.height = meta.imageHeight * scale;
+    // Keep the CSS size equal to the backing store so the canvas takes its
+    // pixel dimensions; the `image-rendering: pixelated` CSS rule handles
+    // crispness. (If the sheet is wider than the pane, the wrapper div
+    // scrolls horizontally.)
+    canvas.style.width  = `${canvas.width}px`;
+    canvas.style.height = `${canvas.height}px`;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(meta.image, 0, 0, meta.imageWidth, meta.imageHeight, 0, 0, canvas.width, canvas.height);
+
+    // Highlight the selected tile's rect in the scaled space.
+    const hx = entry.sx * scale;
+    const hy = entry.sy * scale;
+    const hw = entry.sw * scale;
+    const hh = entry.sh * scale;
+
+    // Semi-transparent fill so the tile stays visible.
+    ctx.fillStyle = "rgba(90, 170, 255, 0.12)";
+    ctx.fillRect(hx, hy, hw, hh);
+
+    // Dashed outline (two passes — dark underlay + bright top — for contrast
+    // against any sheet background).
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 2]);
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.8)";
+    ctx.strokeRect(hx + 1, hy + 1, hw - 2, hh - 2);
+    ctx.strokeStyle = "rgba(120, 200, 255, 1)";
+    ctx.strokeRect(hx, hy, hw, hh);
+    ctx.setLineDash([]);
+
+    // Auto-scroll the wrapper so the highlight is visible when the sheet
+    // is larger than the viewport.
+    const wrap = canvas.parentElement;
+    if (wrap) {
+      const wantLeft = hx - 40;
+      const wantTop  = hy - 40;
+      if (wantLeft < wrap.scrollLeft || wantLeft + hw + 80 > wrap.scrollLeft + wrap.clientWidth) {
+        wrap.scrollLeft = Math.max(0, wantLeft);
+      }
+      if (wantTop < wrap.scrollTop || wantTop + hh + 80 > wrap.scrollTop + wrap.clientHeight) {
+        wrap.scrollTop = Math.max(0, wantTop);
+      }
+    }
   }
 
   private startDetailAnim(meta: TilesetMeta, entry: TileEntry, ctx: CanvasRenderingContext2D): void {

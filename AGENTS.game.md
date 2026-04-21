@@ -296,13 +296,26 @@ Survey complete (grep+glob; no file reads over 50 lines). **Nine high/medium-pri
 - `shared/world-config.json` was never imported at runtime (grepping the repo confirms this); the server already reads `WORLD_SEED` from env with default `"42"`, and client-old is the only consumer of the other fields. Deleted the file rather than migrate to a `worlds` table.
 - Boot order (`index.ts`): `connectRedis` → `loadStaticZones` → `loadAllUserMaps` → map loaders → `loadNpcTemplates` → `loadItems` → `loadLootTables` → `loadQuests` → `spawnInitialNpcs` → game loop.
 
-**End state of the migration:** NO data in code. The only hard-coded gameplay data left in the repo lives in `tools/seed-*.ts` (migration tooling) or `*.test.ts` fixtures (test-only). Runtime reads everything from the database.
+**Phase 2c (map-items stub + disk-walking ingest + dead-code cleanup) notes (2026-04-21):**
+- `map_item_types` table added. `registry/map-items.ts` now types + re-exports from `store.ts`; server `GET /api/builder/registry` returns `mapItemTypes`. Seeds 7 stubs (container/light/door/sign/npc-spawn/teleporter/crop-plot) via `tools/seed-map-items.ts`. All `implemented: false` — each becomes `true` as the runtime lands.
+- **`tools/ingest-tilesets.ts` replaces `tools/seed-tile-registry.ts`**: walks `packages/client/public/maps/**/*.tsx`, parses each TSX manifest, scans PNG alpha via `sharp` for empty cells, and UPSERTs into `tilesets` + `tile_animations` + `tile_empty_flags`. Preserves builder-authored metadata columns (`default_category_id`, `default_layer_id`, `default_blocks`, `tags`, `seasonal`, `hidden`, `auto_hide_labels`, `notes`) via `COALESCE(tilesets.col, EXCLUDED.col)` on conflict. New tilesets default to `category='uncategorised'`, `defaultLayer='ground'`. TSX files whose PNG is missing on disk are skipped (e.g. Tiled debug `collision & alpha.tsx` helpers).
+- **Workflow for adding a new asset pack**: drop PNG(s) + TSX into `packages/client/public/maps/<category>/` → run `bun tools/ingest-tilesets.ts` → DB updated → reload builder → categorize uncategorised tiles via the picker detail pane (category dropdown / tags field / Save button persists to `tile_overrides`).
+- **Source-spritesheet viewer** added to picker detail pane: shows the full PNG at 1×/2×/4× zoom with a dashed cyan outline around the selected tile's source cell. Lets a reviewer see the tile in the sheet's original context when categorizing. Auto-scrolls the viewer to keep the highlight visible for large sheets.
+- **Deleted**: `packages/client/src/sprites/catalog.ts` (511 lines, dead), `packages/client/src/sprites/tilesets.ts` (309 lines, dead), `tools/seed-tile-registry.ts` (replaced by ingest), `packages/client/src/sprites/` (empty dir).
+- **Added packs** (2026-04-21 zips): Gentle Forest 3.0a ($0 palettes — 3 palette variants × 3 sheets = 9 TSX), Treasure Chests 1.2a (1 sheet, 30 tiles), Breakable Pots 1.1a (5 variants × 16 tiles = 80 tiles). All ingested as uncategorised; pending manual categorization.
+
+**End state of the migration:** NO data in code. The only hard-coded gameplay data left in the repo lives in `tools/seed-*.ts` (one-time migration tooling) or `*.test.ts` fixtures (test-only). Runtime reads everything from the database; assets are added by dropping PNG/TSX onto disk and re-running ingest.
+
+**Current DB totals (2026-04-21):** 20 tile categories · 4 layers · **151 tilesets** · ~230 sub-regions · 6,552 empty-tile flags · ~990 animation frames · 7 map-item types · 10 NPC templates · 17 items · 27 loot entries · 5 quests · 10 zones.
+
+### Next: multi-tile stamps / templates (pending)
+Once the data-migration is fully bedded in, revisit the Mana Seed `assets/**/sample map/*.tmx` files to extract **building stamps** (prefabs) — multi-tile layouts that can be placed as a single brush stroke. The world builder gains a "stamp" mode that pastes a whole thatch home / timber home / etc. as a 10×10 block of tiles + blocks + map-items, all persisted normally via existing `user_map_tiles` / `user_map_blocks`. Schema addition: `stamps` + `stamp_tiles` (or jsonb blob on `stamps`). Source: parse the TMX layers into JSON once at import, store in DB. See `AGENTS-CLIENT.md` for the builder architecture.
 
 ### Phase 3 — Design-later
 | # | Current code | Target tables |
 |---|---|---|
-| 11 | `packages/client/src/builder/registry/map-items.ts` (stub) | `map_item_types` — design alongside container/light/door/sign/npc-spawn runtime |
-| 12 | (Future) XP curve constants in `experience.ts` | `level_progression` (level, xp_required, hp_per_level, mana_per_level, stamina_per_level) — only if designers want live tuning |
+| 11 | (Future) XP curve constants in `experience.ts` | `level_progression` (level, xp_required, hp_per_level, mana_per_level, stamina_per_level) — only if designers want live tuning |
+| 12 | (Future) `stamps` / `stamp_tiles` tables for TMX-derived building prefabs (see "Next" above) |
 
 ### Explicitly stays outside the DB
 - **PNG files + TSX files** in `public/maps/` — raw-asset manifests. TSX gets **ingested** at boot (tilewidth/tileheight/columns/animations → `tilesets` + `tile_animations` tables) but stays on disk as upstream source-of-truth for structural data.
@@ -313,10 +326,10 @@ Survey complete (grep+glob; no file reads over 50 lines). **Nine high/medium-pri
 - `packages/server/src/game/experience.ts` — XP formulas (algorithms).
 - `localStorage['builder.picker.size']` — per-device UI state (picker zoom).
 
-### Dead code to delete during migration (do not port)
-- `packages/client/src/sprites/catalog.ts` (511 lines, not imported)
-- `packages/client/src/sprites/tilesets.ts` (309 lines, not imported)
-- `packages/client-old/**` entire dir (legacy)
+### Dead code deleted during migration (2026-04-21)
+- ~~`packages/client/src/sprites/catalog.ts`~~ (511 lines) ✅ deleted
+- ~~`packages/client/src/sprites/tilesets.ts`~~ (309 lines) ✅ deleted
+- `packages/client-old/**` entire dir (legacy) — still present, defer until its components are re-ported
 
 ### Ingestion pass (new tool)
 A `bun tools/ingest-tilesets.ts` script needs to:

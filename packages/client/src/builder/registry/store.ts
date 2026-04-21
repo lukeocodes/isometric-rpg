@@ -15,10 +15,11 @@
  * TileOverride live in the sibling files as pure contracts — no data
  * lives in those files any more.
  */
-import type { CategoryDef, CategoryId } from "./categories.js";
-import type { LayerDef, LayerId }       from "./layers.js";
-import type { TilesetDef, SubRegion }   from "./tilesets.js";
-import type { TileOverride }            from "./overrides.js";
+import type { CategoryDef, CategoryId }       from "./categories.js";
+import type { LayerDef, LayerId }             from "./layers.js";
+import type { TilesetDef, SubRegion }         from "./tilesets.js";
+import type { TileOverride }                  from "./overrides.js";
+import type { MapItemTypeDef, MapItemKind }   from "./map-items.js";
 
 /** Extended tileset definition returned by the server. Includes the
  *  structural fields ingested from TSX so the client doesn't need to
@@ -50,19 +51,22 @@ interface RegistryPayload {
   layers:     LayerDef[];
   tilesets:   RemoteTilesetDef[];
   overrides:  Record<string, TileOverride>;
+  mapItemTypes: MapItemTypeDef[];
 }
 
 // ---------------------------------------------------------------------------
 // Module state
 // ---------------------------------------------------------------------------
 
-let categoriesList: CategoryDef[]           = [];
-let layersList:     LayerDef[]               = [];
-let tilesetsList:   RemoteTilesetDef[]       = [];
-let overridesMap:   Record<string, TileOverride> = {};
-let categoriesById: Map<CategoryId, CategoryDef> = new Map();
-let layersById:     Map<LayerId, LayerDef>       = new Map();
-let tilesetsByFile: Map<string, RemoteTilesetDef> = new Map();
+let categoriesList:   CategoryDef[]           = [];
+let layersList:       LayerDef[]               = [];
+let tilesetsList:     RemoteTilesetDef[]       = [];
+let overridesMap:     Record<string, TileOverride> = {};
+let mapItemTypesList: MapItemTypeDef[]         = [];
+let categoriesById:   Map<CategoryId, CategoryDef>   = new Map();
+let layersById:       Map<LayerId, LayerDef>         = new Map();
+let tilesetsByFile:   Map<string, RemoteTilesetDef>  = new Map();
+let mapItemsByKind:   Map<MapItemKind, MapItemTypeDef> = new Map();
 
 let loadPromise: Promise<void> | null = null;
 
@@ -85,19 +89,22 @@ async function doLoad(baseUrl: string): Promise<void> {
   console.log(
     `[Registry] Loaded ${categoriesList.length} categor(ies), ` +
     `${layersList.length} layer(s), ${tilesetsList.length} tileset(s), ` +
+    `${mapItemTypesList.length} map-item type(s), ` +
     `${Object.keys(overridesMap).length} override(s)`,
   );
 }
 
 function apply(p: RegistryPayload): void {
-  categoriesList = p.categories;
-  layersList     = p.layers;
-  tilesetsList   = p.tilesets;
-  overridesMap   = p.overrides;
+  categoriesList   = p.categories;
+  layersList       = p.layers;
+  tilesetsList     = p.tilesets;
+  overridesMap     = p.overrides;
+  mapItemTypesList = p.mapItemTypes ?? [];
 
   categoriesById = new Map(categoriesList.map((c) => [c.id, c]));
   layersById     = new Map(layersList.map((l) => [l.id, l]));
   tilesetsByFile = new Map(tilesetsList.map((t) => [t.file, t]));
+  mapItemsByKind = new Map(mapItemTypesList.map((m) => [m.kind, m]));
 }
 
 // ---------------------------------------------------------------------------
@@ -229,4 +236,16 @@ export async function clearOverride(tileset: string, tileId: number): Promise<vo
   );
   if (!res.ok) throw new Error(`clearOverride failed: ${res.status}`);
   delete overridesMap[key(tileset, tileId)];
+}
+
+// ---------------------------------------------------------------------------
+// Map-item types (stubs — full behaviour lands per-kind)
+// ---------------------------------------------------------------------------
+
+export function listMapItemTypes(): MapItemTypeDef[] {
+  return mapItemTypesList;
+}
+
+export function getMapItemType(kind: MapItemKind): MapItemTypeDef | undefined {
+  return mapItemsByKind.get(kind);
 }

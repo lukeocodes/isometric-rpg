@@ -25,6 +25,7 @@ import {
   tileOverrides,
   tileEmptyFlags,
   tileAnimations,
+  mapItemTypes,
 } from "../db/schema.js";
 import { and, eq } from "drizzle-orm";
 
@@ -41,6 +42,7 @@ export async function builderRegistryRoutes(app: FastifyInstance) {
       emptyFlagsRows,
       animationsRows,
       overridesRows,
+      mapItemTypesRows,
     ] = await Promise.all([
       db.select().from(tileCategories),
       db.select().from(mapLayers),
@@ -49,6 +51,7 @@ export async function builderRegistryRoutes(app: FastifyInstance) {
       db.select().from(tileEmptyFlags),
       db.select().from(tileAnimations),
       db.select().from(tileOverrides),
+      db.select().from(mapItemTypes),
     ]);
 
     // Reshape so the client consumes similar to the old registry structure.
@@ -170,7 +173,26 @@ export async function builderRegistryRoutes(app: FastifyInstance) {
       if (Object.keys(ov).length > 0) overrides[key] = ov;
     }
 
-    return { categories, layers, tilesets: tilesetsOut, overrides };
+    const mapItemTypesOut = mapItemTypesRows
+      .sort((a, b) => a.displayOrder - b.displayOrder)
+      .map((m) => ({
+        kind:        m.kind,
+        name:        m.name,
+        description: m.description,
+        blocks:      m.blocks,
+        implemented: m.implemented,
+        preview:     m.previewTileset && m.previewTileId != null
+                       ? { tileset: m.previewTileset, tileId: m.previewTileId }
+                       : undefined,
+      }));
+
+    return {
+      categories,
+      layers,
+      tilesets: tilesetsOut,
+      overrides,
+      mapItemTypes: mapItemTypesOut,
+    };
   });
 
   // -------------------------------------------------------------------------

@@ -228,6 +228,44 @@
       #picker-detail .dactions button.danger:hover { background: rgba(228,68,68,0.3); border-color: #e44; color: #fff; }
       #picker-detail #dm-status { font-size: 11px; }
       #picker-detail.dirty .dform { box-shadow: inset 0 0 0 1px rgba(255,200,0,0.2); border-radius: 4px; }
+
+      /* Source-spritesheet viewer — lets a reviewer see the selected tile
+         in the context of the full sheet it came from. Canvas-rendered so
+         we can overlay the highlight + preserve pixel-accurate positioning
+         while still letting the sheet scale to fit the 320px pane width. */
+      #picker-detail .dsheet {
+        display: flex; flex-direction: column; gap: 6px;
+        border-top: 1px solid #333; padding-top: 10px; margin-top: 4px;
+      }
+      #picker-detail .dsheet h4 {
+        margin: 0; font-size: 11px; color: #888; text-transform: uppercase;
+        letter-spacing: 0.5px; font-weight: 500;
+      }
+      #picker-detail .dsheet-path {
+        color: #555; font-family: monospace; font-size: 10px; word-break: break-all;
+      }
+      #picker-detail .dsheet-wrap {
+        position: relative; overflow: auto;
+        background: repeating-conic-gradient(#2b2b2b 0 25%, #1e1e1e 0 50%) 0 0/8px 8px;
+        border: 1px solid #333; border-radius: 4px;
+        max-height: 360px; max-width: 100%;
+      }
+      #picker-detail .dsheet-canvas {
+        image-rendering: pixelated;
+        display: block;
+      }
+      #picker-detail .dsheet-hint {
+        color: #666; font-size: 10px; font-style: italic;
+      }
+      #picker-detail .dsheet-zoom {
+        display: flex; gap: 4px; align-items: center; font-size: 10px;
+      }
+      #picker-detail .dsheet-zoom button {
+        background: #2a2a2a; color: #ddd; border: 1px solid #444; border-radius: 3px;
+        padding: 2px 6px; font-size: 10px; cursor: pointer;
+      }
+      #picker-detail .dsheet-zoom button:hover  { background: #333; border-color: #5af; }
+      #picker-detail .dsheet-zoom button.active { background: #5af; color: #000; border-color: #5af; }
       #picker-empty {
         flex: 1; display: flex; align-items: center; justify-content: center;
         color: #666; font-size: 13px;
@@ -338,6 +376,25 @@
             <div class="dactions secondary">
               <button id="dm-export" title="Dump all database overrides as JSON (admin / debug)">Export overrides</button>
               <span id="dm-status" class="muted"></span>
+            </div>
+
+            <!-- Source spritesheet viewer. Shows the full PNG this tile
+                 came from with a dashed outline around the selected cell,
+                 so a reviewer can see the tile in its original context
+                 while categorizing it. -->
+            <div class="dsheet">
+              <h4>Source spritesheet</h4>
+              <div id="dm-sheet-path" class="dsheet-path"></div>
+              <div class="dsheet-zoom">
+                <span style="color:#555;">Zoom:</span>
+                <button data-zoom="1">1×</button>
+                <button data-zoom="2" class="active">2×</button>
+                <button data-zoom="4">4×</button>
+              </div>
+              <div class="dsheet-wrap">
+                <canvas id="dm-sheet-canvas" class="dsheet-canvas"></canvas>
+              </div>
+              <div class="dsheet-hint">Dashed outline = this tile's source cell. Scroll to pan large sheets.</div>
             </div>
           </div>
         </div>

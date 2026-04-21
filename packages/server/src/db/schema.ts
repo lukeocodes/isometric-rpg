@@ -414,6 +414,26 @@ export const questRewards = pgTable("quest_rewards", {
 ]);
 
 // ---------------------------------------------------------------------------
+// Map-item types (stub — full behaviour for container/light/door/sign/etc
+// is designed as those features land). Replaces
+// `packages/client/src/builder/registry/map-items.ts` MAP_ITEM_TYPES array.
+// ---------------------------------------------------------------------------
+
+export const mapItemTypes = pgTable("map_item_types", {
+  kind:         varchar("kind", { length: 32 }).primaryKey(),   // "container" | "light" | "door" | "sign" | "npc-spawn" | "teleporter" | "crop-plot"
+  name:         varchar("name", { length: 64 }).notNull(),
+  description:  text("description").notNull().default(""),
+  blocks:       boolean("blocks").notNull().default(true),
+  previewTileset: varchar("preview_tileset", { length: 256 }),
+  previewTileId:  integer("preview_tile_id"),
+  /** True once the full behaviour (runtime state + interact protocol) is
+   *  implemented end-to-end. Today everything is false. */
+  implemented:  boolean("implemented").notNull().default(false),
+  displayOrder: integer("display_order").notNull().default(0),
+  updatedAt:    timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
 // Zones (Phase 2b)
 // ---------------------------------------------------------------------------
 // Replaces the `registerZone` calls + `TEST_ZONES` array in
