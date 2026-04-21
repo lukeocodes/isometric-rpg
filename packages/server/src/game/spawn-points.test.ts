@@ -27,6 +27,29 @@ import {
   cleanup,
   type SpawnPoint,
 } from "./spawn-points.js";
+import { _setNpcTemplatesForTest, type NPCTemplate } from "./npc-templates.js";
+
+// Minimal NPC template fixture for spawn-point tests. Production data lives
+// in the `npc_templates` DB table; these fixtures are only enough to exercise
+// the spawn / wander / respawn logic.
+const NPC_FIXTURES: Record<string, NPCTemplate> = {
+  "goblin-grunt": {
+    id: "goblin-grunt", name: "Goblin Grunt", groupId: "goblin", category: "monster",
+    bodyColor: "#556b2f", skinColor: "#6b8e23",
+    weaponType: "melee", weaponDamage: { min: 2, max: 3 }, attackSpeed: { min: 1.8, max: 2.2 },
+    hp: { min: 8, max: 12 }, str: { min: 6, max: 9 }, dex: { min: 7, max: 10 }, int: { min: 3, max: 5 },
+    aggressive: true, flees: false, wanders: true, canTalk: false,
+    speedModifier: 0.1, wanderChance: 0.02, wanderSteps: 1,
+  },
+  "skeleton-warrior": {
+    id: "skeleton-warrior", name: "Skeleton Warrior", groupId: "skeleton", category: "monster",
+    bodyColor: "#aaaaaa", skinColor: "#ccccbb",
+    weaponType: "melee", weaponDamage: { min: 3, max: 5 }, attackSpeed: { min: 2.0, max: 2.5 },
+    hp: { min: 10, max: 15 }, str: { min: 8, max: 12 }, dex: { min: 5, max: 8 }, int: { min: 3, max: 5 },
+    aggressive: true, flees: false, wanders: true, canTalk: false,
+    speedModifier: 0.1, wanderChance: 0.02, wanderSteps: 1,
+  },
+};
 
 function makeSpawnPoint(overrides: Partial<SpawnPoint> = {}): SpawnPoint {
   return {
@@ -46,6 +69,9 @@ describe("spawn-points", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     cleanup();
+    // Seed NPC templates from fixtures — production reads from DB but tests
+    // don't need a live connection (see AGENTS.md "Data in the Database").
+    _setNpcTemplatesForTest(NPC_FIXTURES);
     // Clear entity store
     for (const e of entityStore.getAll()) {
       unregisterEntity(e.entityId);

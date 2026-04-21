@@ -272,14 +272,21 @@ Survey complete (grep+glob; no file reads over 50 lines). **Nine high/medium-pri
 - The legacy `__builder.dumpEmptyTiles()` is gone (replaced by the seed pass).
 - Two builders editing metadata still need a page reload to see each other's edits — Phase 1b adds WebRTC broadcast for live updates.
 
-### Phase 2 — Gameplay data (gameplay tuning + multi-zone correctness)
-| # | Current code | Target tables | Size |
-|---|---|---|---|
-| 6 | `packages/server/src/game/npc-templates.ts` (`NPC_TEMPLATES` record + `template()` composition) | `npc_template_groups` (id, category, base_stats jsonb) + `npc_templates` (id, group_id, name, hp/str/dex/int ranges, weapon, behaviour flags, colours) | 9 templates, 4 groups |
-| 7 | `packages/server/src/game/items.ts` (`ITEMS` + `LOOT_TABLES`) | `item_templates` (id, name, slot, stats, icon) + `loot_tables` (npc_template_id, item_id, chance, min_qty, max_qty) | ~25 items, ~15 loot entries |
-| 8 | `packages/server/src/game/quests.ts` (`QUESTS`) | `quests` + `quest_objectives` + `quest_rewards` | 5 quests |
-| 9 | `packages/server/src/game/zone-registry.ts` (`registerZone` calls + `TEST_ZONES`) | `zones` (id, numericId UNIQUE, mapFile, levelMin, levelMax, musicTag) + `zone_exits` (zone_id, exit_id, to_zone_id, spawn_x, spawn_y) | ~10 zones |
-| 10 | `packages/shared/world-config.json` (worldSeed, dimensions, speeds) | `worlds` (id, seed, width, height, player_speed, continent_cross_minutes) | 1 row per world |
+### Phase 2 — Gameplay data
+| # | Old code | DB table | Size | Status |
+|---|---|---|---|---|
+| 6 | `packages/server/src/game/npc-templates.ts` (`NPC_TEMPLATES` record + `template()` composition) | `npc_templates` (flat; category/group/variant inheritance resolved at seed time) | 10 templates | ✅ DONE 2026-04-21 |
+| 7 | `packages/server/src/game/items.ts` (`ITEMS` + `LOOT_TABLES`) | `item_templates` + `loot_tables` | ~25 items, ~15 loot entries | pending |
+| 8 | `packages/server/src/game/quests.ts` (`QUESTS`) | `quests` + `quest_objectives` + `quest_rewards` | 5 quests | pending |
+| 9 | `packages/server/src/game/zone-registry.ts` (`registerZone` calls + `TEST_ZONES`) | `zones` + `zone_exits` | ~10 zones | pending |
+| 10 | `packages/shared/world-config.json` (worldSeed, dimensions, speeds) | `worlds` (id, seed, width, height, player_speed, continent_cross_minutes) | 1 row per world | pending |
+
+**Phase 2a (NPC templates) notes:**
+- Schema: `npc_templates` (25 columns, flat). Group inheritance (`WILDLIFE_BASE`/`MONSTER_BASE`/`INTERACTIVE_BASE` + per-group colour bases) happens in the seed script at migration time, then writes fully-resolved rows. Keeps SQL simple; re-run seed to rematerialise group-wide changes.
+- Seed: `tools/seed-npc-templates.ts`. The hand-coded template data (~150 lines) lives only there now — it's migration tooling, not runtime data.
+- Runtime `packages/server/src/game/npc-templates.ts` is now types + `rollStat` algorithm + a mutable in-memory cache populated by `loadNpcTemplates()` at boot. Getters (`getTemplate` / `getTemplatesByGroup` / `getTemplatesByCategory`) stay synchronous so spawner + combat hot paths don't need to await.
+- Tests use a `_setNpcTemplatesForTest(fixtures)` escape hatch in `beforeEach` — no live DB needed for unit tests.
+- `spawn-points.test.ts` updated to seed its own NPC fixtures.
 
 ### Phase 3 — Design-later
 | # | Current code | Target tables |

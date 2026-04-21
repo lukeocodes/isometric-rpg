@@ -311,3 +311,57 @@ export const tileAnimations = pgTable("tile_animations", {
 }, (t) => [
   uniqueIndex("tile_animations_uniq").on(t.tilesetFile, t.headTileId, t.frameIdx),
 ]);
+
+// ---------------------------------------------------------------------------
+// NPC templates (Phase 2 DB migration — see AGENTS.md "Data in the DB")
+// ---------------------------------------------------------------------------
+// Replaces the hand-maintained NPC_TEMPLATES record in
+// `packages/server/src/game/npc-templates.ts`. Stat blocks live as flat
+// rows keyed by stable template id (e.g. "skeleton-warrior"). Group-level
+// bases (skeleton/imp/rabbit/goblin) and category-level defaults
+// (wildlife/monster/interactive) are resolved into each row at seed time
+// — no inheritance chain in SQL. When a designer tweaks a group-wide
+// colour or behaviour, the seed script re-materialises affected rows.
+// ---------------------------------------------------------------------------
+
+export const npcTemplates = pgTable("npc_templates", {
+  id: varchar("id", { length: 64 }).primaryKey(),            // "skeleton-warrior"
+  name: varchar("name", { length: 100 }).notNull(),          // "Skeleton Warrior"
+  groupId: varchar("group_id", { length: 64 }).notNull(),    // "skeleton" | "goblin" | …
+  category: varchar("category", { length: 32 }).notNull(),   // "wildlife" | "monster" | "interactive"
+
+  // Appearance
+  bodyColor: varchar("body_color", { length: 16 }).notNull(),
+  skinColor: varchar("skin_color", { length: 16 }).notNull(),
+
+  // Combat
+  weaponType: varchar("weapon_type", { length: 16 }).notNull(), // "melee" | "ranged" | "magic" | "none"
+  weaponDamageMin: integer("weapon_damage_min").notNull(),
+  weaponDamageMax: integer("weapon_damage_max").notNull(),
+  attackSpeedMin: real("attack_speed_min").notNull(),
+  attackSpeedMax: real("attack_speed_max").notNull(),
+  hpMin: integer("hp_min").notNull(),
+  hpMax: integer("hp_max").notNull(),
+
+  // Base stats
+  strMin: integer("str_min").notNull(),
+  strMax: integer("str_max").notNull(),
+  dexMin: integer("dex_min").notNull(),
+  dexMax: integer("dex_max").notNull(),
+  intMin: integer("int_min").notNull(),
+  intMax: integer("int_max").notNull(),
+
+  // Behaviour
+  aggressive: boolean("aggressive").notNull(),
+  flees: boolean("flees").notNull(),
+  wanders: boolean("wanders").notNull(),
+  canTalk: boolean("can_talk").notNull(),
+
+  // Movement
+  speedModifier: real("speed_modifier").notNull(),
+  wanderChance: real("wander_chance").notNull(),
+  wanderSteps: integer("wander_steps").notNull(),
+
+  notes: text("notes"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});

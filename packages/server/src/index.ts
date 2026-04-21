@@ -11,6 +11,7 @@ import { getAllZones } from "./game/zone-registry.js";
 import { loadMapItems, loadDbItems } from "./game/world-items.js";
 import { loadSavedModelsFromDB } from "./game/model-registry.js";
 import { loadAllUserMaps } from "./game/user-maps.js";
+import { loadNpcTemplates } from "./game/npc-templates.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -47,6 +48,10 @@ async function main() {
 
   // Load workbench saved models into memory (non-fatal if DB not yet migrated)
   await loadSavedModelsFromDB();
+
+  // Populate the NPC template cache from the DB so spawner / combat have
+  // synchronous access. Must happen BEFORE spawnInitialNpcs().
+  await loadNpcTemplates();
 
   spawnInitialNpcs();
   startGameLoop();
