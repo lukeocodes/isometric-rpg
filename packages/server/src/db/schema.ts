@@ -324,6 +324,130 @@ export const tileAnimations = pgTable("tile_animations", {
 // colour or behaviour, the seed script re-materialises affected rows.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Items + loot (Phase 2b)
+// ---------------------------------------------------------------------------
+// Replaces `ITEMS` + `LOOT_TABLES` in `packages/server/src/game/items.ts`.
+// `item_templates` is the catalogue (weapons, armour, consumables, materials);
+// `loot_entries` is the NPC → item drop table with chance + quantity ranges.
+
+export const itemTemplates = pgTable("item_templates", {
+  id: varchar("id", { length: 64 }).primaryKey(),            // "rusty-sword"
+  name: varchar("name", { length: 100 }).notNull(),
+  itemType: varchar("item_type", { length: 16 }).notNull(),  // "weapon"|"armor"|"consumable"|"material"
+  slot: varchar("slot", { length: 16 }),                     // "weapon"|"head"|... null for non-equipment
+  weaponSubtype: varchar("weapon_subtype", { length: 16 }),  // "sword"|"axe"|"bow"|"staff"|"dagger"
+  armorWeight: varchar("armor_weight", { length: 16 }),      // "light"|"medium"|"heavy"
+  icon: varchar("icon", { length: 8 }).notNull(),            // emoji placeholder until sprites land
+  description: text("description").notNull().default(""),
+  level: integer("level").notNull().default(1),              // minimum level to equip
+  bonusStr:    integer("bonus_str").notNull().default(0),
+  bonusDex:    integer("bonus_dex").notNull().default(0),
+  bonusInt:    integer("bonus_int").notNull().default(0),
+  bonusHp:     integer("bonus_hp").notNull().default(0),
+  bonusDamage: integer("bonus_damage").notNull().default(0),
+  bonusArmor:  integer("bonus_armor").notNull().default(0),
+  healAmount:  integer("heal_amount").notNull().default(0),   // consumables
+  stackLimit:  integer("stack_limit").notNull().default(1),
+  value:       integer("value").notNull().default(0),         // gold
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// One row per (NPC template, item) drop. FK to npc_templates + item_templates
+// with ON DELETE CASCADE so renaming / removing a template cleans up loot.
+export const lootEntries = pgTable("loot_entries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  npcTemplateId: varchar("npc_template_id", { length: 64 })
+    .notNull().references(() => npcTemplates.id, { onDelete: "cascade" }),
+  itemId: varchar("item_id", { length: 64 })
+    .notNull().references(() => itemTemplates.id, { onDelete: "cascade" }),
+  chance: real("chance").notNull(),                           // 0.0 – 1.0
+  minQty: integer("min_qty").notNull().default(1),
+  maxQty: integer("max_qty").notNull().default(1),
+}, (t) => [
+  uniqueIndex("loot_entries_npc_item_uniq").on(t.npcTemplateId, t.itemId),
+]);
+
+// ---------------------------------------------------------------------------
+// Quests (Phase 2b)
+// ---------------------------------------------------------------------------
+// Replaces `QUESTS` in `packages/server/src/game/quests.ts`. Quest template +
+// its objectives + its item rewards are split across three tables so
+// designers can tweak individual objective counts / reward qtys without
+// re-encoding the whole quest.
+
+export const quests = pgTable("quests", {
+  id: varchar("id", { length: 64 }).primaryKey(),             // "kill-rabbits"
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description").notNull(),
+  zone: varchar("zone", { length: 64 }).notNull(),            // zone id where the quest is available
+  levelMin: integer("level_min").notNull().default(1),
+  rewardXp: integer("reward_xp").notNull().default(0),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Each quest can have multiple ordered objectives. Today all are
+// `{ type: "kill", targetGroup, count }` but the type column gives us room
+// to grow (collect, talk-to, escort, …).
+export const questObjectives = pgTable("quest_objectives", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  questId: varchar("quest_id", { length: 64 })
+    .notNull().references(() => quests.id, { onDelete: "cascade" }),
+  objectiveOrder: integer("objective_order").notNull().default(0),
+  objectiveType:  varchar("objective_type", { length: 16 }).notNull().default("kill"),
+  targetGroup:    varchar("target_group", { length: 64 }).notNull(),
+  count:          integer("count").notNull(),
+}, (t) => [
+  uniqueIndex("quest_objectives_order_uniq").on(t.questId, t.objectiveOrder),
+]);
+
+// Quest rewards — items granted on turn-in (XP lives on the quest row itself).
+export const questRewards = pgTable("quest_rewards", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  questId: varchar("quest_id", { length: 64 })
+    .notNull().references(() => quests.id, { onDelete: "cascade" }),
+  itemId:  varchar("item_id", { length: 64 })
+    .notNull().references(() => itemTemplates.id),
+  quantity: integer("quantity").notNull().default(1),
+}, (t) => [
+  uniqueIndex("quest_rewards_item_uniq").on(t.questId, t.itemId),
+]);
+
+// ---------------------------------------------------------------------------
+// Zones (Phase 2b)
+// ---------------------------------------------------------------------------
+// Replaces the `registerZone` calls + `TEST_ZONES` array in
+// `packages/server/src/game/zone-registry.ts`. `numericId` is wire-format
+// (written to `characters.map_id`) so it MUST be unique.
+//
+// User-authored maps continue to live in `user_maps` (they have their own
+// numericId space ≥ 1000). `loadStaticZones()` at boot reads this table
+// and `loadAllUserMaps()` reads `user_maps`; both populate the same
+// in-memory lookup. `zones` is the "static/shipped" side only.
+
+export const zones = pgTable("zones", {
+  id:        varchar("id", { length: 64 }).primaryKey(),      // "human-meadows" | "test-1-summer-forest"
+  numericId: integer("numeric_id").notNull().unique(),        // wire format
+  name:      varchar("name", { length: 100 }).notNull(),
+  mapFile:   varchar("map_file", { length: 256 }).notNull(),  // path under public/maps/
+  levelMin:  integer("level_min").notNull().default(1),
+  levelMax:  integer("level_max").notNull().default(99),
+  musicTag:  varchar("music_tag", { length: 32 }).notNull().default("field"),
+  /** `{ [exitId]: { targetZone, spawnX, spawnZ } }`. Empty `{}` until
+   *  zone exits are authored. */
+  exits: jsonb("exits")
+    .$type<Record<string, { targetZone: string; spawnX: number; spawnZ: number }>>()
+    .default({}).notNull(),
+  /** 1-9 for keyboard-shortcut test zones; null for real gameplay zones. */
+  testSlot: integer("test_slot"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
+// NPC templates (Phase 2a — table definition must stay BELOW this comment
+// because loot_entries + quest_rewards FK into it.)
+// ---------------------------------------------------------------------------
+
 export const npcTemplates = pgTable("npc_templates", {
   id: varchar("id", { length: 64 }).primaryKey(),            // "skeleton-warrior"
   name: varchar("name", { length: 100 }).notNull(),          // "Skeleton Warrior"

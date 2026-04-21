@@ -12,6 +12,9 @@ import { loadMapItems, loadDbItems } from "./game/world-items.js";
 import { loadSavedModelsFromDB } from "./game/model-registry.js";
 import { loadAllUserMaps } from "./game/user-maps.js";
 import { loadNpcTemplates } from "./game/npc-templates.js";
+import { loadItems, loadLootTables } from "./game/items.js";
+import { loadQuests } from "./game/quests.js";
+import { loadStaticZones } from "./game/zone-registry.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -19,6 +22,10 @@ async function main() {
   const app = await buildApp();
 
   await connectRedis();
+
+  // Populate static-zone registry from DB first. User-authored maps
+  // (including heaven) are appended next via loadAllUserMaps().
+  await loadStaticZones();
 
   // Register heaven + all user-built maps as zones before loading map files.
   // loadAllUserMaps seeds the heaven row in DB if missing and registers every
@@ -49,9 +56,12 @@ async function main() {
   // Load workbench saved models into memory (non-fatal if DB not yet migrated)
   await loadSavedModelsFromDB();
 
-  // Populate the NPC template cache from the DB so spawner / combat have
-  // synchronous access. Must happen BEFORE spawnInitialNpcs().
+  // Populate gameplay-data caches from the DB so spawner / combat / quests
+  // have synchronous access. Must happen BEFORE spawnInitialNpcs().
   await loadNpcTemplates();
+  await loadItems();
+  await loadLootTables();
+  await loadQuests();
 
   spawnInitialNpcs();
   startGameLoop();

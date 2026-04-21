@@ -1,14 +1,28 @@
 /**
- * Item Registry — static item template definitions.
+ * Item registry + loot tables — thin cache over the `item_templates` and
+ * `loot_entries` DB tables.
  *
- * Equipment slots: weapon, head, chest, legs, feet, ring, trinket
- * Item types: weapon, armor, consumable, material
+ * Data lives in the DB (see AGENTS.md "Data in the Database"). The seed
+ * `tools/seed-items.ts` was the one-time migration from the old
+ * hand-maintained records. Runtime reads from in-memory maps populated at
+ * server boot by `loadItems()` + `loadLootTables()`; getters stay sync so
+ * combat / inventory hot paths don't need to await.
+ *
+ * Type contracts (ItemTemplate, LootEntry, LootTable, and the slot/type
+ * string unions) stay here — they're the shared surface combat/inventory
+ * code relies on. `rollLoot` is an algorithm, also stays.
  */
+import { db } from "../db/postgres.js";
+import { itemTemplates, lootEntries } from "../db/schema.js";
 
-export type ItemSlot = "weapon" | "head" | "chest" | "legs" | "feet" | "ring" | "trinket";
-export type ItemType = "weapon" | "armor" | "consumable" | "material";
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export type ItemSlot      = "weapon" | "head" | "chest" | "legs" | "feet" | "ring" | "trinket";
+export type ItemType      = "weapon" | "armor" | "consumable" | "material";
 export type WeaponSubtype = "sword" | "axe" | "bow" | "staff" | "dagger";
-export type ArmorWeight = "light" | "medium" | "heavy";
+export type ArmorWeight   = "light" | "medium" | "heavy";
 
 export interface ItemTemplate {
   id: string;
@@ -17,191 +31,109 @@ export interface ItemTemplate {
   slot?: ItemSlot;
   weaponSubtype?: WeaponSubtype;
   armorWeight?: ArmorWeight;
-  icon: string;           // emoji for now, sprite key later
+  icon: string;
   description: string;
-  level: number;          // minimum level to equip
-  // Stat bonuses when equipped
+  level: number;
   bonusStr?: number;
   bonusDex?: number;
   bonusInt?: number;
   bonusHp?: number;
   bonusDamage?: number;
   bonusArmor?: number;
-  // For consumables
   healAmount?: number;
-  // Stack limit (1 = non-stackable equipment)
   stackLimit: number;
-  // Gold value
   value: number;
 }
 
 export interface LootEntry {
   itemId: string;
-  chance: number;     // 0.0 - 1.0
+  chance: number;    // 0.0 – 1.0
   minQty: number;
   maxQty: number;
 }
 
 export type LootTable = LootEntry[];
 
-// ============================================
-// Item Template Registry
-// ============================================
+// ---------------------------------------------------------------------------
+// In-memory caches — populated at boot (or by tests via setters).
+// ---------------------------------------------------------------------------
 
-export const ITEMS: Record<string, ItemTemplate> = {
-  // --- Consumables ---
-  "health-potion-small": {
-    id: "health-potion-small", name: "Small Health Potion", type: "consumable",
-    icon: "🧪", description: "Restores 25 HP", level: 1,
-    healAmount: 25, stackLimit: 20, value: 5,
-  },
-  "health-potion-medium": {
-    id: "health-potion-medium", name: "Health Potion", type: "consumable",
-    icon: "🧪", description: "Restores 50 HP", level: 5,
-    healAmount: 50, stackLimit: 20, value: 15,
-  },
+/** @internal Exported for backwards-compat. Treat as read-only at runtime. */
+export const ITEMS: Record<string, ItemTemplate> = {};
 
-  // --- Materials ---
-  "rabbit-hide": {
-    id: "rabbit-hide", name: "Rabbit Hide", type: "material",
-    icon: "🐾", description: "Soft fur from a rabbit", level: 1,
-    stackLimit: 50, value: 2,
-  },
-  "bone-fragment": {
-    id: "bone-fragment", name: "Bone Fragment", type: "material",
-    icon: "🦴", description: "A shard of bleached bone", level: 1,
-    stackLimit: 50, value: 3,
-  },
-  "goblin-ear": {
-    id: "goblin-ear", name: "Goblin Ear", type: "material",
-    icon: "👂", description: "Proof of a goblin kill", level: 1,
-    stackLimit: 50, value: 4,
-  },
-  "imp-horn": {
-    id: "imp-horn", name: "Imp Horn", type: "material",
-    icon: "🔺", description: "A small curved horn", level: 1,
-    stackLimit: 50, value: 5,
-  },
+/** @internal Loot tables keyed by NPC template id. Read-only at runtime. */
+export const LOOT_TABLES: Record<string, LootTable> = {};
 
-  // --- Weapons (Lv1-3) ---
-  "rusty-sword": {
-    id: "rusty-sword", name: "Rusty Sword", type: "weapon", slot: "weapon",
-    weaponSubtype: "sword", icon: "🗡️", description: "A dull, rusty blade",
-    level: 1, bonusDamage: 2, stackLimit: 1, value: 10,
-  },
-  "wooden-bow": {
-    id: "wooden-bow", name: "Wooden Bow", type: "weapon", slot: "weapon",
-    weaponSubtype: "bow", icon: "🏹", description: "A simple shortbow",
-    level: 1, bonusDamage: 2, bonusDex: 1, stackLimit: 1, value: 12,
-  },
-  "gnarled-staff": {
-    id: "gnarled-staff", name: "Gnarled Staff", type: "weapon", slot: "weapon",
-    weaponSubtype: "staff", icon: "🪄", description: "A twisted branch with faint magical energy",
-    level: 2, bonusDamage: 3, bonusInt: 2, stackLimit: 1, value: 18,
-  },
-  "goblin-dagger": {
-    id: "goblin-dagger", name: "Goblin Dagger", type: "weapon", slot: "weapon",
-    weaponSubtype: "dagger", icon: "🔪", description: "Crude but sharp",
-    level: 2, bonusDamage: 3, bonusDex: 1, stackLimit: 1, value: 15,
-  },
-  "bone-axe": {
-    id: "bone-axe", name: "Bone Axe", type: "weapon", slot: "weapon",
-    weaponSubtype: "axe", icon: "🪓", description: "An axe crafted from skeletal remains",
-    level: 3, bonusDamage: 4, bonusStr: 2, stackLimit: 1, value: 25,
-  },
+/** Populate the item catalogue cache from the DB. Clears the cache first
+ *  so re-running after a seed picks up changes. */
+export async function loadItems(): Promise<void> {
+  const rows = await db.select().from(itemTemplates);
+  for (const k of Object.keys(ITEMS)) delete ITEMS[k];
+  for (const r of rows) {
+    const item: ItemTemplate = {
+      id:          r.id,
+      name:        r.name,
+      type:        r.itemType as ItemType,
+      icon:        r.icon,
+      description: r.description,
+      level:       r.level,
+      stackLimit:  r.stackLimit,
+      value:       r.value,
+    };
+    if (r.slot)            item.slot          = r.slot as ItemSlot;
+    if (r.weaponSubtype)   item.weaponSubtype = r.weaponSubtype as WeaponSubtype;
+    if (r.armorWeight)     item.armorWeight   = r.armorWeight as ArmorWeight;
+    if (r.bonusStr    !== 0) item.bonusStr    = r.bonusStr;
+    if (r.bonusDex    !== 0) item.bonusDex    = r.bonusDex;
+    if (r.bonusInt    !== 0) item.bonusInt    = r.bonusInt;
+    if (r.bonusHp     !== 0) item.bonusHp     = r.bonusHp;
+    if (r.bonusDamage !== 0) item.bonusDamage = r.bonusDamage;
+    if (r.bonusArmor  !== 0) item.bonusArmor  = r.bonusArmor;
+    if (r.healAmount  !== 0) item.healAmount  = r.healAmount;
+    ITEMS[r.id] = item;
+  }
+  console.log(`[items] Loaded ${rows.length} item template(s) from DB`);
+}
 
-  // --- Armor (Lv1-3) ---
-  "leather-cap": {
-    id: "leather-cap", name: "Leather Cap", type: "armor", slot: "head",
-    armorWeight: "light", icon: "🎩", description: "Basic head protection",
-    level: 1, bonusArmor: 1, stackLimit: 1, value: 8,
-  },
-  "hide-vest": {
-    id: "hide-vest", name: "Hide Vest", type: "armor", slot: "chest",
-    armorWeight: "light", icon: "🦺", description: "A vest made from animal hides",
-    level: 1, bonusArmor: 2, bonusHp: 5, stackLimit: 1, value: 12,
-  },
-  "bone-helm": {
-    id: "bone-helm", name: "Bone Helm", type: "armor", slot: "head",
-    armorWeight: "medium", icon: "💀", description: "A helmet fashioned from skull fragments",
-    level: 2, bonusArmor: 2, bonusStr: 1, stackLimit: 1, value: 16,
-  },
-  "chainmail-vest": {
-    id: "chainmail-vest", name: "Chainmail Vest", type: "armor", slot: "chest",
-    armorWeight: "heavy", icon: "🛡️", description: "Interlocking metal rings",
-    level: 3, bonusArmor: 4, bonusHp: 10, stackLimit: 1, value: 30,
-  },
-  "leather-boots": {
-    id: "leather-boots", name: "Leather Boots", type: "armor", slot: "feet",
-    armorWeight: "light", icon: "👢", description: "Sturdy walking boots",
-    level: 1, bonusArmor: 1, bonusDex: 1, stackLimit: 1, value: 8,
-  },
+/** Populate loot tables from the DB. Clears the cache first. */
+export async function loadLootTables(): Promise<void> {
+  const rows = await db.select().from(lootEntries);
+  for (const k of Object.keys(LOOT_TABLES)) delete LOOT_TABLES[k];
+  for (const r of rows) {
+    const table = LOOT_TABLES[r.npcTemplateId] ?? [];
+    table.push({
+      itemId: r.itemId,
+      chance: r.chance,
+      minQty: r.minQty,
+      maxQty: r.maxQty,
+    });
+    LOOT_TABLES[r.npcTemplateId] = table;
+  }
+  console.log(
+    `[items] Loaded ${rows.length} loot entr(ies) across ` +
+    `${Object.keys(LOOT_TABLES).length} NPC template(s) from DB`,
+  );
+}
 
-  // --- Trinkets ---
-  "rabbit-foot": {
-    id: "rabbit-foot", name: "Lucky Rabbit Foot", type: "armor", slot: "trinket",
-    icon: "🐇", description: "Grants a small luck bonus",
-    level: 1, bonusDex: 2, stackLimit: 1, value: 20,
-  },
-};
+/** @internal Test-only helper — seeds caches with fixture data. */
+export function _setItemsForTest(
+  items: Record<string, ItemTemplate>,
+  loot:  Record<string, LootTable> = {},
+): void {
+  for (const k of Object.keys(ITEMS))       delete ITEMS[k];
+  for (const k of Object.keys(LOOT_TABLES)) delete LOOT_TABLES[k];
+  for (const [id, t] of Object.entries(items)) ITEMS[id] = t;
+  for (const [id, t] of Object.entries(loot))  LOOT_TABLES[id] = t;
+}
 
-// ============================================
-// Loot Tables by NPC template ID
-// ============================================
-
-export const LOOT_TABLES: Record<string, LootTable> = {
-  "rabbit": [
-    { itemId: "rabbit-hide", chance: 0.6, minQty: 1, maxQty: 2 },
-    { itemId: "health-potion-small", chance: 0.15, minQty: 1, maxQty: 1 },
-    { itemId: "rabbit-foot", chance: 0.03, minQty: 1, maxQty: 1 },
-  ],
-  "skeleton-warrior": [
-    { itemId: "bone-fragment", chance: 0.5, minQty: 1, maxQty: 3 },
-    { itemId: "rusty-sword", chance: 0.08, minQty: 1, maxQty: 1 },
-    { itemId: "bone-helm", chance: 0.05, minQty: 1, maxQty: 1 },
-    { itemId: "health-potion-small", chance: 0.2, minQty: 1, maxQty: 1 },
-  ],
-  "skeleton-archer": [
-    { itemId: "bone-fragment", chance: 0.5, minQty: 1, maxQty: 2 },
-    { itemId: "wooden-bow", chance: 0.08, minQty: 1, maxQty: 1 },
-    { itemId: "leather-cap", chance: 0.06, minQty: 1, maxQty: 1 },
-    { itemId: "health-potion-small", chance: 0.2, minQty: 1, maxQty: 1 },
-  ],
-  "skeleton-mage": [
-    { itemId: "bone-fragment", chance: 0.4, minQty: 1, maxQty: 2 },
-    { itemId: "gnarled-staff", chance: 0.06, minQty: 1, maxQty: 1 },
-    { itemId: "health-potion-medium", chance: 0.1, minQty: 1, maxQty: 1 },
-  ],
-  "goblin-grunt": [
-    { itemId: "goblin-ear", chance: 0.5, minQty: 1, maxQty: 1 },
-    { itemId: "goblin-dagger", chance: 0.07, minQty: 1, maxQty: 1 },
-    { itemId: "hide-vest", chance: 0.05, minQty: 1, maxQty: 1 },
-    { itemId: "health-potion-small", chance: 0.2, minQty: 1, maxQty: 1 },
-    { itemId: "leather-boots", chance: 0.04, minQty: 1, maxQty: 1 },
-  ],
-  "goblin-shaman": [
-    { itemId: "goblin-ear", chance: 0.5, minQty: 1, maxQty: 1 },
-    { itemId: "gnarled-staff", chance: 0.08, minQty: 1, maxQty: 1 },
-    { itemId: "health-potion-medium", chance: 0.12, minQty: 1, maxQty: 1 },
-  ],
-  "imp": [
-    { itemId: "imp-horn", chance: 0.5, minQty: 1, maxQty: 1 },
-    { itemId: "health-potion-small", chance: 0.15, minQty: 1, maxQty: 1 },
-  ],
-  "skeleton-lord": [
-    { itemId: "bone-fragment", chance: 0.8, minQty: 2, maxQty: 5 },
-    { itemId: "bone-axe", chance: 0.1, minQty: 1, maxQty: 1 },
-    { itemId: "bone-helm", chance: 0.1, minQty: 1, maxQty: 1 },
-    { itemId: "chainmail-vest", chance: 0.04, minQty: 1, maxQty: 1 },
-    { itemId: "health-potion-medium", chance: 0.25, minQty: 1, maxQty: 1 },
-  ],
-};
+// ---------------------------------------------------------------------------
+// Algorithms + getters
+// ---------------------------------------------------------------------------
 
 /** Roll loot from a loot table. Returns array of {itemId, qty} drops. */
 export function rollLoot(npcTemplateId: string): Array<{ itemId: string; qty: number }> {
   const table = LOOT_TABLES[npcTemplateId];
   if (!table) return [];
-
   const drops: Array<{ itemId: string; qty: number }> = [];
   for (const entry of table) {
     if (Math.random() < entry.chance) {

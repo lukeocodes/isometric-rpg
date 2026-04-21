@@ -1,6 +1,21 @@
 /**
- * Zone registry — maps zone IDs to metadata.
+ * Zone registry — in-memory cache of zone metadata, populated at boot from:
+ *   1. The `zones` DB table (static/shipped zones — human-meadows + test
+ *      zones 1-9). See tools/seed-zones.ts for the one-time migration.
+ *   2. The `user_maps` DB table via `loadAllUserMaps()` + `registerZone()`
+ *      (user-authored builder maps).
+ *
+ * Static zone data lives in the DB (see AGENTS.md "Data in the Database");
+ * this file only holds the type contract + cache + lookups + the
+ * `registerZone` helper that user-maps uses at boot to add its rows to the
+ * shared in-memory registry.
  */
+import { db } from "../db/postgres.js";
+import { zones as zonesTable } from "../db/schema.js";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 export interface ZoneDefinition {
   id:         string;
@@ -13,8 +28,15 @@ export interface ZoneDefinition {
   exits:      Record<string, { targetZone: string; spawnX: number; spawnZ: number }>;
 }
 
+// ---------------------------------------------------------------------------
+// In-memory cache
+// ---------------------------------------------------------------------------
+
 const zones            = new Map<string, ZoneDefinition>();
 const zonesByNumericId = new Map<number, ZoneDefinition>();
+/** Test-zone slot (1-9) → zone id. Populated by `loadStaticZones` from the
+ *  `zones.test_slot` column; used by the keyboard shortcut in rtc.ts. */
+const testSlots        = new Map<number, string>();
 
 export function registerZone(zone: ZoneDefinition): void {
   zones.set(zone.id, zone);
@@ -40,64 +62,47 @@ export function getZoneByMapFile(mapFile: string): ZoneDefinition | undefined {
   return undefined;
 }
 
-// -----------------------------------------------------------------------------
-// Zone definitions
-// -----------------------------------------------------------------------------
-
-// Primary gameplay zone
-registerZone({
-  id:         "human-meadows",
-  numericId:  1,
-  name:       "Starter Meadows",
-  mapFile:    "starter-area.json",
-  levelRange: [1, 5],
-  musicTag:   "town",
-  exits:      {},
-});
-
-// Test zones (Mana Seed sample maps). Reachable via keys 1-9 on the client.
-// See tools/import-test-zones.ts for the importer that generates these.
-interface TestZoneSpec {
-  slot:     number;  // 1-9, matches keybind
-  id:       string;
-  name:     string;
-  dir:      string;  // folder under packages/client/public/maps/test-zones/
-  musicTag: string;
-}
-
-const TEST_ZONES: TestZoneSpec[] = [
-  { slot: 1, id: "test-1-summer-forest",    name: "Summer Forest",    dir: "summer-forest",    musicTag: "field" },
-  { slot: 2, id: "test-2-summer-waterfall", name: "Summer Waterfall", dir: "summer-waterfall", musicTag: "field" },
-  { slot: 3, id: "test-3-spring-forest",    name: "Spring Forest",    dir: "spring-forest",    musicTag: "field" },
-  { slot: 4, id: "test-4-autumn-forest",    name: "Autumn Forest",    dir: "autumn-forest",    musicTag: "field" },
-  { slot: 5, id: "test-5-winter-forest",    name: "Winter Forest",    dir: "winter-forest",    musicTag: "field" },
-  { slot: 6, id: "test-6-thatch-home",      name: "Thatch Roof Home", dir: "thatch-home",      musicTag: "town"  },
-  { slot: 7, id: "test-7-timber-home",      name: "Timber Roof Home", dir: "timber-home",      musicTag: "town"  },
-  { slot: 8, id: "test-8-half-timber-home", name: "Half-Timber Home", dir: "half-timber-home", musicTag: "town"  },
-  { slot: 9, id: "test-9-stonework-home",   name: "Stonework Home",   dir: "stonework-home",   musicTag: "town"  },
-];
-
-// Numeric IDs for test zones live above reserved space (1-99 for real zones).
-const TEST_ZONE_BASE_ID = 100;
-
-for (const tz of TEST_ZONES) {
-  registerZone({
-    id:         tz.id,
-    numericId:  TEST_ZONE_BASE_ID + tz.slot,
-    name:       tz.name,
-    mapFile:    `test-zones/${tz.dir}/map.json`,
-    levelRange: [1, 99],
-    musicTag:   tz.musicTag,
-    exits:      {},
-  });
-}
-
 export function getTestZoneBySlot(slot: number): ZoneDefinition | undefined {
-  const spec = TEST_ZONES.find((t) => t.slot === slot);
-  return spec ? getZone(spec.id) : undefined;
+  const id = testSlots.get(slot);
+  return id ? getZone(id) : undefined;
 }
 
 /** The client TMX path for a zone (co-located with its JSON). */
 export function getClientMapFile(zone: ZoneDefinition): string {
   return zone.mapFile.replace(/\.json$/, ".tmx");
+}
+
+// ---------------------------------------------------------------------------
+// Loader
+// ---------------------------------------------------------------------------
+
+/** Populate the in-memory cache from the `zones` DB table. Call once at
+ *  server boot, before anything that needs zone metadata (map loading,
+ *  NPC spawning, RTC signalling). User-authored maps are loaded separately
+ *  by `loadAllUserMaps()` which calls `registerZone` for each row. */
+export async function loadStaticZones(): Promise<void> {
+  const rows = await db.select().from(zonesTable);
+  testSlots.clear();
+  for (const r of rows) {
+    registerZone({
+      id:         r.id,
+      numericId:  r.numericId,
+      name:       r.name,
+      mapFile:    r.mapFile,
+      levelRange: [r.levelMin, r.levelMax],
+      musicTag:   r.musicTag,
+      exits:      r.exits ?? {},
+    });
+    if (r.testSlot != null) testSlots.set(r.testSlot, r.id);
+  }
+  console.log(`[zones] Loaded ${rows.length} static zone(s) from DB`);
+}
+
+/** @internal Test-only helper — seeds the in-memory cache with fixtures
+ *  and clears any previously-loaded zones. */
+export function _setZonesForTest(fixtures: ZoneDefinition[]): void {
+  zones.clear();
+  zonesByNumericId.clear();
+  testSlots.clear();
+  for (const z of fixtures) registerZone(z);
 }

@@ -272,21 +272,31 @@ Survey complete (grep+glob; no file reads over 50 lines). **Nine high/medium-pri
 - The legacy `__builder.dumpEmptyTiles()` is gone (replaced by the seed pass).
 - Two builders editing metadata still need a page reload to see each other's edits — Phase 1b adds WebRTC broadcast for live updates.
 
-### Phase 2 — Gameplay data
-| # | Old code | DB table | Size | Status |
+### Phase 2 — Gameplay data ✅ COMPLETE (2026-04-21)
+| # | Old code | DB table(s) | Rows | Status |
 |---|---|---|---|---|
-| 6 | `packages/server/src/game/npc-templates.ts` (`NPC_TEMPLATES` record + `template()` composition) | `npc_templates` (flat; category/group/variant inheritance resolved at seed time) | 10 templates | ✅ DONE 2026-04-21 |
-| 7 | `packages/server/src/game/items.ts` (`ITEMS` + `LOOT_TABLES`) | `item_templates` + `loot_tables` | ~25 items, ~15 loot entries | pending |
-| 8 | `packages/server/src/game/quests.ts` (`QUESTS`) | `quests` + `quest_objectives` + `quest_rewards` | 5 quests | pending |
-| 9 | `packages/server/src/game/zone-registry.ts` (`registerZone` calls + `TEST_ZONES`) | `zones` + `zone_exits` | ~10 zones | pending |
-| 10 | `packages/shared/world-config.json` (worldSeed, dimensions, speeds) | `worlds` (id, seed, width, height, player_speed, continent_cross_minutes) | 1 row per world | pending |
+| 6 | `game/npc-templates.ts` (`NPC_TEMPLATES` record + composition) | `npc_templates` (flat; inheritance resolved at seed time) | 10 | ✅ Phase 2a |
+| 7 | `game/items.ts` (`ITEMS` + `LOOT_TABLES`) | `item_templates` + `loot_entries` | 17 + 27 | ✅ Phase 2b |
+| 8 | `game/quests.ts` (`QUESTS`) | `quests` + `quest_objectives` + `quest_rewards` | 5 + 5 + 5 | ✅ Phase 2b |
+| 9 | `game/zone-registry.ts` (`registerZone` calls + `TEST_ZONES` array) | `zones` (exits stored as jsonb) | 10 | ✅ Phase 2b |
+| 10 | `shared/world-config.json` | — | — | ✅ deleted (dead code; unused at runtime) |
 
 **Phase 2a (NPC templates) notes:**
 - Schema: `npc_templates` (25 columns, flat). Group inheritance (`WILDLIFE_BASE`/`MONSTER_BASE`/`INTERACTIVE_BASE` + per-group colour bases) happens in the seed script at migration time, then writes fully-resolved rows. Keeps SQL simple; re-run seed to rematerialise group-wide changes.
-- Seed: `tools/seed-npc-templates.ts`. The hand-coded template data (~150 lines) lives only there now — it's migration tooling, not runtime data.
-- Runtime `packages/server/src/game/npc-templates.ts` is now types + `rollStat` algorithm + a mutable in-memory cache populated by `loadNpcTemplates()` at boot. Getters (`getTemplate` / `getTemplatesByGroup` / `getTemplatesByCategory`) stay synchronous so spawner + combat hot paths don't need to await.
-- Tests use a `_setNpcTemplatesForTest(fixtures)` escape hatch in `beforeEach` — no live DB needed for unit tests.
-- `spawn-points.test.ts` updated to seed its own NPC fixtures.
+- Seed: `tools/seed-npc-templates.ts` — self-contained, owns the hand-coded data (~150 lines). Migration tooling, not runtime.
+- Runtime `game/npc-templates.ts` is types + `rollStat` algorithm + mutable cache populated by `loadNpcTemplates()` at boot.
+- Tests use `_setNpcTemplatesForTest(fixtures)` escape hatch.
+
+**Phase 2b (items / quests / zones / world-config) notes:**
+- Schemas: `item_templates` (18 cols), `loot_entries` (FK to `npc_templates` + `item_templates`, cascade), `quests`/`quest_objectives`/`quest_rewards` (cascade), `zones` (`numeric_id` unique, `exits` as jsonb, `test_slot` for the 1-9 keybind).
+- Seeds: `tools/seed-items.ts`, `tools/seed-quests.ts`, `tools/seed-zones.ts` — each self-contained with its own hard-coded data for the one-time migration.
+- Runtime files (`items.ts`, `quests.ts`, `zone-registry.ts`) follow the same pattern as NPC templates: types + algorithms + mutable cache populated at boot by `loadItems`/`loadLootTables`/`loadQuests`/`loadStaticZones`. Getters stay synchronous.
+- Quest per-player progress (objective counts, completion state) stays in memory — that's runtime state, not authorable data.
+- Zone registry still exposes `registerZone()` — used by `loadAllUserMaps()` at boot to add user-authored maps to the same in-memory lookup. Static zones come from DB first, then user maps.
+- `shared/world-config.json` was never imported at runtime (grepping the repo confirms this); the server already reads `WORLD_SEED` from env with default `"42"`, and client-old is the only consumer of the other fields. Deleted the file rather than migrate to a `worlds` table.
+- Boot order (`index.ts`): `connectRedis` → `loadStaticZones` → `loadAllUserMaps` → map loaders → `loadNpcTemplates` → `loadItems` → `loadLootTables` → `loadQuests` → `spawnInitialNpcs` → game loop.
+
+**End state of the migration:** NO data in code. The only hard-coded gameplay data left in the repo lives in `tools/seed-*.ts` (migration tooling) or `*.test.ts` fixtures (test-only). Runtime reads everything from the database.
 
 ### Phase 3 — Design-later
 | # | Current code | Target tables |
