@@ -73,19 +73,6 @@ export const worldItems = pgTable("world_items", {
   expiresAt: timestamp("expires_at", { withTimezone: true }), // null = permanent
 });
 
-// Saved model configs — composite character/NPC models saved from the workbench
-export const savedModels = pgTable("saved_models", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: varchar("name", { length: 128 }).notNull(),
-  description: text("description"),
-  baseModelId: varchar("base_model_id", { length: 64 }).notNull(),
-  compositeConfig: jsonb("composite_config").notNull(),
-  tags: jsonb("tags").$type<string[]>().default([]),
-  isNpc: boolean("is_npc").default(false),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
-
 // Placed objects — world builder pieces placed or overridden per zone
 export const placedObjects = pgTable("placed_objects", {
   id: uuid("id").primaryKey().defaultRandom(),

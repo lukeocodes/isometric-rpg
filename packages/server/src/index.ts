@@ -9,7 +9,6 @@ import { initWorldMap, cacheWorldMapToRedis } from "./world/queries.js";
 import { loadTiledMap, loadZoneMap, getZoneMapItems } from "./world/tiled-map.js";
 import { getAllZones } from "./game/zone-registry.js";
 import { loadMapItems, loadDbItems } from "./game/world-items.js";
-import { loadSavedModelsFromDB } from "./game/model-registry.js";
 import { loadAllUserMaps } from "./game/user-maps.js";
 import { loadNpcTemplates } from "./game/npc-templates.js";
 import { loadItems, loadLootTables } from "./game/items.js";
@@ -52,9 +51,6 @@ async function main() {
   // Generate world map from seed (deterministic, ~100-500ms)
   initWorldMap(config.world.seed);
   await cacheWorldMapToRedis();
-
-  // Load workbench saved models into memory (non-fatal if DB not yet migrated)
-  await loadSavedModelsFromDB();
 
   // Populate gameplay-data caches from the DB so spawner / combat / quests
   // have synchronous access. Must happen BEFORE spawnInitialNpcs().

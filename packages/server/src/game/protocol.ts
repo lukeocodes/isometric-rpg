@@ -36,7 +36,8 @@ export const Opcode = {
   DUNGEON_EXIT: 87,
   ZONE_CHANGE_REQUEST: 90,
   ZONE_CHANGE: 91,
-  SAVED_MODELS_SYNC: 101,
+  // 101 SAVED_MODELS_SYNC — removed with the model-workbench deletion (2026-04-21).
+  //                        Orthographic 2D client uses Mana Seed sheets directly.
   WORLD_READY: 100,
   // --- World builder (client -> server, server -> client) ---
   BUILDER_NEW_MAP: 200,        // C->S: { name, width, height }

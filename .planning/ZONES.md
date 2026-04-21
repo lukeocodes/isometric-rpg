@@ -1,131 +1,241 @@
-# Zones, Ownership, and Data Location
+# Zones, Ownership, Identity, and Data Location
 
-Design note captured during ATProto/PDS architecture discussion. Forward-looking; not yet implemented.
+Design note captured during ATProto architecture discussion. Forward-looking; not yet implemented.
 
 ## Core design assumptions
 
 - **Always-online, coop-only.** No PVP. All play requires server.
-- **No spatial continuity.** Zones are discrete UUIDs in the DB. Travel is teleport. There are no neighbour relationships, no contiguous world geometry.
-- **Travel primitive = teleporter.** Overt (portal tile, menu) or diegetic (tunnel mouth, cave entrance, castle gate, dock/sailing). Mechanically identical under the hood.
-- **Server is authoritative for everything that affects gameplay outcomes.** User's PDS is for identity + creations + async-mirrored backup of user-authored content.
+- **No spatial continuity.** Zones are discrete UUIDs in the DB. Travel is teleport. No neighbour relationships, no contiguous world geometry.
+- **Travel primitive = teleporter.** Overt (portal tile, menu) or diegetic (tunnel mouth, cave entrance, castle gate, dock/sailing). Mechanically identical.
+- **Server is authoritative for ALL gameplay data.** The PDS is never the source of truth. The PDS is an optional mirror for users who bring their own data-capable PDS.
+- **ATProto is for identity only.** Social login. Not primary storage for most users.
+
+## Identity model
+
+### Login
+- OAuth2 PKCE against an ATProto-compatible provider (default: bsky.social; custom handles resolve to their own PDS).
+- Successful login returns: DID + email + handle + avatar.
+
+### What we store
+- Email address (for comms + display).
+- **`player_ref`** — a derived identifier that binds email to DID without storing the DID itself.
+- NO raw DID anywhere in the database.
+- NO ATProto private keys ever touch our systems.
+
+### Deriving `player_ref`
+The DID is used to "sign" the email to produce a stable per-player reference. Exact cryptographic mechanism TBD — candidate approaches:
+- Deterministic HMAC: `player_ref = HMAC-SHA256(email, DID)` — simple, requires DID on every login to re-derive, but never persisted.
+- Signed assertion: user signs a canonical message (`"16bit-online:" + email`) with a DID-bound session key (e.g. DPoP); we store the signature + verify on re-login via fresh signature.
+- The goal is: given our database alone, nobody can learn which DID corresponds to a given player. DID is recoverable only when the player logs in.
+
+### Security consequence
+- A game master operating on the backend **cannot modify player-authored content** (decorations, messages, event creations, etc.) because doing so would require forging a valid DID-bound signature, and we don't hold the DID's private key.
+- Admin tools can still operate on **system state** (economy rules, zone templates, spawn configs, moderation labels, rate limits) — those aren't player-authored.
+- Player-authored mutations require the player to be in-session. "Fix this for me" support tickets require the player to be present and perform the action themselves, guided.
+
+### Pseudonymity properties
+- DB leak doesn't expose the mapping from game account → Bluesky identity.
+- Scraping the DB gives emails and opaque hashes only.
+- Players' in-game presence is decoupled from their social identity (they can use a custom character name independent of their handle).
 
 ## Zone taxonomy
 
-### Server-authored zones (team content, DB-only, never on any PDS)
+### Server-authored zones (team content, DB only, never on any PDS)
 
-| Type | Notes |
+| Type | Party / scale |
 |---|---|
-| Starter areas | Onboarding, tutorial-shaped |
-| Capital cities | One per race; hubs, shops, NPCs; teleport destination targets |
-| Adventure areas | Overworld content; difficulty scales with time (server-tuned over months) |
-| Dungeon / cave / battle instances | Procedurally or AI-generated map + encounter. Instanced per party. Party sizes: 5 / 10 / 15 / 20 |
-| World boss battles | Can occur in any zone. Party sizes: 20 / 25 / 40 |
-| Player-scheduled timed events | Hosted by players inside server-owned zones (borrowed venue). See event section below. |
+| Starter areas | — |
+| Capital cities (one per race) | — |
+| Adventure areas (difficulty scales over calendar time) | — |
+| Dungeon / cave / battle instances (procedural or AI-generated map + encounter) | 5 / 10 / 15 / 20 players |
+| World boss battles (can occur in any zone) | 20 / 25 / 40 players |
+| Player-scheduled timed events (hosted in server-owned zones as "borrowed venue") | — |
 
-All server zones: operator-owned data, lives in `zones` / `zone_contents` tables. Not mirrored anywhere else. Team continues authoring via the in-game builder or `tools/paint-map/`.
+Wired together via teleporters: overt (menu portal) or diegetic (cave mouths, castle gates, docks/sailing, tunnels). Under the hood identical.
+
+Operator-owned, hand-crafted by the team via builder or `tools/paint-map/`. Not mirrored anywhere.
 
 ### Player-accessible procedural zones
 
-- **Unclaimed state:** UUID generated on first visit. Server records generator seed + biome + generator version. No owner. Player can walk around, build nothing permanent.
-- **Access triggers:** special item (shop-bought), OR high-level spell with expensive / RMT-gated reagents.
-- **Claim prerequisite:** player must build a house inside the zone to save it as a home.
-- **Home slots:**
-  - Exactly one **primary home** per player (designated, used by "teleport home" action).
-  - Unlimited **secondary homes** (any zone where they've built a house).
-- **Exit tiles:**
-  - Default destination: player's race's capital city.
-  - After building a house in the zone: owner can reconfigure exit destination to any zone they own OR any capital they've personally visited.
-  - If owner has never visited any capital: exit defaults to race's capital.
+- **Unclaimed state:** UUID generated on first visit. Server records generator seed + biome + version. No owner.
+- **Access triggers:**
+  - Special item (shop-bought), OR
+  - High-level spell with expensive / RMT-gated reagents.
+- **Claim prerequisite:** build a house inside the zone to save it as a home. House requires a **house deed** item.
+
+### House deed item
+
+- Every player starts with **one** house deed item in their inventory.
+- The starter deed is **locked** — cannot be used until the player completes a specific mid-game **discovery mission**.
+- After that, additional deeds are earned or purchased.
+- A deed is **consumed** on use to claim a zone as a home.
+- Deeds are inventory items → server-authoritative, never on PDS.
+
+### Home slots
+
+- **Primary home:** exactly one per player; target of "teleport home" action.
+- **Secondary homes:** unlimited; any zone where the player has built a house.
+- **Exit tiles** (in any player-owned zone):
+  - Default: player's race's capital.
+  - After house built: owner may reconfigure to any zone they own OR any capital they've personally visited.
+  - If never visited any capital: exit defaults to race's capital.
+  - Server validates every destination change against "zones owned" and "capitals visited" lists.
 
 ### Building rules inside player-owned zones
 
-- Players buy world-builder tiles (economy gate — server-authoritative ledger).
-- **Cannot change zone type** (biome: desert, tundra, forest, etc. — immutable attribute of the zone row).
-- Decoration must be consistent with the biome — tile allowlist enforced server-side on every placement.
-- Allowed within constraint: trees, walls, mazes, paths, interior layouts.
-- **Unrestricted:** outdoor decoration, structures, lamps, and similar props that don't alter biome identity.
+- World-builder tiles purchased from shops (server economy gate).
+- **Cannot change biome / zone type** (desert, tundra, forest, etc. — immutable attribute).
+- Decoration must match biome — tile allowlist enforced server-side on every placement.
+- Allowed within biome: trees, walls, mazes, paths, interior layouts.
+- **Unrestricted:** outdoor decoration, structures, lamps, props that don't alter biome identity.
 
-## Data ownership matrix (DB vs PDS)
+## Guild / shared zones
 
-Guiding rule: **authorship and cheatability determine location.**
+### Sharing and ownership transfer
 
-- Things the **server decided** (stats, ownership, economy, combat outcomes) → server DB authoritative, never on PDS.
-- Things the **user authored** (profile, decorations, messages, visit logs, event RSVPs) → user's PDS authoritative, server DB caches for query speed.
-- Things the **user owns but server validated** (zone deed, event attendance) → server DB authoritative + server-signed record mirrored to user's PDS as portable proof.
+A player-owned zone can become a **shared zone** by mutual agreement between the owner and at least one other player. Shared zones are server-authoritative — no individual holds the deed any more.
 
-### Server DB only (never touches any PDS)
+**Transfer flow:**
+1. Zone owner invites another player to share.
+2. Both parties agree.
+3. Zone enters **paused** state: access frozen, no new edits, no new visitors.
+4. Server snapshots current zone state, transfers ownership from `player_ref` to a new `shared` record.
+5. All existing houses / decorations / items are preserved in place.
+6. Each sharing player's personal deed is retained server-side as proof of their stake.
+7. Zone resumes as `shared`; original owner + invitee(s) all have build rights.
+
+### Guild formation
+
+A shared zone is a **prerequisite** for forming a guild:
+
+1. Find a friend → agree to share a zone → zone transfers to shared state.
+2. Each member of the shared zone may build their own house inside.
+3. Purchase a **guild house** item (distinct from a regular house deed; specific prerequisite reagent for guild creation).
+4. Build the guild house inside the shared zone → **guild is created**.
+5. Any guild member may now also build in the zone.
+
+Guilds require a shared zone as their home. You cannot create a guild in a personally-owned zone. You cannot create a guild in a server zone.
+
+### Member removal (anti-griefing)
+
+- When a member is removed from a guild (or leaves):
+  - Their deed returns to them.
+  - All items they placed in the shared zone return to their personal inventory.
+  - Their house structure is removed from the shared zone.
+- This prevents malicious guild actors from trapping members' content.
+
+### Guild master powers
+
+- Can pick up and move **any member's entire house** within the zone (repositioning, not theft).
+- Standard admin actions: invite, remove, promote officers, etc. (full permission model TBD).
+
+### Zone ownership enum
+
+```
+zones.owner:
+  null                        — unowned (procedural, not yet claimed)
+  player:<player_ref>         — owned by one player
+  shared:<guild_id>           — shared zone, server-held on behalf of a guild
+```
+
+## Storage tiers
+
+### Default tier (most players — ATProto identity only)
+- Login via ATProto (bsky.social or other provider).
+- All gameplay data in server DB.
+- Player-authored records signed / attested by DID so that provenance is cryptographically verifiable, even though the DID itself isn't stored.
+- No PDS custom-lexicon writes attempted.
+
+### BYOD tier (power users — custom / self-hosted PDS that accepts game lexicons)
+- Login via ATProto against their custom PDS.
+- All gameplay data still in server DB (server is always authoritative).
+- Server async-mirrors user-authored records to their PDS.
+- Realtime data (positions, combat, live zone state) never hits any PDS — stays in Redis / Postgres.
+- PDS mirror is a portable backup + composability surface, never a source of truth.
+- Mirror is debounced / batched to respect PDS rate limits.
+
+### Invariants across both tiers
+- Server DB is ALWAYS the source of truth.
+- User content is ALWAYS cryptographically linked to a DID (via `player_ref` + per-record signature where applicable).
+- Backend admins CANNOT mutate player-authored content without the player's signing participation.
+- Economy / inventory / progression / stats are server-decided and NOT signed by the player (admins can tune these for legitimate game-ops reasons).
+
+## Data ownership matrix
+
+### Server DB only (system / operator-owned, never signed by player)
 
 | Data | Why |
 |---|---|
-| Server zones (starter / capital / adventure / instanced / boss) | Operator-owned, team-authored |
-| Procedural zone generator seeds and parameters | Canonical rehydration source |
-| Zone ownership table (UUID → owner DID) | Authoritative; PDS deed is proof, not source |
-| UUID pool (unclaimed / reserved / owned / released) | Must be globally consistent |
-| Biome / zone type immutable attribute | Server-enforced invariant |
-| Tile allowlist per biome | Validation ruleset, not user data |
-| Economy ledger (gold, purchases, RMT transactions) | Absolutely never on PDS |
-| Inventory authoritative state | Cheatable, server-decided |
+| Server zones (starter / capital / adventure / instanced / boss) | Team authored |
+| Procedural zone seed, biome, version | Canonical rehydration source |
+| Zone ownership table (UUID → `player_ref` or `shared:guild_id`) | Authoritative register |
+| UUID pool (unclaimed / reserved / owned / released) | Global consistency required |
+| Biome immutable attribute + tile allowlist | Server invariant |
+| Economy ledger (gold, shop txns, RMT) | Absolutely never on PDS |
+| Inventory authoritative state (including deeds, reagents, tiles) | Cheatable |
 | Character stats, HP, level, progression | Cheatable |
-| Party / raid composition (live session) | Ephemeral, server-managed |
-| Live zone instance state (entities, spawned mobs, combat) | Realtime, 20Hz |
-| Event schedule (authoritative record) | Server gates access at event time |
+| Party / raid composition (live session) | Ephemeral |
+| Live zone instance state | Realtime, 20Hz |
+| Event schedule (authoritative) | Server gates access at event time |
 | Gift / message queue for offline zone owners | Server holds for delivery |
-| List of "capitals visited by player X" | Progression data, server-observed |
-| List of "zones owned by player X" | Authoritative ownership register |
-| Spawn-point and NPC definitions (server zones) | Operator data |
+| Guild roster, permissions, member records | Authoritative |
+| Capital-visit log (which capitals a player has reached) | Progression data, server observes |
+| Spawn-point and NPC definitions | Operator data |
+| Moderation labels / hide flags | Operator data |
 
-### User PDS (authoritative for user-authored content; server indexes via AppView)
+### Server DB, player-signed (DID-attested authored content)
 
-| Record type (lexicon TBD) | Contents |
+These records live in server DB but carry a signature binding them to the player's DID. Admins can't silently alter them.
+
+| Record | Notes |
 |---|---|
-| `online.16bit.actor.profile` | Character name, cosmetic appearance, bio, race choice |
-| `online.16bit.actor.settings` | UI prefs, keybindings, accessibility, volume — syncs across devices |
-| `online.16bit.zone.deed` | Server-signed grant: zoneUuid + owner DID + claimedAt + server signature |
-| `online.16bit.zone.contents` | Async mirror of player's zone build state (tile overlay on top of generator seed, NOT the whole generated terrain) |
-| `online.16bit.zone.home` | Which owned zones are designated homes; which is primary |
-| `online.16bit.zone.exitConfig` | Player-configured exit destinations for their owned zones (only if destination is a zone they own or a capital they've visited — server validates) |
-| `online.16bit.chat.message` | Async-persisted chat history (delivery is WebRTC, persistence is PDS) |
-| `online.16bit.visit.log` | "I visited zone X on date Y" — permanent travel record |
-| `online.16bit.gift.given` | "I left this gift for owner Z on date Y" |
-| `online.16bit.gift.received` | "I received this from giver Z on date Y" (server-cosigned) |
-| `online.16bit.event.scheduled` | Player-hosted event: zone UUID, time, host DID (server-cosigned) |
-| `online.16bit.event.attended` | "I attended host's event on date Y" (server-cosigned attestation) |
-| `online.16bit.pilgrimage.list` | Curated collection of zones ("10 gardens I loved") |
-| `online.16bit.social.follow` | Friends / follows (or reuse `app.bsky.graph.follow` if appropriate) |
-| `online.16bit.achievement.earned` | Server-computed, server-cosigned, user displays |
+| Profile (character name, cosmetics, bio, race choice) | Signed by DID on mutation |
+| UI settings / keybindings / accessibility | Signed by DID on mutation |
+| Zone content (tile overlay on top of generator seed, decorations, furniture) | Signed per edit (or per batch) |
+| Exit-tile configuration on owned zones | Signed; server validates destinations |
+| Home designation (which zone is primary) | Signed |
+| Chat messages | Signed by sender on send |
+| Visit log entries ("I visited zone X on date Y") | Signed by visitor |
+| Gifts given / received | Given: signed by giver. Received acceptance: signed by recipient. |
+| Event schedule (player-hosted) | Signed by host + server-cosigned for access gating |
+| Event attendance records | Signed by attendee + server-cosigned ("server witnessed you here") |
+| Pilgrimage lists (curated collections) | Signed by author |
+| Social follows | Signed by follower |
+| Guild membership attestations | Signed by member + server-cosigned |
 
-### Hybrid (server authoritative, mirrored to PDS for portability/backup)
+### Mirrored to PDS (BYOD tier only, async, best-effort)
 
-| Data | Primary home | Mirror |
-|---|---|---|
-| Zone ownership | Server DB `zones.owner` | Deed record on owner's PDS, server-signed |
-| Zone build state | Server DB `user_map_tiles` | Snapshot record on owner's PDS, debounced writes (≤ 1 per 5 min or per 50 edits) |
-| Event attendance | Server DB `event_attendance` | Cosigned record on attendee's PDS |
-| Achievements | Server computes | Record on earner's PDS |
+The signed records above are additionally mirrored to the user's custom PDS if they opted into BYOD. Mirror is a copy; server DB remains authoritative. Record types as lexicons — namespace TBD, tentative `online.16bit.*`.
 
 ## Rationale for the split
 
-- **Server-authored zones never touch any PDS.** They're operator-owned. Putting them on user PDSes would make zero sense — no user authored them, no user can claim them, no user needs a portable copy.
-- **Procedural zones become player-mirrored only after claim.** Before claim, no owner, no PDS involvement. After claim, the seed stays on server (canonical), player-added overlays async-mirror to their PDS.
-- **Only the overlay goes to PDS, never the full generated terrain.** Generated terrain is reproducible from seed. The PDS snapshot only needs the *diff* the player created. This keeps record sizes small and respects PDS rate limits.
-- **Biome immutability is server-side.** Even if a user forges a PDS record claiming they changed their zone biome, the server rejects it on validation. The PDS mirror cannot contradict the server DB on any authoritative attribute.
-- **Exit tile configuration is validated on every change.** If a user tries to set an exit destination they don't legitimately have (zone they don't own, capital they never visited), server rejects. Even if they forge the PDS record, it's meaningless without server agreement.
+- **ATProto hosted PDSes (bsky.social) don't accept arbitrary custom lexicons.** So defaulting to "data on user's PDS" would exclude the majority of players. Server-first means everyone gets full functionality; BYOD is an enhancement for those who want it.
+- **Server-authoritative aligns with the game's existing design.** Combat is already server-authoritative. Keeping one authority model (server-first, everywhere, always) avoids split-brain problems.
+- **Signing player-authored records with DID decouples identity from data location.** The data could be in our DB, in the user's PDS, both, or neither (deleted) — the signature proves the player authored it wherever it lives.
+- **DID never stored because storage is a liability.** If the DB leaks, we don't want to expose a cross-reference between game accounts and Bluesky identities. Hashing/signing gives us a lookup key without the underlying identifier.
+- **Admin separation of powers.** Admins can run the game (tune economy, curate server zones, moderate). Admins cannot silently rewrite player-authored content. The signing requirement enforces this structurally.
+- **Guild zones as server-held is the only sensible model.** Shared ownership with multiple DIDs holding a deed is conflict-prone; transferring to server and letting the guild record hold membership is much cleaner.
 
-## Emergent properties this architecture gives us
+## Emergent properties
 
-- **Disaster recovery via network of PDSes.** If the game's DB is catastrophically lost, zone ownership and player-authored zone content can be rehydrated from users' PDSes.
-- **Portability.** A fork of the game (or a future successor) could re-ingest users' identity + creations by reading public PDS records.
-- **Third-party apps for free.** External sites can build "map galleries", "recent visitor feeds", "event calendars", "creator showcases" from public PDS records, without permission or API keys.
-- **GDPR-clean deletion.** Users self-custody their content. Account deletion = release server-side resources + let user delete their own PDS records.
-- **Historical record survives owner absence.** Visit logs on visitors' PDSes persist even after zone owner deletes account. "I was there" is preserved by the witnesses, not the subject.
+- **GDPR / deletion is clean.** Delete a player → server purges their `player_ref` rows, releases their UUIDs back to the pool, gifts / messages they authored survive on recipients' records (as historical fact). BYOD users can additionally delete their PDS mirror themselves.
+- **Admin transparency.** Because admins structurally can't rewrite player-authored content, the audit log is implicit: if a record exists, a player authored it.
+- **Disaster recovery via BYOD mirrors.** If the game DB is catastrophically lost, BYOD users' PDS mirrors reconstitute their authored content. Non-BYOD content is lost in that scenario — same as any server-only data.
+- **Portability for BYOD users.** A fork of the game could re-ingest their identity + creations from their PDS. Non-BYOD users would need server-side export tools.
+- **Third-party apps for BYOD users.** Public PDS records from BYOD users are discoverable by external apps ("map gallery", "event calendar", etc.). Non-BYOD users appear in these apps only if we also publish a public read-only AppView of signed server data (optional future work).
 
 ## Constraints and open questions
 
-- **PDS rate limits.** Aggressive decorating could trigger many writes. Must batch / debounce snapshots. 5-minute / 50-edit threshold is a starting guess.
-- **Write delegation model.** Game server writes zone snapshots on behalf of users (server has canonical state, user doesn't need to round-trip). Requires narrow OAuth scope: `repo:write:online.16bit.*` only. Users grant at login.
-- **Server-cosigning mechanism.** Server holds a signing key, publishes its public key, signs grants/attestations embedded in user PDS records. Key rotation strategy TBD.
-- **Lexicon namespace.** Tentative `online.16bit.*`. Real namespace will be finalised when lexicons are formalised.
-- **Discovery layer.** Entirely carries the weight that geography would in a spatial game. Needs dedicated design: directory, search, tags, portals-as-links, feeds, invites, algorithmic surfacing. Not addressed in this document.
-- **Instance scaling.** A popular zone (server or player) may need multi-instance sharding. Out of scope for this design note; flagged as future concern.
-- **Home migration.** If a player's primary home zone is somehow invalidated (edge cases TBD), fallback to race's capital as home. Edge cases TBD.
-- **Event visibility on server zones.** Server-owned zones that allow player-scheduled events need per-zone policy (e.g. "capital town square allows events with cooldown", "dungeon instance does not"). Policy stored in `zones.eventPolicy`.
+- **Exact `player_ref` derivation scheme.** HMAC-SHA256(email, DID)? Something involving DPoP? Decide and document before first schema design.
+- **Per-record signing mechanism.** Is each mutation individually signed by a session-scoped DID-bound key (DPoP style), or is the authentication proof the session token itself? What's the recovery story if the signing key rotates during a long edit session?
+- **Email as identity anchor.** Relying on email means a player changing email needs a re-derivation migration. ATProto handles can also change (though DID is stable). Policy TBD.
+- **Moderation of player-authored content.** Since admins can't edit authored records, moderation = hide/label only. Full takedown requires the authoring player to delete (or a legal override mechanism outside normal flow).
+- **Guild-house prerequisites and economics.** What's the exact cost / recipe for the guild house reagent? Out of scope for this note.
+- **Guild master "move any house" power.** Within-zone only, or across zones the guild owns multiple of? (Spec says within-zone; clarify.)
+- **Zone sharing across guilds.** Can a shared zone have more than one guild? Assumed no — one shared zone = at most one guild.
+- **Orphaned shared zones.** What happens if all guild members leave? Zone reverts to unowned? To the original pre-share owner? To archived? Policy TBD.
+- **PDS rate-limit strategy.** 5-minute / 50-edit debounce is a starting guess; measure and tune.
+- **Lexicon namespace.** `online.16bit.*` tentative.
+- **ATProto OAuth with dynamic issuer.** Real ATProto OAuth discovers the PDS from the user's handle, not a single issuer URL. The current `OAUTH_ISSUER=https://bsky.social` is a simplification and will need to evolve when the actual auth rewrite happens.
+- **Discovery layer design.** Non-spatial world = discovery carries all the organizing weight. Portals, directory, search, feeds, tags, algorithmic surfacing. Substantial design work out of scope here.
+- **Instance scaling for popular zones.** Multi-instance sharding for high-traffic zones. Future concern.

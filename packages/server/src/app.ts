@@ -8,7 +8,6 @@ import { authRoutes } from "./routes/auth.js";
 import { characterRoutes } from "./routes/characters.js";
 import { worldRoutes } from "./routes/world.js";
 import { rtcRoutes } from "./routes/rtc.js";
-import { modelRoutes } from "./routes/models.js";
 import { worldBuilderRoutes } from "./routes/world-builder.js";
 import { builderRegistryRoutes } from "./routes/builder-registry.js";
 import { config } from "./config.js";
@@ -33,7 +32,6 @@ export async function buildApp() {
   await app.register(characterRoutes, { prefix: "/api/characters" });
   await app.register(worldRoutes, { prefix: "/api/world" });
   await app.register(rtcRoutes, { prefix: "/api/rtc" });
-  await app.register(modelRoutes, { prefix: "/api/models" });
   await app.register(worldBuilderRoutes, { prefix: "/api/world-builder" });
   await app.register(builderRegistryRoutes, { prefix: "/api/builder" });
 
