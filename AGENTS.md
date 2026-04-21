@@ -23,7 +23,7 @@ Keep API request size small. Context bloat causes failures. Follow these rules s
 
 Top-level `AGENTS.<topic>.md` files are indexes — each points at its deep-dive documents under `docs/`. Read `AGENTS.game.md` at the start of every session.
 
-- **`AGENTS.game.md`** — current state, known issues, blockers. **Read first, update after significant work.** Indexes the `docs/world-builder.md`, `docs/tile-library.md`, `docs/paint-map.md`, `docs/test-zones.md` deep-dives plus the `docs/history/*` archive.
+- **`AGENTS.game.md`** — current state, known issues, blockers. **Read first, update after significant work.** Indexes the `docs/world-builder.md`, `docs/tile-library.md`, `docs/paint-map.md` deep-dives plus the `docs/history/*` archive.
 - **`AGENTS.client.md`** — client runtime overview. Indexes `docs/client-architecture.md` (engine concepts, file map, how to add an actor / UI).
 - **`AGENTS.server.md`** — server runtime overview. Indexes `docs/server-architecture.md` (boot order, file map, how to add NPCs / spawn points).
 - **`AGENTS.performance.md`** — the binary-vs-JSON rule + other perf invariants. Indexes `docs/binary-protocol.md` + `docs/performance-rules.md`.

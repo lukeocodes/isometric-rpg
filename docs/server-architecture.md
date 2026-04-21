@@ -20,9 +20,8 @@ cd packages/server && bunx vitest            # watch mode
 ```
 buildApp()                  # Fastify factory + route registration
 connectRedis()
-  → loadStaticZones()       # zones table → in-memory zone registry
-  → loadAllUserMaps()       # user_maps (incl. heaven) → in-memory + seed heaven if missing
-  → loadTiledMap(starter-area.json)              # legacy default
+  → loadAllUserMaps()       # user_maps (incl. heaven) → in-memory zone registry;
+                            #   seeds the heaven row (numericId=500) if missing
   → for each registered zone (skip `user:*`):
       loadZoneMap(zone.id, zone.mapFile)         # plugin-tiled JSON parse
       loadMapItems(zone.id, extractedItems)      # map-items from object layers
@@ -37,6 +36,8 @@ connectRedis()
   → startGameLoop()          # 20 Hz setInterval
   → app.listen(8000)
 ```
+
+Heaven is the only registered zone right now. The old static-`zones` DB table + `loadStaticZones()` were removed — static shipped zones can return if/when they're authored, but the current design treats every zone as a user map.
 
 All the `load*()` calls are synchronous-read-friendly after boot: each populates a module-level cache that every downstream getter reads without awaiting.
 
@@ -132,9 +133,11 @@ Currently in the DB (`spawn_points` table); the old in-code `addSpawnPoint()` ca
 
 ```sql
 INSERT INTO spawn_points (id, x, z, zone_id, npc_ids, distance, max_count, frequency_s)
-VALUES ('sp-unique-id', 10, 20, 'test-1-summer-forest',
+VALUES ('sp-unique-id', 10, 20, 'heaven',
         ARRAY['skeleton-warrior','skeleton-archer'], 8, 4, 5);
 ```
+
+(Heaven is the only zone right now, so spawn points here only make sense for testing. Real zones return when gameplay lands.)
 
 ## Position broadcast format
 

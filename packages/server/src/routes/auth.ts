@@ -6,13 +6,52 @@ import { requireAuth } from "../auth/middleware.js";
 import { db } from "../db/postgres.js";
 import { accounts, characters } from "../db/schema.js";
 import { eq } from "drizzle-orm";
+import { HEAVEN_NUMERIC_ID } from "../game/user-maps.js";
 
 function accountToJson(a: typeof accounts.$inferSelect) {
   return { id: a.id, email: a.email, displayName: a.displayName, isOnboarded: a.isOnboarded, preferences: a.preferences || {} };
 }
 
 function charSummary(c: typeof characters.$inferSelect) {
-  return { id: c.id, name: c.name, race: c.race, level: c.level };
+  return { id: c.id, name: c.name, race: c.race, level: c.level, role: c.role };
+}
+
+/** Seed the two dev characters ("Main" + "Game Master") for an account if
+ *  they aren't already present. Idempotent — safe to call on every dev-login.
+ *  Both spawn at heaven centre (16,16). If the account has characters without
+ *  the expected roles we wipe and reseed so the state is always predictable. */
+async function ensureDevCharacters(accountId: string) {
+  const existing = await db.select().from(characters).where(eq(characters.accountId, accountId));
+  const hasMain = existing.some(c => c.role === "main");
+  const hasGM   = existing.some(c => c.role === "game-master");
+  if (hasMain && hasGM) return;
+
+  // Wipe any stale characters for this dev account and recreate both roles
+  // cleanly. Only used for dev-login accounts; real OAuth accounts go through
+  // the normal character creation flow.
+  if (existing.length > 0) {
+    await db.delete(characters).where(eq(characters.accountId, accountId));
+  }
+
+  const heavenSpawn = { posX: 16, posY: 0, posZ: 16, mapId: HEAVEN_NUMERIC_ID };
+  const baseStats = {
+    accountId,
+    race: "human",
+    gender: "male",
+    str: 10, dex: 10, intStat: 10,
+    skills: [
+      { name: "swordsmanship", value: 30 },
+      { name: "archery",       value: 30 },
+      { name: "healing",       value: 30 },
+    ],
+    hairStyle: 0, hairColor: 0, skinTone: 0, outfit: 0,
+    ...heavenSpawn,
+  } as const;
+
+  await db.insert(characters).values([
+    { ...baseStats, name: "Main",        role: "main"         },
+    { ...baseStats, name: "Game Master", role: "game-master"  },
+  ]);
 }
 
 export async function authRoutes(app: FastifyInstance) {
@@ -37,6 +76,10 @@ export async function authRoutes(app: FastifyInstance) {
     } else {
       await db.update(accounts).set({ email, displayName: username }).where(eq(accounts.id, account.id));
     }
+
+    // Ensure "Main" + "Game Master" characters exist for this dev account.
+    // index.html picks the "main" role, builder.html picks "game-master".
+    await ensureDevCharacters(account.id);
 
     const chars = await db.select().from(characters).where(eq(characters.accountId, account.id));
     const gameJwt = createGameJwt(account.id, account.email);

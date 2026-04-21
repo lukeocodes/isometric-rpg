@@ -134,6 +134,33 @@ vi.mock("../game/linger.js", () => ({
   isLingering: vi.fn(() => false),
 }));
 
+// Mock user-maps so `isBuilderZone(HEAVEN_NUMERIC_ID)` returns true without
+// needing a real DB + heaven row.
+vi.mock("../game/user-maps.js", () => ({
+  HEAVEN_NUMERIC_ID: 500,
+  isBuilderZone: (n: number) => n === 500,
+  getBuilderMapByNumericId: vi.fn(() => undefined),
+  createUserMap: vi.fn(),
+  placeTile: vi.fn(),
+  removeTile: vi.fn(),
+  placeBlock: vi.fn(),
+  removeBlock: vi.fn(),
+  listUserMaps: vi.fn(() => []),
+  getTilesFor: vi.fn(() => []),
+  getBlocksFor: vi.fn(() => []),
+}));
+
+// Mock zone-registry so `getZoneByNumericId(500)` returns a stub heaven zone.
+vi.mock("../game/zone-registry.js", () => ({
+  getZone:             vi.fn(() => undefined),
+  getZoneByNumericId:  vi.fn((n: number) =>
+    n === 500
+      ? { id: "heaven", numericId: 500, name: "Heaven", mapFile: "heaven.json",
+          levelRange: [1, 99], musicTag: "peaceful", exits: {} }
+      : undefined),
+  getClientMapFile: (zone: { mapFile: string }) => zone.mapFile.replace(/\.json$/, ".tmx"),
+}));
+
 import { rtcRoutes } from "./rtc.js";
 import { connectionManager } from "../ws/connections.js";
 import { entityStore } from "../game/entities.js";
@@ -160,7 +187,7 @@ describe("rtc routes", () => {
     // Default: no existing connection, no lingering, DB returns position
     (connectionManager.get as any).mockReturnValue(undefined);
     (cancelLingering as any).mockReturnValue(false);
-    mockDbWhere.mockResolvedValue([{ posX: 5, posY: 0, posZ: 10, mapId: 1 }]);
+    mockDbWhere.mockResolvedValue([{ posX: 5, posY: 0, posZ: 10, mapId: 500 }]);
     app = await buildApp();
   });
 
@@ -177,7 +204,7 @@ describe("rtc routes", () => {
       const body = JSON.parse(res.body);
       expect(body.sdp).toBe("mock-sdp");
       expect(body.type).toBe("offer");
-      expect(body.spawn).toEqual({ x: 5, y: 0, z: 10, mapId: 1 });
+      expect(body.spawn).toEqual({ x: 5, y: 0, z: 10, mapId: 500 });
 
       // Entity should be in the store
       const entity = entityStore.get("char-1");
@@ -212,7 +239,7 @@ describe("rtc routes", () => {
       expect(connectionManager.remove).toHaveBeenCalledWith("char-1");
     });
 
-    it("uses default position when character not in DB", async () => {
+    it("uses default heaven spawn when character not in DB", async () => {
       mockDbWhere.mockResolvedValue([]); // No character row
 
       const res = await app.inject({
@@ -222,8 +249,8 @@ describe("rtc routes", () => {
 
       expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      // Default spawn matches config.world.spawnX/Z (Tiled map center)
-      expect(body.spawn).toEqual({ x: 128, y: 0, z: 128, mapId: 1 });
+      // Default spawn = heaven centre (config.world.spawnX/Z default to 16,16)
+      expect(body.spawn).toEqual({ x: 16, y: 0, z: 16, mapId: 500 });
     });
 
     it("cleans up stale entity on fresh connect", async () => {
@@ -231,7 +258,7 @@ describe("rtc routes", () => {
       entityStore.add({
         entityId: "char-stale", characterId: "char-stale", accountId: "acc-old",
         name: "Stale", entityType: "player",
-        x: 0, y: 0, z: 0, rotation: 0, mapId: 1, lastUpdate: Date.now(),
+        x: 0, y: 0, z: 0, rotation: 0, mapId: 500, lastUpdate: Date.now(),
       });
 
       const res = await app.inject({
@@ -252,7 +279,7 @@ describe("rtc routes", () => {
       const lingeringEntity = {
         entityId: "char-linger", characterId: "char-linger", accountId: "acc-1",
         name: "Lingerer", entityType: "player" as const,
-        x: 42, y: 0, z: 99, rotation: 0, mapId: 1, lastUpdate: Date.now(),
+        x: 42, y: 0, z: 99, rotation: 0, mapId: 500, lastUpdate: Date.now(),
       };
       entityStore.add(lingeringEntity);
 

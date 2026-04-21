@@ -166,7 +166,7 @@ import { TiledResource } from '@excaliburjs/plugin-tiled';
 import { Engine, Loader } from 'excalibur';
 
 const game = new Engine({ ... });
-const tiledMap = new TiledResource('/maps/starter-area.tmx', {
+const tiledMap = new TiledResource('/maps/heaven.tmx', {
   useTilemapCameraStrategy: true,  // keeps camera inside map bounds
   useMapBackgroundColor: true,     // uses Tiled background color
   pathMap: [

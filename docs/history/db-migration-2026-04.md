@@ -3,6 +3,8 @@
 Historical record of the "move all data from code into the database" migration. The architectural rule now lives in `docs/data-policy.md`; this file is the receipt.
 
 > **Update (later the same day):** The migrated gameplay data (10 NPC templates, 17 items, 27 loot entries, 5 quests + objectives + rewards, 10 zones) was **wiped** from the DB and the one-shot seed scripts below (`tools/seed-npc-templates.ts`, `tools/seed-items.ts`, `tools/seed-quests.ts`, `tools/seed-zones.ts`, `tools/seed-map-items.ts`) were deleted with it. The initial `tools/seed-tile-registry.ts` was already superseded by `tools/ingest-tilesets.ts` before this wipe. References to any `seed-*.ts` script below are kept for historical accuracy — **the files no longer exist**. The DB schemas + runtime cache loaders stay in place for when real gameplay is designed; an admin UI or a new CLI will populate them then. See `AGENTS.game.md` for current state.
+>
+> **Update (2026-04-21, heaven-only pass):** The `zones` DB table and `loadStaticZones()` were **dropped entirely** along with the starter-area + 9 test-zone Tiled maps, `tools/import-test-zones.ts`, `tools/generate-starter-area.js`, and the 1-9 teleport keybinds in the client. Heaven (`HEAVEN_NUMERIC_ID = 500`) is now the only zone — it lives in `user_maps` like any builder map. The `characters` table gained a `role` column (`'main'` | `'game-master'` | null) so `index.html` and `builder.html` can pick the right dev character from the same account. The `loadStaticZones` row in the table below is kept for historical accuracy but no longer exists in code.
 
 ## Phase 1 — Builder metadata ✅
 
@@ -48,11 +50,11 @@ Historical record of the "move all data from code into the database" migration. 
 
 - Schemas: `item_templates` (18 cols), `loot_entries` (FK to `npc_templates` + `item_templates`, cascade), `quests`/`quest_objectives`/`quest_rewards` (cascade), `zones` (`numeric_id` unique, `exits` as jsonb, `test_slot` for the 1-9 keybind).
 - Seeds: `tools/seed-items.ts`, `tools/seed-quests.ts`, `tools/seed-zones.ts` — each self-contained with its own hard-coded data for the one-time migration.
-- Runtime files (`items.ts`, `quests.ts`, `zone-registry.ts`) follow the same pattern as NPC templates: types + algorithms + mutable cache populated at boot by `loadItems` / `loadLootTables` / `loadQuests` / `loadStaticZones`. Getters stay synchronous.
+- Runtime files (`items.ts`, `quests.ts`, `zone-registry.ts`) follow the same pattern as NPC templates: types + algorithms + mutable cache populated at boot by `loadItems` / `loadLootTables` / `loadQuests` / `loadStaticZones` (the last one since removed). Getters stay synchronous.
 - Quest per-player progress (objective counts, completion state) stays in memory — that's runtime state, not authorable data.
 - Zone registry still exposes `registerZone()` — used by `loadAllUserMaps()` at boot to add user-authored maps to the same in-memory lookup. Static zones come from DB first, then user maps.
 - `shared/world-config.json` was never imported at runtime (grepping the repo confirmed this); the server already reads `WORLD_SEED` from env with default `"42"`, and `client-old` is the only consumer of the other fields. Deleted the file rather than migrate to a `worlds` table.
-- Boot order (`index.ts`): `connectRedis` → `loadStaticZones` → `loadAllUserMaps` → map loaders → `loadNpcTemplates` → `loadItems` → `loadLootTables` → `loadQuests` → `spawnInitialNpcs` → game loop.
+- Boot order (`index.ts` at the time): `connectRedis` → `loadStaticZones` → `loadAllUserMaps` → map loaders → `loadNpcTemplates` → `loadItems` → `loadLootTables` → `loadQuests` → `spawnInitialNpcs` → game loop. (Current boot order — post heaven-only pass — has no `loadStaticZones`.)
 
 ### Phase 2c — Map-items stub + disk-walking ingest + dead-code cleanup
 

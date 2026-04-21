@@ -68,7 +68,7 @@ Type contracts (client-side):
 ```
 packages/client/public/maps/
 ├── <top-level summer TSX>.tsx            ← base packs + images in ../assets/tilesets/
-├── test-zones/<zone>/*.tsx               ← seasonal + home interiors (image next to TSX)
+├── heaven.tmx + heaven.json              ← the one existing map (32×32 grass canvas)
 ├── furniture/<cozy sheet>.tsx            ← Cozy Furnishings
 ├── lights/<candles sheet>.tsx            ← Animated Candles
 ├── crops/<farming sheet>.tsx             ← Farming Crops 1+2

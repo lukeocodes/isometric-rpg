@@ -18,6 +18,7 @@ import { config } from "../config.js";
 import { db } from "../db/postgres.js";
 import { characters } from "../db/schema.js";
 import { eq } from "drizzle-orm";
+import { getZoneByNumericId } from "./zone-registry.js";
 
 /**
  * Handle a kill event — awards XP, broadcasts death, schedules respawn.
@@ -227,11 +228,14 @@ function gameTick() {
   if (progressSaveCounter >= PROGRESS_SAVE_INTERVAL) {
     progressSaveCounter = 0;
 
-    // Item decay: collect zones that have active players
+    // Item decay: collect zoneIds that have active players.
     const activeZones = new Set<string>();
     for (const conn of connectionManager.iterAll()) {
       const ent = entityStore.get(conn.entityId);
-      if (ent) activeZones.add(ent.mapId === 1 ? "human-meadows" : `zone-${ent.mapId}`);
+      if (ent) {
+        const zoneId = getZoneByNumericId(ent.mapId)?.id ?? `zone-${ent.mapId}`;
+        activeZones.add(zoneId);
+      }
     }
     tickItemDecay(activeZones);
 

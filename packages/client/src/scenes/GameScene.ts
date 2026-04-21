@@ -17,20 +17,9 @@ import { NetworkManager, Opcode } from "../net/NetworkManager.js";
 import { PlayerActor } from "../actors/PlayerActor.js";
 import { RemotePlayerActor } from "../actors/RemotePlayerActor.js";
 
-const FALLBACK_TMX = "starter-area.tmx";
-
-// Slot (1-9) → zone id. Mirrors server/src/game/zone-registry.ts TEST_ZONES.
-const TEST_ZONE_IDS: Record<number, string> = {
-  1: "test-1-summer-forest",
-  2: "test-2-summer-waterfall",
-  3: "test-3-spring-forest",
-  4: "test-4-autumn-forest",
-  5: "test-5-winter-forest",
-  6: "test-6-thatch-home",
-  7: "test-7-timber-home",
-  8: "test-8-half-timber-home",
-  9: "test-9-stonework-home",
-};
+// Heaven is currently the only map. The server always sends `zone.mapFile`
+// on SPAWN_ACCEPTED, so this fallback is only used if the server forgot.
+const FALLBACK_TMX = "heaven.tmx";
 
 
 
@@ -213,17 +202,8 @@ export class GameScene extends Scene {
         }
       }
 
-      // Teleport 1-9 (bypass Excalibur's keyboard API to rule it out as the
-      // culprit).
-      if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && /^Digit[1-9]$/.test(e.code)) {
-        const slot = Number(e.code.slice(-1));
-        const zoneId = TEST_ZONE_IDS[slot];
-        if (zoneId && !this.loading) {
-          e.preventDefault();
-          console.log(`[GameScene] teleport key ${slot} → ${zoneId}`);
-          this.net.sendEvent(Opcode.ZONE_CHANGE_REQUEST, { targetZoneId: zoneId });
-        }
-      }
+      // (Test-zone teleport shortcuts 1-9 were removed — heaven is the only
+      // zone right now. Wire new slots up here when more zones exist.)
     });
 
     canvas.addEventListener("gesturestart",  (e) => e.preventDefault(), { passive: false });

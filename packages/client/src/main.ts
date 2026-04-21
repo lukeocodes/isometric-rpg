@@ -22,9 +22,11 @@ async function devLogin(): Promise<{ token: string; characterId: string }> {
   const data = await res.json();
   const token: string = data.gameJwt;
 
-  const chars: Array<{ id: string; name: string }> = data.characters ?? [];
-  if (chars.length === 0) throw new Error("No character found — seed the database first");
-  return { token, characterId: chars[0].id };
+  const chars: Array<{ id: string; name: string; role: string | null }> = data.characters ?? [];
+  // The game client (index.html) plays as the main character.
+  const main = chars.find(c => c.role === "main") ?? chars[0];
+  if (!main) throw new Error("No main character — dev-login should have seeded one");
+  return { token, characterId: main.id };
 }
 
 async function main() {

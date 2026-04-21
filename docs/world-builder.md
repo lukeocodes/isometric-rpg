@@ -40,7 +40,7 @@ See `docs/tile-library.md` for multi-select, bulk edit, source-spritesheet viewe
 
 ## Zone numeric IDs
 
-- `1`-`99` — hand-authored zones (human-meadows etc.)
+- `1`-`99` — reserved for hand-authored shipped zones (none exist right now; the old `zones` DB table was dropped)
 - `100`-`199` — Mana Seed test zones (keys 1-9)
 - `500` — **heaven** (world-builder hub, in-memory overlay only, NOT persisted)
 - `1000+` — user-built maps (persisted in `user_maps` + `user_map_tiles`)

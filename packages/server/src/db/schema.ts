@@ -33,9 +33,13 @@ export const characters = pgTable("characters", {
   posX: real("pos_x").default(0).notNull(),
   posY: real("pos_y").default(0).notNull(),
   posZ: real("pos_z").default(0).notNull(),
-  mapId: integer("map_id").default(1).notNull(),
+  mapId: integer("map_id").default(500).notNull(),  // 500 = HEAVEN_NUMERIC_ID
   level: integer("level").default(1).notNull(),
   xp: integer("xp").default(0).notNull(),
+  /** Dev-account role. `main` = index.html player, `game-master` = builder.html
+   *  player. Null for normal player-created characters. Used by the client to
+   *  pick which character to load for each entry point. */
+  role: varchar("role", { length: 20 }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   lastPlayed: timestamp("last_played", { withTimezone: true }),
 });
@@ -421,34 +425,12 @@ export const mapItemTypes = pgTable("map_item_types", {
 });
 
 // ---------------------------------------------------------------------------
-// Zones (Phase 2b)
+// Zones — no longer a table.
 // ---------------------------------------------------------------------------
-// Replaces the `registerZone` calls + `TEST_ZONES` array in
-// `packages/server/src/game/zone-registry.ts`. `numericId` is wire-format
-// (written to `characters.map_id`) so it MUST be unique.
-//
-// User-authored maps continue to live in `user_maps` (they have their own
-// numericId space ≥ 1000). `loadStaticZones()` at boot reads this table
-// and `loadAllUserMaps()` reads `user_maps`; both populate the same
-// in-memory lookup. `zones` is the "static/shipped" side only.
-
-export const zones = pgTable("zones", {
-  id:        varchar("id", { length: 64 }).primaryKey(),      // "human-meadows" | "test-1-summer-forest"
-  numericId: integer("numeric_id").notNull().unique(),        // wire format
-  name:      varchar("name", { length: 100 }).notNull(),
-  mapFile:   varchar("map_file", { length: 256 }).notNull(),  // path under public/maps/
-  levelMin:  integer("level_min").notNull().default(1),
-  levelMax:  integer("level_max").notNull().default(99),
-  musicTag:  varchar("music_tag", { length: 32 }).notNull().default("field"),
-  /** `{ [exitId]: { targetZone, spawnX, spawnZ } }`. Empty `{}` until
-   *  zone exits are authored. */
-  exits: jsonb("exits")
-    .$type<Record<string, { targetZone: string; spawnX: number; spawnZ: number }>>()
-    .default({}).notNull(),
-  /** 1-9 for keyboard-shortcut test zones; null for real gameplay zones. */
-  testSlot: integer("test_slot"),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
+// The old `zones` table (static/shipped zones like human-meadows + the 9 test
+// zones) has been removed. The only map that exists is `heaven`, which lives
+// in `user_maps` (HEAVEN_NUMERIC_ID = 500). All zone lookups now go through
+// user-maps.ts. If/when static shipped zones return, this table comes back.
 
 // ---------------------------------------------------------------------------
 // NPC templates (Phase 2a — table definition must stay BELOW this comment

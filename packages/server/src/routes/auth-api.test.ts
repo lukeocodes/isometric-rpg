@@ -27,14 +27,22 @@ const mockDbInsertValues = vi.fn(() => ({ returning: mockDbReturning }));
 const mockDbInsert = vi.fn(() => ({ values: mockDbInsertValues }));
 const mockDbUpdateSet = vi.fn(() => ({ where: vi.fn().mockResolvedValue(undefined) }));
 const mockDbUpdate = vi.fn(() => ({ set: mockDbUpdateSet }));
+const mockDbDeleteWhere = vi.fn().mockResolvedValue(undefined);
+const mockDbDelete = vi.fn(() => ({ where: mockDbDeleteWhere }));
 
 vi.mock("../db/postgres.js", () => ({
   db: {
     select: () => ({ from: mockDbFrom }),
     insert: (...args: any[]) => mockDbInsert(...args),
     update: (...args: any[]) => mockDbUpdate(...args),
+    delete: (...args: any[]) => mockDbDelete(...args),
   },
 }));
+
+// user-maps.ts is imported by auth.ts purely for the HEAVEN_NUMERIC_ID
+// constant. Mock it out so the test doesn't pull the DB-heavy user-maps
+// module in.
+vi.mock("../game/user-maps.js", () => ({ HEAVEN_NUMERIC_ID: 500 }));
 
 vi.mock("../db/schema.js", () => ({
   accounts: { oauthSub: "accounts.oauth_sub", id: "accounts.id" },
@@ -82,10 +90,18 @@ describe("auth API routes", () => {
 
   describe("POST /dev-login", () => {
     it("creates account for new user", async () => {
-      // First call: select accounts → not found, Second: select characters → empty
+      const seeded = [
+        { id: "c-m", name: "Main",        race: "human", level: 1, role: "main"        },
+        { id: "c-g", name: "Game Master", race: "human", level: 1, role: "game-master" },
+      ];
+      // Order of `where` calls during dev-login:
+      //   1. accounts.select (for oauthSub) → no existing account
+      //   2. ensureDevCharacters: characters.select → none (new user)
+      //   3. auth route final: characters.select → the two we just seeded
       mockDbWhere
-        .mockResolvedValueOnce([]) // No existing account
-        .mockResolvedValueOnce([]); // No characters
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce(seeded);
 
       const res = await app.inject({
         method: "POST", url: "/dev-login",
@@ -96,14 +112,18 @@ describe("auth API routes", () => {
       const body = JSON.parse(res.body);
       expect(body.gameJwt).toBe("mock-game-jwt");
       expect(body.account).toBeDefined();
-      expect(body.characters).toEqual([]);
+      expect(body.characters).toHaveLength(2);
     });
 
     it("updates existing account on login", async () => {
-      // First call: select accounts → found
+      const seeded = [
+        { id: "c-m", name: "Main",        race: "human", level: 1, role: "main"        },
+        { id: "c-g", name: "Game Master", race: "human", level: 1, role: "game-master" },
+      ];
       mockDbWhere
-        .mockResolvedValueOnce([fakeAccount]) // Existing account
-        .mockResolvedValueOnce([]); // No characters
+        .mockResolvedValueOnce([fakeAccount]) // 1. account found
+        .mockResolvedValueOnce(seeded)        // 2. ensureDevCharacters: both roles present (no-op)
+        .mockResolvedValueOnce(seeded);       // 3. final characters.select
 
       const res = await app.inject({
         method: "POST", url: "/dev-login",
@@ -115,11 +135,15 @@ describe("auth API routes", () => {
     });
 
     it("returns existing characters on login", async () => {
+      // ensureDevCharacters() inspects chars for main + game-master roles.
+      // When both exist it's a no-op, so we mock two chars with the expected
+      // roles and the final select returns them unchanged.
+      const main = { id: "c-1", name: "Main",        race: "human", level: 1, role: "main"         };
+      const gm   = { id: "c-2", name: "Game Master", race: "human", level: 1, role: "game-master"  };
       mockDbWhere
-        .mockResolvedValueOnce([fakeAccount]) // Existing account
-        .mockResolvedValueOnce([              // Has characters
-          { id: "c-1", name: "Hero", race: "elf", level: 5 },
-        ]);
+        .mockResolvedValueOnce([fakeAccount]) // accounts.select
+        .mockResolvedValueOnce([main, gm])    // ensureDevCharacters: both roles present (no-op)
+        .mockResolvedValueOnce([main, gm]);   // final characters.select
 
       const res = await app.inject({
         method: "POST", url: "/dev-login",
@@ -128,8 +152,9 @@ describe("auth API routes", () => {
 
       expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      expect(body.characters).toHaveLength(1);
-      expect(body.characters[0]).toEqual({ id: "c-1", name: "Hero", race: "elf", level: 5 });
+      expect(body.characters).toHaveLength(2);
+      expect(body.characters[0]).toEqual({ id: "c-1", name: "Main", race: "human", level: 1, role: "main" });
+      expect(body.characters[1]).toEqual({ id: "c-2", name: "Game Master", race: "human", level: 1, role: "game-master" });
     });
 
     it("rejects empty username", async () => {

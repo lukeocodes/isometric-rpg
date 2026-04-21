@@ -72,32 +72,22 @@ export async function rtcRoutes(app: FastifyInstance) {
         }
       }
 
-      // Load position from database
-      let startX = config.world.spawnX, startY = 0, startZ = config.world.spawnZ, startMapId = 1;
+      // Load position from database. Heaven is the only map that exists
+      // right now, so every player — builder or not — spawns in heaven. If
+      // the saved position isn't in a known zone we snap them back to the
+      // heaven centre (16,16).
+      let startX = config.world.spawnX, startY = 0, startZ = config.world.spawnZ, startMapId = HEAVEN_NUMERIC_ID;
       const [charRow] = await db.select({
         name: characters.name,
         posX: characters.posX, posY: characters.posY,
         posZ: characters.posZ, mapId: characters.mapId,
         xp: characters.xp, level: characters.level,
       }).from(characters).where(eq(characters.id, characterId));
-      if (charRow && !(charRow.posX === 0 && charRow.posZ === 0)) {
+      if (charRow && isBuilderZone(charRow.mapId) && !(charRow.posX === 0 && charRow.posZ === 0)) {
         startX = charRow.posX;
         startY = charRow.posY;
         startZ = charRow.posZ;
         startMapId = charRow.mapId;
-      }
-
-      // Builder client always lands in heaven (or the last user-built map they
-      // were in). Regular players never land in heaven.
-      if (isBuilder) {
-        if (!isBuilderZone(startMapId)) {
-          startMapId = HEAVEN_NUMERIC_ID;
-          startX = 16; startY = 0; startZ = 16;  // heaven spawn (16,16 centre)
-        }
-      } else if (isBuilderZone(startMapId)) {
-        // Non-builder account saved in a builder zone → bounce them back to default.
-        startMapId = 1;
-        startX = config.world.spawnX; startY = 0; startZ = config.world.spawnZ;
       }
 
       let entity: ServerEntity;
@@ -425,29 +415,28 @@ export async function rtcRoutes(app: FastifyInstance) {
           }
           console.log(`[Dungeon] Player ${entity.name} entered dungeon (difficulty ${difficulty})`);
         } else if (parsed.op === Opcode.DUNGEON_EXIT) {
-          // Return player to their previous zone
+          // Return player to heaven (the only zone that exists right now).
           const dungeon = getPlayerDungeon(entityId);
           if (dungeon) {
             cleanupPlayerDungeon(entityId);
-            // Return to crossroads
-            entity.mapId = 1;
-            entity.x = 128;
-            entity.z = 128;
-            if (reliableChannel.readyState === "open") {
+            entity.mapId = HEAVEN_NUMERIC_ID;
+            entity.x = 16; entity.y = 0; entity.z = 16;
+            const heavenZone = getZoneByNumericId(HEAVEN_NUMERIC_ID);
+            if (reliableChannel.readyState === "open" && heavenZone) {
               reliableChannel.send(packReliable(Opcode.ZONE_CHANGE, {
-                zoneId: "human-meadows",
-                zoneName: "Starter Meadows",
-                mapFile: "starter.json",
-                spawnX: 128, spawnZ: 128,
-                levelRange: [1, 5],
-                musicTag: "town",
+                zoneId:     heavenZone.id,
+                zoneName:   heavenZone.name,
+                mapFile:    getClientMapFile(heavenZone),
+                spawnX:     16, spawnZ: 16,
+                levelRange: heavenZone.levelRange,
+                musicTag:   heavenZone.musicTag,
               }));
             }
           }
         } else if (parsed.op === Opcode.ZONE_CHANGE_REQUEST) {
           // Two forms:
-          //   { op:90, targetZoneId: "test-1-summer-forest" }  → direct teleport (debug)
-          //   { op:90, exitId: "north-gate" }                  → use current zone's exit map
+          //   { op:90, targetZoneId: "heaven" }    → direct teleport (debug)
+          //   { op:90, exitId: "north-gate" }      → use current zone's exit map
           let targetZone = undefined as ReturnType<typeof getZone>;
           let spawnX = 0;
           let spawnZ = 0;
@@ -632,11 +621,15 @@ export async function rtcRoutes(app: FastifyInstance) {
           // Send inventory after world is ready
           sendInventory(entityId);
 
-          // Auto-accept available quests for all zones at player's level
+          // Auto-accept available quests in the player's current zone at
+          // their level. There's only one zone (heaven) right now, and
+          // heaven has no quests, so this is effectively a no-op — but it
+          // still wires up correctly once quest data is authored.
           const prog = getPlayerProgress(entityId);
           const level = prog?.level ?? 1;
-          for (const zoneId of ["human-meadows", "elf-grove", "orc-wastes", "crossroads", "skeleton-wastes"]) {
-            for (const quest of getAvailableQuests(entityId, zoneId, level)) {
+          const currentZoneId = getZoneByNumericId(selfMapId)?.id;
+          if (currentZoneId) {
+            for (const quest of getAvailableQuests(entityId, currentZoneId, level)) {
               acceptQuest(entityId, quest.id);
             }
           }

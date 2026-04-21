@@ -22,9 +22,12 @@ async function devLogin(): Promise<{ token: string; characterId: string }> {
   if (!res.ok) throw new Error("Dev login failed");
   const data = await res.json();
   const token: string = data.gameJwt;
-  const chars: Array<{ id: string; name: string }> = data.characters ?? [];
-  if (chars.length === 0) throw new Error("No character found — seed the database first");
-  return { token, characterId: chars[0].id };
+  const chars: Array<{ id: string; name: string; role: string | null }> = data.characters ?? [];
+  // The world builder (builder.html) plays as the game-master character so
+  // it never collides with the main player's saved state.
+  const gm = chars.find(c => c.role === "game-master") ?? chars[1] ?? chars[0];
+  if (!gm) throw new Error("No game-master character — dev-login should have seeded one");
+  return { token, characterId: gm.id };
 }
 
 /** NetworkManager subclass that flags the /offer request as builder-mode. */

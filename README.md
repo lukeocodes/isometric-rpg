@@ -112,8 +112,6 @@ Read `AGENTS.game.md` for the up-to-date status + known blockers.
 │   ├── generate-tsx.ts                 # Build TSX files from PNGs named "foo WxH.png"
 │   ├── freeze-map.ts                   # Dump DB user-map → TMX + JSON in public/maps/user-maps/
 │   ├── generate-map.ts                 # Programmatic map generator (legacy)
-│   ├── generate-starter-area.js        # Starter-area skeleton generator (legacy)
-│   ├── import-test-zones.ts            # Import Mana Seed sample maps as test zones
 │   └── paint-map/                      # Scene-spec → TMX + server JSON painter
 │
 ├── docs/                               # Deep-dive documentation (indexed by AGENTS.*.md files)
@@ -166,8 +164,10 @@ bunx --bun vite
 ```
 
 Open:
-- **http://localhost:5173** — game client. `packages/client/src/main.ts` hard-codes the dev login as `lukeocodes` / `password` and auto-connects. To use a different username, edit `main.ts` (dev login accepts any username; password is ignored). A character must exist for that account or the boot will fail with "No character found — seed the database first".
-- **http://localhost:5173/builder.html** — world builder (separate Vite entry; same dev-login flow).
+- **http://localhost:5173** — game client. Auto-logs in as `lukeocodes` and plays the `Main` character (`characters.role = 'main'`).
+- **http://localhost:5173/builder.html** — world builder. Same account, but plays the `Game Master` character (`characters.role = 'game-master'`) so builder edits don't collide with the main player's saved state.
+
+Both characters are seeded automatically on first dev-login and spawn at the heaven centre `(16, 16)`. Heaven (`HEAVEN_NUMERIC_ID = 500`, `public/maps/heaven.tmx`) is currently the only zone that exists.
 
 > **Browser note:** ungoogled Chromium blocks WebRTC. Use regular Chrome, Firefox, or Safari.
 
@@ -185,8 +185,7 @@ Port 5433 avoids colliding with a local PostgreSQL on 5432.
 Almost none are live yet — gameplay data is empty on purpose. The architecture exists; the data doesn't. See `AGENTS.game.md` for the working surface and `docs/` for the deep dives.
 
 - **World builder** (live) — paint tiles live, draw collision blocks, persist to DB, freeze to TMX. See `docs/world-builder.md` + `docs/tile-library.md`.
-- **Maps** — hand-crafted TMX files in `packages/client/public/maps/` loaded via `@excaliburjs/plugin-tiled`, or painted from scene-specs via `tools/paint-map/`. See `docs/paint-map.md`.
-- **Test zones** — 9 debug teleport zones for art preview (press `1`-`9`). See `docs/test-zones.md`.
+- **Maps** — currently one: `public/maps/heaven.tmx` (32×32 grass canvas), loaded via `@excaliburjs/plugin-tiled`. The `tools/paint-map/` painter can still emit new TMX + JSON from scene-specs. See `docs/paint-map.md`.
 - **Combat / NPC AI** (code live, data empty) — server-authoritative auto-attack, wander, respawn, HP regen, enemy detection. Spawn-point system wired up but no spawn-points in DB.
 - **Quests / items / loot** (code live, data empty) — types + algorithms + runtime caches exist; tables are empty.
 - **Zone ownership / houses / guilds** (design-only) — see `AGENTS.identity.md` + `docs/identity-zones.md`.
@@ -330,5 +329,4 @@ Supplemental (no AGENTS front door):
 - `docs/world-builder.md` — in-game builder commands, opcodes 200-213, limits.
 - `docs/tile-library.md` — 20-category taxonomy, multi-select + bulk-edit, adding a tileset.
 - `docs/paint-map.md` — scene-spec painter workflow + architecture.
-- `docs/test-zones.md` — debug teleport keys 1-9.
 - `docs/history/db-migration-2026-04.md` — archived record of the code → DB migration (gameplay data later wiped).

@@ -4,16 +4,18 @@
 
 ## Core workflow
 
+The only active scene spec right now is `maps-src/heaven.json` (the 32×32 grass canvas used for the builder).
+
 ```bash
 # Edit the scene
-vim maps-src/starter-area.json
+vim maps-src/heaven.json
 
 # Re-run the painter
-bun tools/paint-map/index.ts maps-src/starter-area.json
+bun tools/paint-map/index.ts maps-src/heaven.json
 
 # Outputs:
-#   packages/client/public/maps/starter-area.tmx  (client render)
-#   packages/client/public/maps/starter-area.json (server bounds + collision + spawn)
+#   packages/client/public/maps/heaven.tmx  (client render)
+#   packages/client/public/maps/heaven.json (server bounds + collision + spawn)
 
 # Restart server to pick up new JSON:
 pkill -f "node.*src/index.ts" && \
@@ -24,7 +26,7 @@ pkill -f "node.*src/index.ts" && \
 
 ```bash
 /Applications/Tiled.app/Contents/MacOS/tmxrasterizer --scale 2 --no-smoothing \
-  packages/client/public/maps/starter-area.tmx /tmp/preview.png
+  packages/client/public/maps/heaven.tmx /tmp/preview.png
 ```
 
 ## Painter architecture

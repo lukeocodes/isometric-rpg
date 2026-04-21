@@ -6,14 +6,13 @@ import { connectRedis, disconnectRedis } from "./db/redis.js";
 import { spawnInitialNpcs, cleanup as cleanupNpcs } from "./game/npcs.js";
 import { startGameLoop, stopGameLoop } from "./game/world.js";
 import { initWorldMap, cacheWorldMapToRedis } from "./world/queries.js";
-import { loadTiledMap, loadZoneMap, getZoneMapItems } from "./world/tiled-map.js";
+import { loadZoneMap, getZoneMapItems } from "./world/tiled-map.js";
 import { getAllZones } from "./game/zone-registry.js";
 import { loadMapItems, loadDbItems } from "./game/world-items.js";
 import { loadAllUserMaps } from "./game/user-maps.js";
 import { loadNpcTemplates } from "./game/npc-templates.js";
 import { loadItems, loadLootTables } from "./game/items.js";
 import { loadQuests } from "./game/quests.js";
-import { loadStaticZones } from "./game/zone-registry.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -22,23 +21,18 @@ async function main() {
 
   await connectRedis();
 
-  // Populate static-zone registry from DB first. User-authored maps
-  // (including heaven) are appended next via loadAllUserMaps().
-  await loadStaticZones();
-
-  // Register heaven + all user-built maps as zones before loading map files.
-  // loadAllUserMaps seeds the heaven row in DB if missing and registers every
-  // user map (including heaven) with the zone registry.
+  // Register heaven (and any other user-built maps) as zones. There are no
+  // static/shipped zones — every zone is a user map. `loadAllUserMaps` seeds
+  // the heaven row in the DB if missing and registers it with the in-memory
+  // zone registry.
   await loadAllUserMaps();
 
-  // Load Tiled maps for all registered zones
+  // Load the Tiled JSON for every registered zone. Heaven has a hand-authored
+  // `heaven.json` on disk; other user maps stream their tile overlay via
+  // BUILDER_MAP_SNAPSHOT and are skipped here.
   const mapsDir = resolve(__dirname, "../../client/public/maps");
-  const defaultMapPath = resolve(mapsDir, "starter-area.json");
-  loadTiledMap(defaultMapPath); // Legacy default (backward compatible)
   for (const zone of getAllZones()) {
     try {
-      // User-built maps don't have a map file on disk — their tile data is
-      // streamed via BUILDER_MAP_SNAPSHOT. Skip the loader for them.
       if (zone.id.startsWith("user:")) continue;
       loadZoneMap(zone.id, resolve(mapsDir, zone.mapFile));
       loadMapItems(zone.id, getZoneMapItems(zone.id));

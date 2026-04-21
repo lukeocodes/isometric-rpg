@@ -6,19 +6,24 @@ Read this file at the start of each conversation. Update after significant work.
 
 Top-down Pokemon-style RPG. Excalibur.js v0.30 + `@excaliburjs/plugin-tiled`. Server auth via Fastify + Drizzle. WebRTC for gameplay traffic. Mana Seed art (Seliel the Shaper).
 
-**Focus right now:** the world builder. Gameplay hasn't started — no NPCs, items, quests, or static zones yet. The in-game sandbox is **heaven** (zone numericId 500, in-memory, no persistence). User maps built from heaven can be persisted + frozen to TMX.
+**Focus right now:** the world builder. Gameplay hasn't started — no NPCs, items, quests, or static zones yet. **Heaven is the only zone** (a 32×32 user-map, `HEAVEN_NUMERIC_ID = 500`, `heaven.json` on disk). Both client entry points land here:
 
-**Gameplay data = empty on purpose.** All seven gameplay-data tables (`zones`, `npc_templates`, `item_templates`, `loot_entries`, `quests`, `quest_objectives`, `quest_rewards`) have **0 rows**. The runtime code (`game/npc-templates.ts`, `game/items.ts`, `game/quests.ts`, `game/zone-registry.ts`) is wired in and ready, but it's loading 0 rows at boot and nothing spawns. The old hardcoded placeholder data + the one-shot `tools/seed-*.ts` scripts that populated it have both been wiped — when gameplay is designed, an admin UI or new CLI will populate these tables. See [`docs/history/db-migration-2026-04.md`](docs/history/db-migration-2026-04.md) for the migration history.
+- `index.html` plays as the `Main` character (`characters.role = 'main'`).
+- `builder.html` plays as the `Game Master` character (`characters.role = 'game-master'`).
+
+Both characters live on the dev `lukeocodes` account and are auto-seeded by `dev-login` at `(16, 16)` in heaven. The starter-area + 9 test-zones maps and the old `zones` DB table are gone.
+
+**Gameplay data = empty on purpose.** All six gameplay-data tables (`npc_templates`, `item_templates`, `loot_entries`, `quests`, `quest_objectives`, `quest_rewards`) have **0 rows**. The runtime code is wired in and ready, but loads 0 rows at boot and nothing spawns. The old hardcoded placeholder data + the `tools/seed-*.ts` scripts + the static-`zones` table that populated them have all been wiped — when gameplay is designed, an admin UI or new CLI will populate the remaining tables. See [`docs/history/db-migration-2026-04.md`](docs/history/db-migration-2026-04.md) for the migration history.
 
 **Map system — two ways to author maps:**
 
-1. **In-game world builder** (`packages/client/builder.html`) — the current focus. Walk around heaven, open the tile picker, click to place / pickup / rotate / erase tiles live. Stored in the DB (`user_maps` + `user_map_tiles`) and can be frozen to TMX + JSON via `bun tools/freeze-map.ts <numericId | zoneId | all>`. See [world builder](docs/world-builder.md).
-2. **Data-driven painter** (`tools/paint-map/`) — legacy path. Scene specs in `maps-src/*.json` → painter emits TMX + server JSON. Kept for the test-zones import but no current `maps-src/*.json` is in active use. See [paint-map workflow](docs/paint-map.md).
+1. **In-game world builder** (`packages/client/builder.html`) — the current focus. Walk around heaven as `Game Master`, open the tile picker, click to place / pickup / rotate / erase tiles live. Stored in the DB (`user_maps` + `user_map_tiles`) and can be frozen to TMX + JSON via `bun tools/freeze-map.ts <numericId | zoneId | all>`. See [world builder](docs/world-builder.md).
+2. **Data-driven painter** (`tools/paint-map/`) — legacy path, used to generate `heaven.json` originally. Scene specs in `maps-src/*.json` → painter emits TMX + server JSON. Hardly used now — heaven is hand-tweaked in Tiled and user maps go through the builder. See [paint-map workflow](docs/paint-map.md).
 
 ## Known issues
 
 1. **WebRTC DataChannel timeout in Playwright Chromium** — pre-existing. Real browsers connect fine. Do not use Playwright for live gameplay testing.
-2. **No NPC spawn points in new map** — the painter only emits the player spawn. Server JSON schema supports NPC spawns but the painter doesn't yet.
+2. **No NPC spawn points in heaven** — heaven is a pure building sandbox. Server JSON schema supports NPC spawns but heaven doesn't author any, and the painter doesn't emit them either.
 3. **Mana Seed tree-wall tiles have transparent lower halves** — visually correct per the art but means the "canvas" below the bottom tree row shows grass. Collision layer covers the full 128×128 footprint regardless.
 
 ## What we're NOT doing yet
@@ -28,7 +33,7 @@ Gameplay systems exist as code but have **zero data**:
 - **No NPCs.** `npc_templates` = 0 rows. `spawn-points` system wired up but nothing to spawn.
 - **No items, loot, inventory.** `item_templates` = 0 rows, `loot_entries` = 0 rows.
 - **No quests.** `quests` / `quest_objectives` / `quest_rewards` = 0 rows. Quest code + per-player progress tracking exist but nobody can accept anything.
-- **No static zones.** `zones` table = 0 rows. Only heaven (numericId 500, via `user_maps`) + user-built maps exist.
+- **No static zones.** The `zones` DB table was dropped. Only heaven (numericId 500, via `user_maps`) + user-built maps exist.
 - **No gameplay scene.** `packages/client/src/scenes/GameScene.ts` exists and loads TMX, but the actual "you are playing the game" UX hasn't been built. Focus is the builder.
 
 When gameplay is designed: populate the tables via an admin UI or a new CLI tool that writes straight to the DB (the original `tools/seed-<topic>.ts` scripts were deleted along with their placeholder data). The runtime caches (`NPC_TEMPLATES`, `ITEMS`, `QUESTS`, `zones` map) re-populate on boot.
@@ -38,7 +43,7 @@ When gameplay is designed: populate the tables via an admin UI or a new CLI tool
 In rough order, for when gameplay lands:
 
 1. Port binary position-update decoder (`handlePositionUpdate` currently stub).
-2. Wire TMX `player-spawn` object via `entityClassNameFactories` (remove hardcoded 20,15).
+2. Wire TMX `player-spawn` object via `entityClassNameFactories` (remove hardcoded 16,16 heaven-centre spawn).
 3. Wire TMX `camera` object via `entityClassNameFactories`.
 4. Add NPC spawn objects to the scene-spec schema + painter.
 5. Port `RemotePlayerActor` from `client-old` (sprite, nameplate, interpolation).
@@ -51,7 +56,6 @@ In rough order, for when gameplay lands:
 - [`docs/world-builder.md`](docs/world-builder.md) — Builder commands, protocol opcodes 200–213, rendering model, v1 limits.
 - [`docs/tile-library.md`](docs/tile-library.md) — The 20-category taxonomy, multi-select + bulk edit, source-spritesheet viewer, workflow for adding a new tileset.
 - [`docs/paint-map.md`](docs/paint-map.md) — Scene-spec painter workflow, painter architecture, scene-spec gotchas, adding wang terrains / collision.
-- [`docs/test-zones.md`](docs/test-zones.md) — Debug teleport keys 1–9 and the Mana Seed sample maps they map to.
 - [`docs/data-policy.md`](docs/data-policy.md) — "Data in the Database, NOT in Code" rule + workflows.
 - [`docs/history/db-migration-2026-04.md`](docs/history/db-migration-2026-04.md) — Completed migration record (Phase 1 + Phase 2), remaining Phase 1b / Phase 3 sketches.
 

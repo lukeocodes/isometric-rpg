@@ -4,6 +4,7 @@ import { db } from "../db/postgres.js";
 import { accounts, characters } from "../db/schema.js";
 import { eq, count } from "drizzle-orm";
 import { config } from "../config.js";
+import { HEAVEN_NUMERIC_ID } from "../game/user-maps.js";
 
 const VALID_RACES = new Set(["human", "elf", "dwarf"]);
 const VALID_GENDERS = new Set(["male", "female"]);
@@ -74,7 +75,7 @@ export async function characterRoutes(app: FastifyInstance) {
       skills: skillNames.map((s: string) => ({ name: s, value: 30.0 })),
       hairStyle: b.hair_style || 0, hairColor: b.hair_color || 0,
       skinTone: b.skin_tone || 0, outfit: b.outfit || 0,
-      posX: config.world.spawnX, posY: 0, posZ: config.world.spawnZ, mapId: 1,
+      posX: config.world.spawnX, posY: 0, posZ: config.world.spawnZ, mapId: HEAVEN_NUMERIC_ID,
     }).returning();
 
     return reply.status(201).send({ character: charToJson(character) });
