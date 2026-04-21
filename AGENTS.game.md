@@ -61,6 +61,61 @@ Separate Vite entry at `/builder.html`. Uses the same WebRTC connection as the g
 - Tile picker modal shows `<AN>` badge for animated tiles. Animations play in the picker, brush preview, and on-map placement.
 - No multi-tile brush, no fill bucket, no wang autotile. These are v2 features.
 
+### Tile categories (`packages/client/src/builder/registry/`)
+~16,000 tiles across ~120 TSX files, filtered into 20 categories. Every category is advertised in the picker sidebar even if empty; counts beside the label show tile availability.
+
+| Category | Source packs | Notes |
+|---|---|---|
+| Terrain    | summer/autumn/spring/winter wang + home interior floors | includes 8-corner wang sets for all seasons |
+| Forest     | summer/seasonal `forest.png` decor sheets, bridges, logs | default category for mixed-decor sheets |
+| Trees      | summer/seasonal tree walls + canopies (autotile), standalone 80×112 trees | `blocks:true` on walls |
+| Plants     | summer/seasonal `16x32` tall-plant sheets + `32x32` sub-regions | bushes, flowers, berries, lily pads |
+| Crops      | Mana Seed Farming Crops #1 + #2 (A/B/C + A/B) + extras | ~580 tiles (growth stages + icons + signs) |
+| Water      | summer/seasonal water sparkles + waterfalls | animated |
+| Bridges    | `bonus bridge.tsx` | |
+| Buildings  | 4 home-interior variants (thatch/timber/half-timber/stonework) | sub-regions carve out doors, windows, floors |
+| Roofs      | thatch / timber / stonework sliceable packs (16×16 / 16×32 / 32×32 / 32×48 + posts + chimneys) | default layer: canopy |
+| Doors      | home-interior sub-regions (rows 0-5 cols 22-27 + rows 8-11 cols 22-31) | |
+| Windows    | home-interior sub-regions (rows 0-5 cols 28-31) | `blocks:true` |
+| Furniture  | Cozy Furnishings pack (9 sheet variants) + dining tables | |
+| Containers | sub-regions of Cozy 16×32 (barrels/sacks/baskets) + Cozy 32×32 (chests/trunks) + Village 32×32 (crates/urns/wood piles) | |
+| Lights     | Animated Candles v01 (16×16 / 16×32 / 16×48) + Cozy anim fireplace/stove + cooking pot | 5-frame animations |
+| Signs      | Village Accessories: wooden shop signs, cloth pendants, signposts, notice boards, laundry lines | |
+| Characters | *(empty)* | reserved for NPC-spawn map-items (future) |
+| Livestock  | *(empty)* | reserved for animated livestock map-items (future) |
+| Effects    | Weather Effects: rain/snow/lightning/cloud cover/autotile snow | mostly canopy layer |
+| Props      | summer 32×32 (rocks, misc), village 32×32 wells/wheels, misc 48×80 carts | catch-all for decor that isn't specifically plants/forest |
+| Uncategorised | *(should always be 0)* | means every TSX has a category assignment |
+
+### Registry files
+- `packages/client/src/builder/registry/categories.ts` — 20 canonical categories (IDs immutable, display name + order + description)
+- `packages/client/src/builder/registry/layers.ts` — 4 layers (ground / decor / walls / canopy). Layers no longer imply collision; use per-cell Blocks for that.
+- `packages/client/src/builder/registry/tilesets.ts` — the big one. Groups: SUMMER, AUTUMN, SPRING, WINTER, SUMMER_WATERFALL, BUILDINGS, BRIDGES, MISC, FURNITURE, LIGHTS, CROPS, SIGNS, EFFECTS, ROOFS. Each `TilesetDef` has `id`, `file`, `name`, `category`, `defaultLayer`, optional `tags[]`, `blocks`, `hidden`, `subRegions[]`, `notes`.
+- `packages/client/src/builder/registry/map-items.ts` — stubs for container/light/door/sign/npc-spawn (interactive entities, deferred).
+
+### Asset layout
+```
+packages/client/public/maps/
+├── <top-level summer TSX>.tsx            ← base packs + images in ../assets/tilesets/
+├── test-zones/<zone>/*.tsx               ← seasonal + home interiors (image next to TSX)
+├── furniture/<cozy sheet>.tsx            ← Cozy Furnishings
+├── lights/<candles sheet>.tsx            ← Animated Candles
+├── crops/<farming sheet>.tsx             ← Farming Crops 1+2
+├── signs/<village sheet>.tsx             ← Village Accessories
+├── effects/<weather sheet>.tsx           ← Weather Effects
+├── roofs/<roof sheet>.tsx                ← home exterior sliceable packs
+└── user-maps/<numericId>-<slug>.{tmx,json}  ← frozen user builds
+```
+Every TSX in these subfolders uses `<image source="images/<same name>.png"/>` — PNGs live in a sibling `images/` folder.
+
+### Adding a new tileset
+1. Drop `foo.png` in `packages/client/public/maps/<category>/images/foo.png` (cell size in filename: `foo 32x32.png`)
+2. Run `bun tools/generate-tsx.ts` — emits `foo.tsx` with correct `tilecount`/`columns`. Animations via the `ANIM_SPECS` table in that tool.
+3. Append a `TilesetDef` entry in `registry/tilesets.ts` with id/category/defaultLayer. Reload the builder; the TilesetIndex picks it up and populates the picker.
+
+### Debug inspector
+The one-off `packages/client/public/inspect.html` tool (temporary, not committed) renders any PNG at 4× scale with tile-id overlay — invaluable for identifying `subRegions` ranges when carving a mixed sheet. Rebuild it from the generator script if you need to re-inspect.
+
 **Debug teleport keys (1-9):** Press 1-9 to teleport to a Mana Seed sample map for art preview. Server-validated ZONE_CHANGE_REQUEST with `{ targetZoneId }`. See `tools/import-test-zones.ts` + `packages/server/src/game/zone-registry.ts` for the zone table.
 
 | Key | Zone | Notes |

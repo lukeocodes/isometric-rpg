@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tileset version="1.10" tiledversion="1.10.2" name="farming crops 1-B 16x32" tilewidth="16" tileheight="32" tilecount="160" columns="10">
+ <image source="images/farming crops 1-B 16x32.png" width="160" height="512"/>
+</tileset>
