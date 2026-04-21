@@ -1,27 +1,28 @@
-# Procedural Audio Plan — Fantasy RPG
+# Procedural audio — design blueprint
 
-> Source: Ideation session with Claude.ai (2026-03-19)
-> This document is the design reference for all audio phases.
+**Status: design, not yet implemented in the current client.** Prior Babylon.js client had partial implementation of this plan (Phase 11 core engine + Phase 12 music tracks shipped before the pivot); reference code survives in `packages/client-old/src/audio/` for salvage. The current Excalibur.js client has zero audio code. When audio work resumes, this document is the target architecture.
 
-## Tech Stack
-- **Tone.js** — synthesis, sequencing, effects chains
-- **Web Audio API** — low-level mixing, spatial audio, dynamic gain
-- **Howler.js** (optional) — for one-shot SFX samples where synthesis is overkill
-- All music is **layered stems** — individual instrument tracks that can be muted/faded independently for dynamic transitions
+The audio stack is engine-agnostic (Tone.js + Howler.js + Web Audio API). None of it is Excalibur-specific, so the blueprint carries over cleanly from the old codebase.
+
+## Tech stack
+- **Tone.js** — synthesis, sequencing, effects chains.
+- **Web Audio API** — low-level mixing, spatial audio, dynamic gain.
+- **Howler.js** (optional) — one-shot SFX samples where synthesis is overkill.
+- All music is **layered stems** — individual instrument tracks that can be muted/faded independently for dynamic transitions.
 
 ---
 
-## Background Music
+## Background music
 
-### Design Philosophy
+### Design philosophy
 Each location has a **base layer** (always playing) + **overlay stems** (added/removed based on context like time of day, player activity, population density). Procedural variation comes from:
-- Randomised melodic motifs drawn from a scale/mode pool
-- Slight BPM drift (±2–4 BPM) per session
-- Randomly selected ornamental phrases injected at phrase boundaries
+- Randomised melodic motifs drawn from a scale/mode pool.
+- Slight BPM drift (±2–4 BPM) per session.
+- Randomly selected ornamental phrases injected at phrase boundaries.
 
 ---
 
-### Towns & Cities
+### Towns & cities
 
 #### Human Town
 - **Mood:** Warm, busy, grounded
@@ -87,7 +88,7 @@ Each location has a **base layer** (always playing) + **overlay stems** (added/r
 
 ---
 
-### Combat Music
+### Combat music
 
 #### Generic Fight Music
 - **Mood:** Urgent, driving, adrenaline
@@ -115,7 +116,7 @@ Each location has a **base layer** (always playing) + **overlay stems** (added/r
 
 ---
 
-### Open World Exploration
+### Open world exploration
 
 #### Grasslands
 - **Mood:** Open, free, peaceful adventure
@@ -143,11 +144,9 @@ Each location has a **base layer** (always playing) + **overlay stems** (added/r
 
 ---
 
----
+## Sound effects
 
-## Sound Effects
-
-### Weather — Rain & Wind
+### Weather — rain & wind
 
 | Effect | Design | Intensity Layers |
 |---|---|---|
@@ -155,13 +154,13 @@ Each location has a **base layer** (always playing) + **overlay stems** (added/r
 | **Wind** | Bandpass-filtered noise with slow LFO pitch wobble | Gentle breeze → gusting wind → storm gale (3 layers) |
 | **Rain + Wind together** | Both channels mixed; wind LFO synced to rain intensity variable | Combined intensity parameter drives both simultaneously |
 
-- All weather is **additive** — layered over music via a separate gain bus, never replacing it
-- Intensity driven by a `weatherIntensity` float (0.0–1.0) that can be set per zone or per weather event
-- A subtle low-pass filter is applied to the music bus during heavy rain/wind to simulate acoustic dampening
+- All weather is **additive** — layered over music via a separate gain bus, never replacing it.
+- Intensity driven by a `weatherIntensity` float (0.0–1.0) that can be set per zone or per weather event.
+- A subtle low-pass filter is applied to the music bus during heavy rain/wind to simulate acoustic dampening.
 
 ---
 
-### Combat Sound Effects
+### Combat sound effects
 
 Each category has **3 intensity tiers** (light / medium / heavy) to match hit power or attack type.
 
@@ -181,7 +180,7 @@ Each category has **3 intensity tiers** (light / medium / heavy) to match hit po
 
 ---
 
-### Movement Sound Effects
+### Movement sound effects
 
 | Type | Design Notes |
 |---|---|
@@ -189,12 +188,12 @@ Each category has **3 intensity tiers** (light / medium / heavy) to match hit po
 | **Running** | Same surface variants but faster cadence, slightly heavier impact, light breathing layer |
 | **Horseback** | Hoof clopping (4-beat pattern), varies by surface; gallop = faster cadence + saddle creak |
 
-- Surface detection feeds the correct footstep sample set based on tile type
-- Slight random pitch variation (±5%) per step prevents repetition fatigue
+- Surface detection feeds the correct footstep sample set based on tile type.
+- Slight random pitch variation (±5%) per step prevents repetition fatigue.
 
 ---
 
-### Progression & Event Sound Effects
+### Progression & event sound effects
 
 | Event | Sound Design Notes |
 |---|---|
@@ -204,11 +203,11 @@ Each category has **3 intensity tiers** (light / medium / heavy) to match hit po
 
 ---
 
-### Ambient Creature & NPC Sounds
+### Ambient creature & NPC sounds
 
 All creature sounds play **stochastically** — triggered randomly within a distance radius from the entity, not looped.
 
-#### Wildlife (Grasslands / Forest)
+#### Wildlife (grasslands / forest)
 | Creature | Sound Notes |
 |---|---|
 | Birds | Chirping calls, varied species sounds; more active at dawn/dusk |
@@ -217,14 +216,14 @@ All creature sounds play **stochastically** — triggered randomly within a dist
 | Wolves | Distant howls (far), growls/snarls (close); howl more frequent at night |
 | Bears | Deep grunt + heavy footfall; roar variant for aggro |
 
-#### Desert Wildlife
+#### Desert wildlife
 | Creature | Sound Notes |
 |---|---|
 | Vultures | Harsh caws, wing flap sounds overhead |
 | Snakes | Dry rattle + hiss |
 | Scorpions | Light chittering + claw scrape on stone |
 
-#### Mountain Wildlife
+#### Mountain wildlife
 | Creature | Sound Notes |
 |---|---|
 | Eagles | Piercing cry + wing rush |
@@ -239,29 +238,27 @@ All creature sounds play **stochastically** — triggered randomly within a dist
 | Slimes / Oozes | Wet squelch, bubbling idle, splatter on hit |
 | Dragons | Wing thunder, deep roar with harmonic distortion, flame breath hiss + roar |
 
-#### NPC Ambient Voices
-- **Human towns:** Generic chatter, merchant calls ("Fresh bread!"), children laughing, blacksmith hammer
-- **Elf towns:** Soft singing, quiet conversation, wind chimes
-- **Dwarf towns:** Boisterous laughter, mug clanking, hammering, gruff shouting across halls
-- All NPC ambient sounds are **positional audio** — volume and direction based on player proximity via Web Audio API's `PannerNode`
+#### NPC ambient voices
+- **Human towns:** Generic chatter, merchant calls ("Fresh bread!"), children laughing, blacksmith hammer.
+- **Elf towns:** Soft singing, quiet conversation, wind chimes.
+- **Dwarf towns:** Boisterous laughter, mug clanking, hammering, gruff shouting across halls.
+- All NPC ambient sounds are **positional audio** — volume and direction based on player proximity via Web Audio API's `PannerNode`.
 
 ---
 
----
+## Acoustic occlusion — indoor / outdoor context
 
-## Acoustic Occlusion — Indoor / Outdoor Context
-
-### Player Acoustic States
+### Player acoustic states
 At any point the player is in one of three acoustic environments:
-- **Outdoors** — full presence, no filtering
-- **Indoors (near exterior)** — muffled outside world bleeds in, interior sounds are clear
-- **Indoors (deep / underground)** — outside world nearly inaudible, heavy reverb
+- **Outdoors** — full presence, no filtering.
+- **Indoors (near exterior)** — muffled outside world bleeds in, interior sounds are clear.
+- **Indoors (deep / underground)** — outside world nearly inaudible, heavy reverb.
 
 Transitions between states are **gradual**, driven by an `occlusionFactor` float (0.0 = fully outdoors → 1.0 = deep indoors), interpolated smoothly as the player crosses zone boundaries.
 
 ---
 
-### What Occlusion Affects
+### What occlusion affects
 
 #### Weather
 | Context | Treatment |
@@ -273,7 +270,7 @@ Transitions between states are **gradual**, driven by an `occlusionFactor` float
 
 The **rain on roof** layer is a separate synthesised sound — dense high-frequency taps with very short decay. It only plays indoors and inversely mirrors the outdoor rain volume reduction.
 
-#### Combat & Ability SFX
+#### Combat & ability SFX
 | Context | Reverb Treatment |
 |---|---|
 | Outdoors | Dry, short natural tail |
@@ -288,7 +285,7 @@ Surface type sets the sample; environment sets the reverb tail:
 - Indoors wood → medium room reverb
 - Stone dungeon → long cave reverb
 
-#### Creature & NPC Sounds
+#### Creature & NPC sounds
 | Scenario | Treatment |
 |---|---|
 | Wolf howl heard from indoors | Heavy low-pass + volume cut; distant and muffled |
@@ -297,7 +294,7 @@ Surface type sets the sample; environment sets the reverb tail:
 
 ---
 
-### Reverb Profiles
+### Reverb profiles
 
 Four profiles used across all SFX buses:
 
@@ -310,7 +307,7 @@ Four profiles used across all SFX buses:
 
 ---
 
-### Zone Acoustic Tags
+### Zone acoustic tags
 
 Each map zone carries an acoustic descriptor used to drive all of the above:
 
@@ -323,7 +320,7 @@ const zoneAcoustics = {
 };
 ```
 
-### Web Audio API — Dynamic Occlusion Filter
+### Web Audio API — dynamic occlusion filter
 
 Each audio bus (weather, ambient creatures, combat SFX, NPC chatter) gets its own low-pass filter node, tuned independently:
 
@@ -347,7 +344,7 @@ Zone boundary crossings interpolate `occlusionFactor` and crossfade the reverb p
 
 ---
 
-## Music State Machine (Overview)
+## Music state machine (overview)
 
 ```
 [Exploring Ambient]
@@ -366,11 +363,23 @@ Boss fight overrides the state machine entirely and must be manually exited on b
 
 ---
 
-## Implementation Notes
+## Implementation notes
 
-- Use **Tone.js Transport** to keep all music synced to a master BPM clock
-- Crossfades between states should happen **on beat boundaries** to avoid jarring cuts — quantise transitions to the nearest bar
-- Weather SFX runs on a completely **separate audio graph** from music so it never interferes with music ducking/fading
-- Combat SFX should use a **short attack, short release compressor** to keep hits punchy without clipping
-- Footsteps, creature sounds, and NPC voices should use **Web Audio API spatial panning** for immersion
-- Consider a **master "intensity" variable** (0.0–1.0) that globally feeds into music stem density, SFX volume, and weather presence simultaneously for cohesive atmosphere control
+- Use **Tone.js Transport** to keep all music synced to a master BPM clock.
+- Crossfades between states should happen **on beat boundaries** to avoid jarring cuts — quantise transitions to the nearest bar.
+- Weather SFX runs on a completely **separate audio graph** from music so it never interferes with music ducking/fading.
+- Combat SFX should use a **short attack, short release compressor** to keep hits punchy without clipping.
+- Footsteps, creature sounds, and NPC voices should use **Web Audio API spatial panning** for immersion.
+- Consider a **master "intensity" variable** (0.0–1.0) that globally feeds into music stem density, SFX volume, and weather presence simultaneously for cohesive atmosphere control.
+
+## Prior-implementation reference
+
+The deleted Babylon.js client (see `packages/client-old/src/audio/AudioSystem.ts`) had a working implementation of:
+- 4-bus gain architecture (music, SFX, weather, ambient).
+- 7-state music state machine with beat-quantized crossfades via `Tone.Transport`.
+- Procedural melody generation from scale/mode pools + phrase engine.
+- Proximity-based stem mixing (Manhattan distance).
+- Settings menu with server-persisted per-account audio preferences.
+- Server-authoritative triggers via `ENEMY_NEARBY` + `ZONE_MUSIC_TAG` opcodes.
+
+When the new client gets audio, salvage from that implementation — the logic is engine-independent, only the integration points (wiring to game events, UI) need rewriting for the Excalibur/current-scene architecture.

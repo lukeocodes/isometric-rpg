@@ -24,6 +24,4 @@ bun tools/import-test-zones.ts
 
 Reads `assets/20.xxx/sample map/*.tmx`, copies TMX + referenced TSX files + image PNGs into `packages/client/public/maps/test-zones/<slug>/` as a self-contained bundle. Also emits a minimal `map.json` (all-walkable, centre spawn) for server-side bounds.
 
-Run this after:
-- Updating the Mana Seed source samples.
-- Changing the zone list in `tools/seed-zones.ts` + re-running the seed.
+Run this after updating the Mana Seed source samples. The zone rows themselves live in the `zones` DB table (unique `numeric_id`, `test_slot` for the 1-9 keybind); add or edit rows directly (admin UI or raw SQL) — the old `tools/seed-zones.ts` script was deleted along with its placeholder gameplay data.

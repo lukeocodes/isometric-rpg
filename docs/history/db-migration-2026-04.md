@@ -2,7 +2,7 @@
 
 Historical record of the "move all data from code into the database" migration. The architectural rule now lives in `docs/data-policy.md`; this file is the receipt.
 
-> **Update (later the same day):** The migrated gameplay data (10 NPC templates, 17 items, 27 loot entries, 5 quests + objectives + rewards, 10 zones) was **wiped** from the DB and its seed scripts deleted. It was placeholder data from earlier hardcoded registries — gameplay hasn't started yet and re-seeding stale placeholders would just muddy the water. The DB schemas + runtime cache loaders stay in place for when real gameplay is designed; future seed scripts or an admin UI will populate them then. See `AGENTS.game.md` for current state.
+> **Update (later the same day):** The migrated gameplay data (10 NPC templates, 17 items, 27 loot entries, 5 quests + objectives + rewards, 10 zones) was **wiped** from the DB and the one-shot seed scripts below (`tools/seed-npc-templates.ts`, `tools/seed-items.ts`, `tools/seed-quests.ts`, `tools/seed-zones.ts`, `tools/seed-map-items.ts`) were deleted with it. The initial `tools/seed-tile-registry.ts` was already superseded by `tools/ingest-tilesets.ts` before this wipe. References to any `seed-*.ts` script below are kept for historical accuracy — **the files no longer exist**. The DB schemas + runtime cache loaders stay in place for when real gameplay is designed; an admin UI or a new CLI will populate them then. See `AGENTS.game.md` for current state.
 
 ## Phase 1 — Builder metadata ✅
 

@@ -14,12 +14,13 @@ Tiled maps are loaded via `@excaliburjs/plugin-tiled`.
 
 ### Key concepts
 
-- **Engine** — the root (`main.ts` constructs one with `DisplayMode.FitScreen`).
+- **Engine** — the root (`main.ts` constructs one with `DisplayMode.FillScreen`, `pixelArt: true`, `antialiasing: false`). The builder entry uses a separate Engine.
 - **Scene** — container for actors; switched via `game.goToScene(name)`. Two scenes today:
   - `GameScene` (`src/scenes/GameScene.ts`) — gameplay + combat.
   - `BuilderScene` (`src/builder/BuilderScene.ts`) — world builder.
 - **Actor** — anything that draws + has position. `actor.graphics.use(sprite | animation)` attaches graphics; `actor.graphics.opacity` controls alpha (0-1).
-- **z-index** — `actor.z` determines draw order within a scene. Layer z values come from the DB (`ground=0`, `decor=20`, `walls=60`, `canopy=80`); the player is at `PLAYER_Z=50`, so walls + canopy draw above.
+- **z-index** — `actor.z` determines draw order within a scene. Layer z values come from the DB (`ground=10`, `decor=20`, `walls=60`, `canopy=200`); the player is at `PLAYER_Z=50` (constant in `src/builder/registry/layers.ts`), so decor + ground draw below and walls + canopy draw above.
+- **Coordinate system** — top-down 2D orthographic. Actor `x` is world-space pixel X; Actor `y` is world-space pixel Y (south-increasing). `TILE=16` world px per tile (`src/tile.ts`). No `z` axis in the renderer.
 - **Sprite / Animation** — constructed from a `SpriteSheet` via `TilesetIndex.makeGraphic(tileset, tileId)`.
 - **Camera** — `scene.camera.strategy.lockToActor(player)` for follow.
 
@@ -40,7 +41,7 @@ Tiled maps are loaded via `@excaliburjs/plugin-tiled`.
 - `src/builder/TilesetIndex.ts` — loads DB registry + tileset PNGs + builds `SpriteSheet`s; `makeGraphic(tileset, tileId)` returns a ready `Sprite | Animation`.
 - `src/builder/registry/` — type contracts + `store.ts` (fetches the registry from `/api/builder/registry` on boot).
 
-`PixiApp.ts`, `IsoCamera.ts`, `EntityRenderer.ts`, `TerrainRenderer.ts`, `IsometricRenderer.ts`, `TiledMapRenderer.ts`, `Router.ts`, `GameHUD.ts`, `src/ecs/*` — **none of these exist any more**. They were part of the old PixiJS/ECS architecture that was replaced when the project switched to Excalibur + Tiled-plugin scenes.
+`PixiApp.ts`, `IsoCamera.ts`, `EntityRenderer.ts`, `TerrainRenderer.ts`, `IsometricRenderer.ts`, `TiledMapRenderer.ts`, `StructureRenderer.ts`, `Router.ts`, `GameHUD.ts`, `Loop.ts`, `InputManager.ts`, `src/ecs/*`, `src/ui/*`, `src/engine/*`, `src/renderer/*`, `src/state/*`, `src/auth/*`, `src/dev/PlaywrightAPI.ts` — **none of these exist any more**. They were part of the old PixiJS/ECS architecture from the isometric 3D era. The current client is a flat set of directories (`actors/`, `builder/`, `net/`, `scenes/`) plus `main.ts` + `tile.ts`. Auth is handled server-side; dev login posts to `/api/auth/dev-login` directly from `main.ts`.
 
 ## Tiled map system
 
@@ -64,9 +65,9 @@ HTML + CSS + DOM event handlers (not an Excalibur UI kit). Example: `packages/cl
 
 ## Remote player interpolation
 
-`RemotePlayerActor` (29 lines) stores a target position from network updates and lerps toward it on Excalibur's `onPreUpdate` tick.
+`RemotePlayerActor` (~29 lines) stores a target position from network updates and lerps toward it on Excalibur's `onPreUpdate` tick at 200 px/s. Currently a placeholder coloured square — sprite + nameplate + proper interpolation with numeric hash-map decoding are on the blocker list (see `AGENTS.game.md`).
 
 ## Dev hooks
 
 - `window.__builder = { game, net, scene, tiles }` — exposed by `src/builder/main.ts` for Playwright / manual inspection.
-- `window.__game` — similar, from the gameplay scene. See [`docs/testing-playwright.md`](testing-playwright.md).
+- `window.__game = game` — the Excalibur `Engine` instance, exposed by `src/main.ts`. Note: the `getPlayerPosition` / `move` / `selectTarget` / `toggleAutoAttack` helper API from the old client has NOT been re-ported yet. See [`docs/testing-playwright.md`](testing-playwright.md).

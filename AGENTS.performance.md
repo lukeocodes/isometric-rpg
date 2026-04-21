@@ -11,4 +11,4 @@
 - **Positions** go over the unreliable channel, batched, 20 bytes per entity.
 - **Entity IDs on the wire** are `u32` hashes via `hashEntityId(str)`; client maintains `numericIdMap`.
 - **Sleep optimisation:** all entities skip ticking when no player is within 32 tiles.
-- **No `requestAnimationFrame` / `setTimeout`** for game-visible animation; hook the engine tick instead.
+- **No `requestAnimationFrame` / `setTimeout`** for game-visible animation; hook Excalibur's `onPreUpdate` / `onPostUpdate` instead.

@@ -46,7 +46,7 @@ Select any tile → the detail pane shows the full parent PNG at 1×/2×/4× zoo
 
 ## Registry data
 
-All tile metadata lives in the database. Runtime reads from `/api/builder/registry`. See `docs/data-policy.md` and `docs/db-migration.md` for the architecture.
+All tile metadata lives in the database. Runtime reads from `/api/builder/registry`. See `docs/data-policy.md` for the architecture and `docs/history/db-migration-2026-04.md` for the completed migration record.
 
 Type contracts (client-side):
 - `packages/client/src/builder/registry/categories.ts` — `CategoryId` union + `CategoryDef`

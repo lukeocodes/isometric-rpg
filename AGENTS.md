@@ -28,6 +28,8 @@ Top-level `AGENTS.<topic>.md` files are indexes — each points at its deep-dive
 - **`AGENTS.server.md`** — server runtime overview. Indexes `docs/server-architecture.md` (boot order, file map, how to add NPCs / spawn points).
 - **`AGENTS.performance.md`** — the binary-vs-JSON rule + other perf invariants. Indexes `docs/binary-protocol.md` + `docs/performance-rules.md`.
 - **`AGENTS.testing.md`** — Playwright integration testing. Indexes `docs/testing-playwright.md` (setup, combat loop, multi-tab, known constraints).
+- **`AGENTS.identity.md`** — design-only: ATProto identity, `player_ref` HMAC, zone ownership taxonomy, row-level integrity signatures, mail system. Indexes `docs/identity-zones.md`. Not yet implemented.
+- **`AGENTS.audio.md`** — design-only: Tone.js + Web Audio stack, music state machine, acoustic occlusion. Indexes `docs/audio.md`. Prior Babylon.js implementation lives in `packages/client-old/src/audio/` as salvage.
 
 Supplemental non-index docs that don't have an `AGENTS.*.md` front door:
 
@@ -69,7 +71,7 @@ bun tools/audit-transparent.ts --fix                                # Clean dead
 - **Client** — Excalibur.js v0.30 2D top-down rendering with `@excaliburjs/plugin-tiled`. Not PixiJS, not Babylon.js.
 - **Server** — authoritative game loop (combat, NPC AI, HP, state) at 20Hz.
 - **Protocol** — binary for high-frequency messages (positions, combat, state); JSON for rare events (chat, quests, zone changes). Full rules + opcode table in `docs/binary-protocol.md`.
-- **Coordinate system** — top-down `x, y` (was isometric `x, y, z` — that architecture is gone).
+- **Coordinate system** — top-down 2D orthographic: Actor `x, y` in world pixels (`TILE=16` per tile). The binary position protocol still carries a legacy `z` float from the prior isometric architecture; it's ignored on render. See [`docs/binary-protocol.md`](docs/binary-protocol.md).
 - **Data in the database, NOT in code** — only logic + images outside the DB. Everything queryable is a table. Full manifesto in `docs/data-policy.md`. This rule is **non-negotiable**.
 
 ## Key constants

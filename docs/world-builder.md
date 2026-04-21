@@ -19,7 +19,7 @@ Separate Vite entry at `/builder.html`. Uses the same WebRTC connection as the g
 
 See `docs/tile-library.md` for multi-select, bulk edit, source-spritesheet viewer, and the 20 category taxonomy.
 
-## Protocol (opcodes 200–210, all JSON on reliable channel)
+## Protocol (opcodes 200–213, all JSON on reliable channel)
 
 | Opcode | Name | Dir | Payload |
 |---|---|---|---|
@@ -30,9 +30,13 @@ See `docs/tile-library.md` for multi-select, bulk edit, source-spritesheet viewe
 | 204 | `BUILDER_TILE_PLACED` | S→C | Broadcast to other builders in same zone |
 | 205 | `BUILDER_TILE_REMOVED` | S→C | Broadcast |
 | 206 | `BUILDER_LIST_MAPS` | C→S | |
-| 207 | `BUILDER_MAPS_LIST` | S→C | |
+| 207 | `BUILDER_MAPS_LIST` | S→C | `{ maps: [{ id, numericId, name, width, height }] }` |
 | 208 | `BUILDER_GOTO_MAP` | C→S | `{ numericId }` — teleport to heaven or a user map |
 | 209 | `BUILDER_ERROR` | S→C | `{ reason }` |
+| 210 | `BUILDER_PLACE_BLOCK` | C→S | `{ x, y }` — place a 1-cell collision block |
+| 211 | `BUILDER_REMOVE_BLOCK` | C→S | `{ x, y }` — remove a collision block |
+| 212 | `BUILDER_BLOCK_PLACED` | S→C | Broadcast: block added |
+| 213 | `BUILDER_BLOCK_REMOVED` | S→C | Broadcast: block removed |
 
 ## Zone numeric IDs
 

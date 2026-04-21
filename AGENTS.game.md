@@ -8,7 +8,7 @@ Top-down Pokemon-style RPG. Excalibur.js v0.30 + `@excaliburjs/plugin-tiled`. Se
 
 **Focus right now:** the world builder. Gameplay hasn't started — no NPCs, items, quests, or static zones yet. The in-game sandbox is **heaven** (zone numericId 500, in-memory, no persistence). User maps built from heaven can be persisted + frozen to TMX.
 
-**Gameplay data = empty on purpose.** All seven gameplay-data tables (`zones`, `npc_templates`, `item_templates`, `loot_entries`, `quests`, `quest_objectives`, `quest_rewards`) have **0 rows**. The runtime code (`game/npc-templates.ts`, `game/items.ts`, `game/quests.ts`, `game/zone-registry.ts`) is wired in and ready, but it's loading 0 rows at boot and nothing spawns. The old hardcoded placeholder data + its seed scripts have been wiped — when gameplay is designed, new seed scripts / admin UI will populate these tables for real. See [`docs/history/db-migration-2026-04.md`](docs/history/db-migration-2026-04.md) for the migration history.
+**Gameplay data = empty on purpose.** All seven gameplay-data tables (`zones`, `npc_templates`, `item_templates`, `loot_entries`, `quests`, `quest_objectives`, `quest_rewards`) have **0 rows**. The runtime code (`game/npc-templates.ts`, `game/items.ts`, `game/quests.ts`, `game/zone-registry.ts`) is wired in and ready, but it's loading 0 rows at boot and nothing spawns. The old hardcoded placeholder data + the one-shot `tools/seed-*.ts` scripts that populated it have both been wiped — when gameplay is designed, an admin UI or new CLI will populate these tables. See [`docs/history/db-migration-2026-04.md`](docs/history/db-migration-2026-04.md) for the migration history.
 
 **Map system — two ways to author maps:**
 
@@ -31,7 +31,7 @@ Gameplay systems exist as code but have **zero data**:
 - **No static zones.** `zones` table = 0 rows. Only heaven (numericId 500, via `user_maps`) + user-built maps exist.
 - **No gameplay scene.** `packages/client/src/scenes/GameScene.ts` exists and loads TMX, but the actual "you are playing the game" UX hasn't been built. Focus is the builder.
 
-When gameplay is designed: add new seed scripts (`tools/seed-<topic>.ts` pattern) OR author via an admin UI that writes to the DB directly. The runtime caches (`NPC_TEMPLATES`, `ITEMS`, `QUESTS`, `zones` map) re-populate on boot.
+When gameplay is designed: populate the tables via an admin UI or a new CLI tool that writes straight to the DB (the original `tools/seed-<topic>.ts` scripts were deleted along with their placeholder data). The runtime caches (`NPC_TEMPLATES`, `ITEMS`, `QUESTS`, `zones` map) re-populate on boot.
 
 ## Blockers to "fully playable" (kept as roadmap)
 
@@ -48,13 +48,19 @@ In rough order, for when gameplay lands:
 
 ## Supplemental docs
 
-- [`docs/world-builder.md`](docs/world-builder.md) — Builder commands, protocol opcodes 200–209, rendering model, v1 limits.
+- [`docs/world-builder.md`](docs/world-builder.md) — Builder commands, protocol opcodes 200–213, rendering model, v1 limits.
 - [`docs/tile-library.md`](docs/tile-library.md) — The 20-category taxonomy, multi-select + bulk edit, source-spritesheet viewer, workflow for adding a new tileset.
 - [`docs/paint-map.md`](docs/paint-map.md) — Scene-spec painter workflow, painter architecture, scene-spec gotchas, adding wang terrains / collision.
 - [`docs/test-zones.md`](docs/test-zones.md) — Debug teleport keys 1–9 and the Mana Seed sample maps they map to.
 - [`docs/data-policy.md`](docs/data-policy.md) — "Data in the Database, NOT in Code" rule + workflows.
 - [`docs/history/db-migration-2026-04.md`](docs/history/db-migration-2026-04.md) — Completed migration record (Phase 1 + Phase 2), remaining Phase 1b / Phase 3 sketches.
-- [`docs/history/model-workbench.md`](docs/history/model-workbench.md) — Model-workbench final state log.
+
+## Forward-looking design (not yet implemented)
+
+Design docs that will drive gameplay systems when they land. No code yet; these are the specs the eventual implementations follow.
+
+- [`AGENTS.identity.md`](AGENTS.identity.md) + [`docs/identity-zones.md`](docs/identity-zones.md) — ATProto identity model (`player_ref` HMAC, DID never stored), zone taxonomy (server / procedural / player-owned / shared-guild), house deed item, row-level integrity signatures (`SERVER_SECRET + DID + player_ref`), tier-B deferred-countersign mail system. Replaces the current simplified OAuth stand-in.
+- [`AGENTS.audio.md`](AGENTS.audio.md) + [`docs/audio.md`](docs/audio.md) — Tone.js + Web Audio audio stack, 4-bus gain architecture, music state machine (Exploring / Town / Dungeon / Enemy Nearby / Combat / Boss / Victory), acoustic occlusion (dry / room / hall / cave). Working implementation exists in `packages/client-old/src/audio/` as salvage for when audio lands in the new client.
 
 ## Architecture rules (recap — full rationale in `docs/data-policy.md` and AGENTS.md)
 

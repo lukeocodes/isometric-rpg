@@ -11,7 +11,7 @@ Bun + Vite (port 5173). Excalibur.js v0.30 for rendering. `@excaliburjs/plugin-t
 
 ## At-a-glance
 
-- Engine: Excalibur `Engine` with `DisplayMode.FitScreen`. Two scenes: `GameScene`, `BuilderScene`.
+- Engine: Excalibur `Engine` with `DisplayMode.FillScreen`, `pixelArt: true`, `antialiasing: false`. Two scenes: `GameScene`, `BuilderScene`.
 - No JSON manifests, no `const FOO: Def[]` registries, no `localStorage.setItem` except per-device UI state (picker zoom, camera pos).
 - `actor.graphics.use(sprite)` to attach graphics. `actor.graphics.opacity` for fade. `actor.z` for depth.
 - `TilesetIndex.makeGraphic(tileset, tileId)` returns a ready `Sprite` or `Animation`.

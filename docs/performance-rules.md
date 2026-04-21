@@ -16,13 +16,13 @@ All entities with no player within 32 tiles are skipped in the game loop via the
 
 ## Entity cleanup
 
-Always remove entries from `Map` / `Set` when entities despawn (`EntityManager.removeEntity` clears spatial grid cells). Memory leaks from unflushed maps will grow unbounded over a multi-hour session.
+Always remove entries from `Map` / `Set` when entities despawn. On the server, `entityStore` (in `src/game/entities.ts`) owns the spatial grid and clears its cells on removal; combat state + linger tables purge on despawn. Memory leaks from unflushed maps will grow unbounded over a multi-hour session.
 
-Client-side: call `actor.kill()` on Excalibur actors when they're removed from the scene; destroy owned `ImageSource` / `SpriteSheet` if they were created single-use (most come from the shared `TilesetIndex` which owns them for the session).
+Client-side: call `actor.kill()` on Excalibur actors when they're removed from the scene. Don't hold references to killed actors. `ImageSource` / `SpriteSheet` instances are owned by `TilesetIndex` for the session — don't dispose them yourself.
 
 ## Particles / animations in the game loop
 
-**Never use `requestAnimationFrame` or `setTimeout` for game-visible animations.** Hook into the engine tick (`Loop.ts` / Excalibur's `onPreUpdate`) so they advance with the game clock. RAF callbacks accumulate and are not cancelled on scene unload; tab-switching pauses them.
+**Never use `requestAnimationFrame` or `setTimeout` for game-visible animations.** Hook into Excalibur's per-scene tick (`Scene.onPreUpdate` / `Actor.onPreUpdate`) so they advance with the game clock. RAF callbacks accumulate and are not cancelled on scene unload; tab-switching pauses them while the engine tick keeps running.
 
 ## Decoration scroll-out
 

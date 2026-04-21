@@ -34,7 +34,7 @@ Entity references are transmitted as u32 hashes via `hashEntityId(str)`. The cli
 | 70 | ENEMY_NEARBY | 7+4N B | entityHash:u32, nearby:u8, count:u8, npcHash:u32×N |
 | 80 | XP_GAIN | 14 B | entityHash:u32, xpGained:u16, totalXp:u32, xpToNext:u16, level:u8 |
 | 81 | LEVEL_UP | 8 B | level:u8, hpBonus:u16, manaBonus:u16, staminaBonus:u16 |
-| 82 | PLAYER_RESPAWN | 21 B | entityHash:u32, x:f32, y:f32, z:f32, hp:u16, maxHp:u16 |
+| 82 | PLAYER_RESPAWN | 21 B | entityHash:u32, x:f32, y:f32, z:f32 (legacy, unused on 2D render), hp:u16, maxHp:u16 |
 
 ## Still JSON (intentional)
 
@@ -103,4 +103,13 @@ case Opcode.MY_MSG: break; // handled in handleBinaryReliable
 
 ## Position broadcast (unreliable channel)
 
-Batched binary: `[count:u16LE]` + N × 20 bytes per entity. **Never send positions over the reliable channel** — positions can drop without retransmit; delivery is best-effort by design.
+Batched binary: `[count:u16LE]` + N × 20 bytes per entity, where each entry is `[entityIdHash:u32LE][x:f32LE][y:f32LE][z:f32LE][rotation:f32LE]`. **Never send positions over the reliable channel** — positions can drop without retransmit; delivery is best-effort by design.
+
+### The `z` field is vestigial
+
+The protocol keeps a `z` float on `POSITION_UPDATE` and `PLAYER_RESPAWN` from the earlier isometric architecture. The top-down 2D client uses `x, y` only; server simulation carries `z` on entities but it stays at zero in practice. The field is documented on the wire for honesty's sake — don't build on it, and don't remove it without coordinating a breaking wire change with every connected client (binary message sizes are byte-exact).
+
+### Single-entity vs batched
+
+- **Single-entity `packPosition`** (`protocol.ts:122`): 24 bytes — `[op:u8][flags:u8][seq:u16LE][entityIdHash:u32LE][x:f32LE][y:f32LE][z:f32LE][rotation:f32LE]`. Historical code path; not used by the current broadcast.
+- **Batched `broadcastPositions`** (`world.ts`): 2-byte count header + N × 20-byte entries (no per-entity opcode). This is what ships at 15 Hz on the unreliable channel.
