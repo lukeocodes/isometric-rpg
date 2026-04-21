@@ -90,7 +90,11 @@ export class GameScene extends Scene {
   ): Promise<void> {
     this.loading = true;
     try {
-      const url = `/maps/${mapFile.split("/").map(encodeURIComponent).join("/")}`;
+      // Every map goes through /api/maps/<filename>. The server serves a
+      // frozen TMX from `public/maps/` if one exists, otherwise synthesizes
+      // one on demand from `user_maps` + `user_map_tiles`. Same contract
+      // either way — plugin-tiled can't tell the difference.
+      const url = `/api/maps/${encodeURIComponent(mapFile)}`;
 
       // Detach the previous map's entities from the scene. Don't destroy the
       // TiledResource itself — keep it cached for instant re-entry without a

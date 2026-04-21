@@ -33,8 +33,8 @@ export const config = {
   },
   world: {
     seed: parseInt(process.env.WORLD_SEED || "42"),
-    /** Default player spawn position — heaven centre (32×32 map → tile 16,16). */
-    spawnX: parseInt(process.env.SPAWN_X || "16"),
-    spawnZ: parseInt(process.env.SPAWN_Z || "16"),
+    // Spawn coordinates intentionally removed — every spawn resolves from
+    // the DB-registered map's dimensions (user-maps.ts helpers). Hardcoded
+    // SPAWN_X / SPAWN_Z env vars are ignored.
   },
 } as const;

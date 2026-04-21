@@ -6,7 +6,7 @@ import { requireAuth } from "../auth/middleware.js";
 import { db } from "../db/postgres.js";
 import { accounts, characters } from "../db/schema.js";
 import { eq } from "drizzle-orm";
-import { HEAVEN_NUMERIC_ID } from "../game/user-maps.js";
+import { getHeavenSpawn, getStarterSpawnForRace } from "../game/user-maps.js";
 
 function accountToJson(a: typeof accounts.$inferSelect) {
   return { id: a.id, email: a.email, displayName: a.displayName, isOnboarded: a.isOnboarded, preferences: a.preferences || {} };
@@ -18,39 +18,53 @@ function charSummary(c: typeof characters.$inferSelect) {
 
 /** Seed the two dev characters ("Main" + "Game Master") for an account if
  *  they aren't already present. Idempotent — safe to call on every dev-login.
- *  Both spawn at heaven centre (16,16). If the account has characters without
- *  the expected roles we wipe and reseed so the state is always predictable. */
+ *
+ *  - Main spawns at the starter map centre. The starter map is seeded as a
+ *    regular user map at server boot; its numericId is DB-assigned, so we
+ *    look it up here and stamp it onto Main's `mapId`.
+ *  - Game Master spawns at heaven (the hardcoded constant zone).
+ *
+ *  If the account already has non-seeded characters without the expected
+ *  roles, wipe and reseed so the state is always predictable. */
 async function ensureDevCharacters(accountId: string) {
   const existing = await db.select().from(characters).where(eq(characters.accountId, accountId));
   const hasMain = existing.some(c => c.role === "main");
   const hasGM   = existing.some(c => c.role === "game-master");
   if (hasMain && hasGM) return;
 
-  // Wipe any stale characters for this dev account and recreate both roles
-  // cleanly. Only used for dev-login accounts; real OAuth accounts go through
-  // the normal character creation flow.
   if (existing.length > 0) {
     await db.delete(characters).where(eq(characters.accountId, accountId));
   }
 
-  const heavenSpawn = { posX: 16, posY: 0, posZ: 16, mapId: HEAVEN_NUMERIC_ID };
+  // Main is a human character; the Game Master always lives in heaven.
+  // Both spawn points come from DB-registered map rows — no hardcoded
+  // coordinates or numericIds.
+  const mainSpawn = getStarterSpawnForRace("human");
+  if (!mainSpawn) {
+    throw new Error("Human starter map not seeded — server boot must run loadAllUserMaps first");
+  }
+  const gmSpawn = getHeavenSpawn();
+  if (!gmSpawn) {
+    throw new Error("Heaven map not seeded — server boot must run loadAllUserMaps first");
+  }
+
   const baseStats = {
     accountId,
-    race: "human",
+    race:   "human",
     gender: "male",
-    str: 10, dex: 10, intStat: 10,
+    posY:   0,
+    str:    10, dex: 10, intStat: 10,
     skills: [
       { name: "swordsmanship", value: 30 },
       { name: "archery",       value: 30 },
       { name: "healing",       value: 30 },
     ],
     hairStyle: 0, hairColor: 0, skinTone: 0, outfit: 0,
-    ...heavenSpawn,
   } as const;
 
   await db.insert(characters).values([
-    { ...baseStats, name: "Main",        role: "main"         },
-    { ...baseStats, name: "Game Master", role: "game-master"  },
+    { ...baseStats, name: "Main",        role: "main",        ...mainSpawn },
+    { ...baseStats, name: "Game Master", role: "game-master", ...gmSpawn   },
   ]);
 }
 

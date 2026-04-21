@@ -33,7 +33,10 @@ export const characters = pgTable("characters", {
   posX: real("pos_x").default(0).notNull(),
   posY: real("pos_y").default(0).notNull(),
   posZ: real("pos_z").default(0).notNull(),
-  mapId: integer("map_id").default(500).notNull(),  // 500 = HEAVEN_NUMERIC_ID
+  // 500 = HEAVEN_NUMERIC_ID (constant in game/user-maps.ts). Only a safety
+  // net — every INSERT path explicitly sets mapId (starter for new players,
+  // heaven for Game Masters, saved mapId on returning chars).
+  mapId: integer("map_id").default(500).notNull(),
   level: integer("level").default(1).notNull(),
   xp: integer("xp").default(0).notNull(),
   /** Dev-account role. `main` = index.html player, `game-master` = builder.html
@@ -95,16 +98,27 @@ export const placedObjects = pgTable("placed_objects", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-// World-builder maps — user-authored maps created via the builder client.
-// numericId >= 1000, used in characters.map_id like any other zone.
-// `zoneId` is the string handle ("user:<uuid>") used by the zone registry.
+// World-builder maps — user-authored maps. `numericId` is the wire-format id
+// used everywhere (characters.map_id, entities, etc); `zoneId` is a
+// human-readable string handle. Every map has a `type` (kind of map) and
+// sometimes a `race` (which species' zone it belongs to).
+//
+//   type = 'heaven' | 'starter' | 'adventure' | ...
+//   race = 'human' | 'elf' | 'dwarf' | 'gnome' | 'tauren' | 'troll' |
+//          'undead' | 'orc' | null
+//
+// The `(type, race)` pair locates well-known maps without hardcoding IDs —
+// e.g. a new human character spawns on the row matching
+// `(type='starter', race='human')`.
 export const userMaps = pgTable("user_maps", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id:        uuid("id").primaryKey().defaultRandom(),
   numericId: integer("numeric_id").notNull().unique(),
-  zoneId: varchar("zone_id", { length: 64 }).notNull().unique(),
-  name: varchar("name", { length: 100 }).notNull(),
-  width: integer("width").notNull(),
-  height: integer("height").notNull(),
+  zoneId:    varchar("zone_id", { length: 64 }).notNull().unique(),
+  name:      varchar("name", { length: 100 }).notNull(),
+  type:      varchar("type", { length: 32 }).notNull().default("adventure"),
+  race:      varchar("race", { length: 32 }),
+  width:     integer("width").notNull(),
+  height:    integer("height").notNull(),
   createdBy: uuid("created_by").references(() => accounts.id),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

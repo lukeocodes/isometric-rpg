@@ -1,13 +1,15 @@
 /**
- * Builder scene — walks the character around a user-authored map, overlays
- * placed tiles on top of the heaven.tmx base, and handles placement / pickup
- * / deletion / rotation via mouse + keyboard.
+ * Builder scene — walks the character around a user-authored map, renders
+ * placed tiles, and handles placement / pickup / deletion / rotation via
+ * mouse + keyboard.
  *
  * This scene is distinct from GameScene in that it:
  *   - Never hides cursor ghost
  *   - Talks to the server via BUILDER_* opcodes
  *   - Ignores NPC/combat events
- *   - Always loads heaven.tmx as the base (user maps don't have a TMX file yet)
+ *   - Loads the current zone's TMX from `/api/maps/<mapFile>` — the server
+ *     serves a frozen TMX from disk if it exists, otherwise synthesizes one
+ *     from `user_map_tiles`. Either way plugin-tiled renders a normal map.
  */
 import {
   Scene, SceneActivationContext,
@@ -26,7 +28,6 @@ import { BuilderHud } from "./BuilderHud.js";
 import { PLAYER_Z, getLayer, listLayersByOrder, type LayerId } from "./registry/layers.js";
 import { getTilesetDef } from "./registry/tilesets.js";
 
-const HEAVEN_MAP = "heaven.tmx";
 /** Cached ordered list of canonical layer ids. Sourced from the registry. */
 const LAYER_NAMES: LayerId[] = listLayersByOrder().map((l) => l.id);
 type LayerName = LayerId;
@@ -38,7 +39,7 @@ export class BuilderScene extends Scene {
   private player!: PlayerActor;
   private playerSpriteImg!: ImageSource;
 
-  // Base map (heaven.tmx — re-used as the canvas for every user map)
+  // Base map — served from `/api/maps/<mapFile>` (frozen TMX or DB-synth).
   private tiledMap: TiledResource | null = null;
   private mapCache = new Map<string, TiledResource>();
   private loading = false;
@@ -89,9 +90,11 @@ export class BuilderScene extends Scene {
     this.playerSpriteImg = new ImageSource("/assets/sprites/player.png");
     await this.playerSpriteImg.load();
 
-    // Heaven is the visual canvas. User maps inherit heaven's grass background
-    // until the painter builds them a real one.
-    await this.loadBase(engine, HEAVEN_MAP);
+    // Load the current zone's TMX. `net.zone.mapFile` is the filename picked
+    // by the server (e.g. `heaven.tmx`, `starter.tmx`); the API route serves
+    // a frozen disk file if one exists, otherwise synthesizes from DB.
+    const initialMap = this.net.zone.mapFile || "heaven.tmx";
+    await this.loadBase(engine, initialMap);
 
     // Overlay is created once and lives for the scene's lifetime.
     this.overlay = new TileOverlay(this.tiles);
@@ -217,23 +220,32 @@ export class BuilderScene extends Scene {
         break;
       }
       case Opcode.ZONE_CHANGE: {
-        // Heaven is the only real TMX — user maps reuse it.
-        // We just need to reset the camera/player position; the base map
-        // doesn't change. Next BUILDER_MAP_SNAPSHOT will repopulate overlay.
+        // Every zone has its own TMX now (served from `/api/maps/`). Swap
+        // the base map and re-seat the player. The next BUILDER_MAP_SNAPSHOT
+        // will repopulate the overlay for any tiles not baked into the TMX
+        // yet (e.g. the last-second placements by another builder).
         const sx = tileToWorld(msg.spawnX ?? 0);
         const sy = tileToWorld(msg.spawnZ ?? 0);
-        this.player.teleport(sx, sy);
-        this.camera.pos = new Vector(sx, sy);
         this.overlay.clear();
         this.blocks.clear();
-        // The server will follow up with a BUILDER_MAP_SNAPSHOT for the new
-        // zone which triggers ensurePlayerSafe once blocks are populated.
         this.currentMap.zoneId = msg.zoneId ?? "";
         this.currentMap.name   = msg.zoneName ?? "";
-        this.hud.setZone(msg.zoneName || msg.zoneId || "Heaven");
+        this.hud.setZone(msg.zoneName || msg.zoneId || "");
         this.net.zone.zoneId   = msg.zoneId   ?? "";
         this.net.zone.zoneName = msg.zoneName ?? "";
         this.net.zone.mapFile  = msg.mapFile  ?? "";
+        const newMap = msg.mapFile;
+        if (newMap && typeof newMap === "string") {
+          this.loadBase(this.engineRef, newMap)
+            .then(() => {
+              this.player.teleport(sx, sy);
+              this.camera.pos = new Vector(sx, sy);
+            })
+            .catch((err) => console.error(`[BuilderScene] loadBase("${newMap}") failed:`, err));
+        } else {
+          this.player.teleport(sx, sy);
+          this.camera.pos = new Vector(sx, sy);
+        }
         break;
       }
     }
@@ -766,13 +778,24 @@ export class BuilderScene extends Scene {
   }
 
   // ---------------------------------------------------------------------------
-  // Base-map loading (heaven.tmx)
+  // Base-map loading (served from /api/maps/<mapFile>)
   // ---------------------------------------------------------------------------
 
   private async loadBase(engine: Engine, mapFile: string): Promise<void> {
     this.loading = true;
     try {
-      const url = `/maps/${mapFile.split("/").map(encodeURIComponent).join("/")}`;
+      // Same URL contract as the game client: the server decides whether to
+      // stream a frozen TMX off disk or synthesize one from `user_map_tiles`.
+      const url = `/api/maps/${encodeURIComponent(mapFile)}`;
+
+      // If the previous base belongs to a different zone, detach it from the
+      // scene before swapping in the new one. Don't destroy cached resources
+      // — plugin-tiled has no disposal API and loading fresh copies leaks
+      // GPU textures.
+      if (this.tiledMap && this.mapCache.get(url) !== this.tiledMap) {
+        this.detachBase(this.tiledMap);
+      }
+
       let tiledMap = this.mapCache.get(url);
       if (!tiledMap) {
         // NOTE: useTilemapCameraStrategy confines the camera to the map's
@@ -789,6 +812,23 @@ export class BuilderScene extends Scene {
       this.tiledMap = tiledMap;
     } finally {
       this.loading = false;
+    }
+  }
+
+  /** Remove a TiledResource's actors from the scene without destroying the
+   *  resource itself (so re-entering the zone doesn't re-upload textures). */
+  private detachBase(tiled: TiledResource): void {
+    for (const layer of tiled.layers) {
+      const anyLayer = layer as unknown as {
+        tilemap?:    { kill?: () => void };
+        entities?:   Array<{ kill?: () => void }>;
+        imageActor?: { kill?: () => void } | null;
+      };
+      if (anyLayer.tilemap)    this.remove(anyLayer.tilemap as any);
+      if (anyLayer.imageActor) this.remove(anyLayer.imageActor as any);
+      if (Array.isArray(anyLayer.entities)) {
+        for (const e of anyLayer.entities) this.remove(e as any);
+      }
     }
   }
 }

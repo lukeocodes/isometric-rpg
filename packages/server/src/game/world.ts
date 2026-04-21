@@ -19,6 +19,7 @@ import { db } from "../db/postgres.js";
 import { characters } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import { getZoneByNumericId } from "./zone-registry.js";
+import { getFirstStarterSpawn, getHeavenSpawn } from "./user-maps.js";
 
 /**
  * Handle a kill event — awards XP, broadcasts death, schedules respawn.
@@ -85,15 +86,23 @@ export function handleKill(killerId: string, deadEntityId: string) {
     handleNpcDeath(deadEntityId);
   }
 
-  // Player death → respawn at town after 3s
+  // Player death → respawn at the first seeded starter map after 3s. The
+  // map's numericId + centre coords come from the DB-registered row; no
+  // hardcoded spawn constants.
   if (deadEntity?.entityType === "player") {
     const playerId = deadEntityId;
     setTimeout(() => {
       const entity = entityStore.get(playerId);
       const combat = getCombatState(playerId);
       if (!entity || !combat) return;
-      entity.x = config.world.spawnX;
-      entity.z = config.world.spawnZ;
+      const spawn = getFirstStarterSpawn() ?? getHeavenSpawn();
+      if (!spawn) {
+        console.error(`[Respawn] No playable map seeded; cannot respawn ${playerId}`);
+        return;
+      }
+      entity.mapId = spawn.mapId;
+      entity.x = spawn.posX;
+      entity.z = spawn.posZ;
       entity.y = 0;
       combat.hp = combat.maxHp;
       combat.inCombat = false;
@@ -102,7 +111,7 @@ export function handleKill(killerId: string, deadEntityId: string) {
       combat.combatTimer = 0;
       connectionManager.sendReliable(playerId, packBinaryRespawn(playerId, entity.x, 0, entity.z, combat.hp, combat.maxHp));
       connectionManager.broadcastBinary(packBinaryState(playerId, combat.hp, combat.maxHp), playerId);
-      console.log(`[Respawn] Player ${playerId} respawned at town`);
+      console.log(`[Respawn] Player ${playerId} respawned at mapId=${spawn.mapId} (${spawn.posX}, ${spawn.posZ})`);
     }, 3000);
   }
 }

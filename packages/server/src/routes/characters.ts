@@ -3,8 +3,7 @@ import { requireAuth } from "../auth/middleware.js";
 import { db } from "../db/postgres.js";
 import { accounts, characters } from "../db/schema.js";
 import { eq, count } from "drizzle-orm";
-import { config } from "../config.js";
-import { HEAVEN_NUMERIC_ID } from "../game/user-maps.js";
+import { getStarterSpawnForRace, getFirstStarterSpawn, getHeavenSpawn } from "../game/user-maps.js";
 
 const VALID_RACES = new Set(["human", "elf", "dwarf"]);
 const VALID_GENDERS = new Set(["male", "female"]);
@@ -66,16 +65,29 @@ export async function characterRoutes(app: FastifyInstance) {
     const [existing] = await db.select().from(characters).where(eq(characters.name, b.name.trim()));
     if (existing) return reply.status(409).send({ detail: "Name already taken" });
 
+    // Spawn the new character at their race's starter map. Fall through to
+    // the lowest-numericId starter, then heaven, if nothing race-matched is
+    // seeded. All three come straight from the DB-registered map dimensions.
+    const race = b.race.toLowerCase();
+    const spawn =
+         getStarterSpawnForRace(race)
+      ?? getFirstStarterSpawn()
+      ?? getHeavenSpawn();
+    if (!spawn) {
+      return reply.status(500).send({ detail: "No starter map seeded" });
+    }
+
     const [character] = await db.insert(characters).values({
       accountId: account.id,
       name: b.name.trim(),
-      race: b.race.toLowerCase(),
+      race,
       gender: b.gender.toLowerCase(),
       str: b.str_stat, dex: b.dex_stat, intStat: b.int_stat,
       skills: skillNames.map((s: string) => ({ name: s, value: 30.0 })),
       hairStyle: b.hair_style || 0, hairColor: b.hair_color || 0,
       skinTone: b.skin_tone || 0, outfit: b.outfit || 0,
-      posX: config.world.spawnX, posY: 0, posZ: config.world.spawnZ, mapId: HEAVEN_NUMERIC_ID,
+      posY: 0,
+      ...spawn,
     }).returning();
 
     return reply.status(201).send({ character: charToJson(character) });

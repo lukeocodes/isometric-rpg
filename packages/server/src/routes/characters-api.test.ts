@@ -40,6 +40,14 @@ vi.mock("drizzle-orm", () => ({
   count: vi.fn(() => "count"),
 }));
 
+// Stub map-spawn helpers so the route resolves a spawn without needing the
+// real DB-backed user-maps registry.
+vi.mock("../game/user-maps.js", () => ({
+  getStarterSpawnForRace: () => ({ mapId: 1000, posX: 32, posZ: 32 }),
+  getFirstStarterSpawn:   () => ({ mapId: 1000, posX: 32, posZ: 32 }),
+  getHeavenSpawn:         () => ({ mapId: 500,  posX: 16, posZ: 16 }),
+}));
+
 import { characterRoutes } from "./characters.js";
 
 async function buildApp() {

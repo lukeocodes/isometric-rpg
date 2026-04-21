@@ -39,10 +39,12 @@ vi.mock("../db/postgres.js", () => ({
   },
 }));
 
-// user-maps.ts is imported by auth.ts purely for the HEAVEN_NUMERIC_ID
-// constant. Mock it out so the test doesn't pull the DB-heavy user-maps
-// module in.
-vi.mock("../game/user-maps.js", () => ({ HEAVEN_NUMERIC_ID: 500 }));
+// auth.ts reaches into user-maps for DB-registered spawn locations. Stub
+// both built-in lookups so tests don't pull the whole module in.
+vi.mock("../game/user-maps.js", () => ({
+  getHeavenSpawn:        () => ({ mapId: 500,  posX: 16, posZ: 16 }),
+  getStarterSpawnForRace: () => ({ mapId: 1000, posX: 32, posZ: 32 }),
+}));
 
 vi.mock("../db/schema.js", () => ({
   accounts: { oauthSub: "accounts.oauth_sub", id: "accounts.id" },

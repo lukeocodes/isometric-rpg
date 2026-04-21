@@ -13,9 +13,10 @@ import { isWalkable } from "../world/terrain.js";
 import { startLingering, cancelLingering, isLingering } from "../game/linger.js";
 import { Opcode, packEntitySpawn, packEntityDespawn, packReliable, packSpawnPoint, packChunkData, packBinaryAbilityCooldown, packBinaryDamage, packBinaryState, packBinaryDeath, packBinaryRespawn } from "../game/protocol.js";
 import {
-  HEAVEN_NUMERIC_ID,
   isBuilderZone,
   getBuilderMapByNumericId,
+  getFirstStarterSpawn,
+  getHeavenSpawn,
   createUserMap,
   placeTile,
   removeTile,
@@ -72,11 +73,21 @@ export async function rtcRoutes(app: FastifyInstance) {
         }
       }
 
-      // Load position from database. Heaven is the only map that exists
-      // right now, so every player — builder or not — spawns in heaven. If
-      // the saved position isn't in a known zone we snap them back to the
-      // heaven centre (16,16).
-      let startX = config.world.spawnX, startY = 0, startZ = config.world.spawnZ, startMapId = HEAVEN_NUMERIC_ID;
+      // Load saved position from DB. Characters from the normal creation /
+      // dev-seed paths already have a valid mapId + coords. Manually-added
+      // rows (e.g. inserted via raw SQL) may have a stale mapId — drop them
+      // onto the first seeded starter so they land somewhere sane. Heaven
+      // is the last-ditch fallback if no starter exists at all.
+      const fallback = getFirstStarterSpawn() ?? getHeavenSpawn();
+      if (!fallback) {
+        return reply.status(500).send({ detail: "No playable map seeded" });
+      }
+
+      let startX     = fallback.posX;
+      let startY     = 0;
+      let startZ     = fallback.posZ;
+      let startMapId = fallback.mapId;
+
       const [charRow] = await db.select({
         name: characters.name,
         posX: characters.posX, posY: characters.posY,
@@ -84,9 +95,9 @@ export async function rtcRoutes(app: FastifyInstance) {
         xp: characters.xp, level: characters.level,
       }).from(characters).where(eq(characters.id, characterId));
       if (charRow && isBuilderZone(charRow.mapId) && !(charRow.posX === 0 && charRow.posZ === 0)) {
-        startX = charRow.posX;
-        startY = charRow.posY;
-        startZ = charRow.posZ;
+        startX     = charRow.posX;
+        startY     = charRow.posY;
+        startZ     = charRow.posZ;
         startMapId = charRow.mapId;
       }
 
@@ -415,22 +426,26 @@ export async function rtcRoutes(app: FastifyInstance) {
           }
           console.log(`[Dungeon] Player ${entity.name} entered dungeon (difficulty ${difficulty})`);
         } else if (parsed.op === Opcode.DUNGEON_EXIT) {
-          // Return player to heaven (the only zone that exists right now).
+          // Return player to heaven. Coordinates + numericId come from the
+          // DB-registered heaven row; no hardcoded values.
           const dungeon = getPlayerDungeon(entityId);
           if (dungeon) {
             cleanupPlayerDungeon(entityId);
-            entity.mapId = HEAVEN_NUMERIC_ID;
-            entity.x = 16; entity.y = 0; entity.z = 16;
-            const heavenZone = getZoneByNumericId(HEAVEN_NUMERIC_ID);
-            if (reliableChannel.readyState === "open" && heavenZone) {
-              reliableChannel.send(packReliable(Opcode.ZONE_CHANGE, {
-                zoneId:     heavenZone.id,
-                zoneName:   heavenZone.name,
-                mapFile:    getClientMapFile(heavenZone),
-                spawnX:     16, spawnZ: 16,
-                levelRange: heavenZone.levelRange,
-                musicTag:   heavenZone.musicTag,
-              }));
+            const heavenSpawn = getHeavenSpawn();
+            const heavenZone  = heavenSpawn ? getZoneByNumericId(heavenSpawn.mapId) : undefined;
+            if (heavenSpawn && heavenZone) {
+              entity.mapId = heavenSpawn.mapId;
+              entity.x = heavenSpawn.posX; entity.y = 0; entity.z = heavenSpawn.posZ;
+              if (reliableChannel.readyState === "open") {
+                reliableChannel.send(packReliable(Opcode.ZONE_CHANGE, {
+                  zoneId:     heavenZone.id,
+                  zoneName:   heavenZone.name,
+                  mapFile:    getClientMapFile(heavenZone),
+                  spawnX:     heavenSpawn.posX, spawnZ: heavenSpawn.posZ,
+                  levelRange: heavenZone.levelRange,
+                  musicTag:   heavenZone.musicTag,
+                }));
+              }
             }
           }
         } else if (parsed.op === Opcode.ZONE_CHANGE_REQUEST) {

@@ -134,20 +134,21 @@ vi.mock("../game/linger.js", () => ({
   isLingering: vi.fn(() => false),
 }));
 
-// Mock user-maps so `isBuilderZone(HEAVEN_NUMERIC_ID)` returns true without
-// needing a real DB + heaven row.
+// Mock user-maps with a pretend heaven + human-starter registry so the
+// route helpers resolve spawn points without touching the real DB.
 vi.mock("../game/user-maps.js", () => ({
-  HEAVEN_NUMERIC_ID: 500,
-  isBuilderZone: (n: number) => n === 500,
+  isBuilderZone: (n: number) => n === 500 || n === 1000,
+  getHeavenSpawn:       vi.fn(() => ({ mapId: 500,  posX: 16, posZ: 16 })),
+  getFirstStarterSpawn: vi.fn(() => ({ mapId: 1000, posX: 32, posZ: 32 })),
   getBuilderMapByNumericId: vi.fn(() => undefined),
   createUserMap: vi.fn(),
-  placeTile: vi.fn(),
-  removeTile: vi.fn(),
-  placeBlock: vi.fn(),
-  removeBlock: vi.fn(),
-  listUserMaps: vi.fn(() => []),
-  getTilesFor: vi.fn(() => []),
-  getBlocksFor: vi.fn(() => []),
+  placeTile:     vi.fn(),
+  removeTile:    vi.fn(),
+  placeBlock:    vi.fn(),
+  removeBlock:   vi.fn(),
+  listUserMaps:  vi.fn(() => []),
+  getTilesFor:   vi.fn(() => []),
+  getBlocksFor:  vi.fn(() => []),
 }));
 
 // Mock zone-registry so `getZoneByNumericId(500)` returns a stub heaven zone.
@@ -239,7 +240,7 @@ describe("rtc routes", () => {
       expect(connectionManager.remove).toHaveBeenCalledWith("char-1");
     });
 
-    it("uses default heaven spawn when character not in DB", async () => {
+    it("uses first-starter spawn when character not in DB", async () => {
       mockDbWhere.mockResolvedValue([]); // No character row
 
       const res = await app.inject({
@@ -249,8 +250,8 @@ describe("rtc routes", () => {
 
       expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
-      // Default spawn = heaven centre (config.world.spawnX/Z default to 16,16)
-      expect(body.spawn).toEqual({ x: 16, y: 0, z: 16, mapId: 500 });
+      // Manually-added / missing chars land on the first-seeded starter map.
+      expect(body.spawn).toEqual({ x: 32, y: 0, z: 32, mapId: 1000 });
     });
 
     it("cleans up stale entity on fresh connect", async () => {

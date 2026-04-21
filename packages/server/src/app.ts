@@ -10,6 +10,7 @@ import { worldRoutes } from "./routes/world.js";
 import { rtcRoutes } from "./routes/rtc.js";
 import { worldBuilderRoutes } from "./routes/world-builder.js";
 import { builderRegistryRoutes } from "./routes/builder-registry.js";
+import { mapsRoutes } from "./routes/maps.js";
 import { config } from "./config.js";
 
 export async function buildApp() {
@@ -34,6 +35,7 @@ export async function buildApp() {
   await app.register(rtcRoutes, { prefix: "/api/rtc" });
   await app.register(worldBuilderRoutes, { prefix: "/api/world-builder" });
   await app.register(builderRegistryRoutes, { prefix: "/api/builder" });
+  await app.register(mapsRoutes, { prefix: "/api/maps" });
 
   // Serve built client if available (for ngrok / production)
   const __dirname = dirname(fileURLToPath(import.meta.url));
