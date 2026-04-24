@@ -58,26 +58,37 @@ Type contracts (client-side):
 
 ## Workflow: adding a new tileset
 
-1. Drop `foo.png` + `foo.tsx` into `packages/client/public/maps/<subfolder>/`. If auto-generating TSX, put PNG in `<subfolder>/images/foo 32x32.png` (cell size in filename) and run `bun tools/generate-tsx.ts`.
-2. Run `bun tools/ingest-tilesets.ts` — parses TSX, scans PNG alpha, UPSERTs into `tilesets` + `tile_animations` + `tile_empty_flags`.
-3. (Optional) `bun tools/audit-transparent.ts --fix` — removes stale override / sub-region rows pointing at now-transparent tiles.
-4. Reload the builder; new tileset appears under "Uncategorised". Use multi-select + bulk edit to assign a real category.
+1. Drop a Mana Seed asset pack into `assets/<pack-dir>/` (e.g. `assets/20.01b - Thatch Roof Home 4.1/`).
+2. Add the pack to the `PACKS` config in `tools/ingest-mana-seed.ts` with its category slug (`thatch-roof-home`), optional `seasonal`, `defaultTileSize`, `hidden`.
+3. Run `bun tools/ingest-mana-seed.ts` (or `--reset` for a full rebuild). The tool:
+   - Walks `assets/<pack-dir>/` recursively (skipping `_supporting files/`, `_old stuff (deprecated)/`, `sample map/`, reference/help/guide PNGs).
+   - For each PNG, derives tile size from the matching TSX in `<pack>/sample map/TSX files/` if present, else from the filename's `NxM` suffix, else the pack's `defaultTileSize`, else 16×16.
+   - Copies PNG to `packages/client/public/assets/tilesets/<cat>/<slug>.png`.
+   - Writes a canonical TSX at `packages/client/public/maps/<cat>/<slug>.tsx` (image src = `../../assets/tilesets/<cat>/<slug>.png`).
+   - UPSERTs into `tilesets` + `tile_animations` + `tile_empty_flags` with auto-derived `default_category_id` (heuristic keyword match on filename).
+4. (Optional) `bun tools/audit-transparent.ts --fix` — removes stale override / sub-region rows pointing at now-transparent tiles.
+5. Reload the builder; new tilesets appear under their auto-assigned category. Use multi-select + bulk edit to refine.
 
 ## Asset layout on disk
 
 ```
-packages/client/public/maps/
-├── <top-level summer TSX>.tsx            ← base packs + images in ../assets/tilesets/
-├── heaven.tmx + heaven.json              ← the one existing map (32×32 grass canvas)
-├── furniture/<cozy sheet>.tsx            ← Cozy Furnishings
-├── lights/<candles sheet>.tsx            ← Animated Candles
-├── crops/<farming sheet>.tsx             ← Farming Crops 1+2
-├── signs/<village sheet>.tsx             ← Village Accessories
-├── effects/<weather sheet>.tsx           ← Weather Effects
-├── roofs/<roof sheet>.tsx                ← home exterior sliceable packs
-├── forest-gentle/<gentle sheets>.tsx     ← Gentle Forest palettes
-├── containers/<chests+pots>.tsx          ← Treasure Chests + Breakable Pots
-└── user-maps/<numericId>-<slug>.{tmx,json}  ← frozen user builds
+assets/                                          ← raw Mana Seed packs (source of truth)
+├── 18.10a - Fences & Walls 3.0/
+├── 20.01b - Thatch Roof Home 4.1/
+├── 20.04c - Summer Forest 4.3/
+└── …                                            (36 included packs, many excluded)
+
+packages/client/public/maps/                     ← canonical TSX published by ingest
+├── 500-heaven.tmx + 500-heaven.json             ← frozen zones
+├── summer-forest/<slug>.tsx
+├── fences-walls/<slug>.tsx
+├── thatch-roof-home/<slug>.tsx
+└── …                                            (one subdir per pack category)
+
+packages/client/public/assets/tilesets/          ← canonical PNG published by ingest
+├── summer-forest/<slug>.png
+├── fences-walls/<slug>.png
+└── …                                            (matches TSX layout 1:1)
 ```
 
-Every TSX in these subfolders uses `<image source="images/<same name>.png"/>` — PNGs live in a sibling `images/` folder.
+Each TSX references its PNG via `<image source="../../assets/tilesets/<cat>/<slug>.png"/>` — PNG and TSX live in parallel category subdirs, one hop up-and-across.

@@ -47,7 +47,7 @@ A Pokémon GameBoy-style **top-down 2D orthographic** multiplayer online RPG bui
 - **Binary on hot paths, JSON on rare paths** — position packets + combat events + state broadcasts are binary; zone changes + chat + quests + spawn/despawn stay JSON. See `docs/binary-protocol.md`.
 - **Data in the database, not in code** — only logic + PNG/TSX files outside the DB. Tile metadata, NPC templates, items, quests, zones — all DB-backed. See `docs/data-policy.md`. **Non-negotiable.**
 - **Top-down 2D** — `x, y` world coordinates in pixels; `Actor.z` controls draw order per layer (ground=10, decor=20, player=50, walls=60, canopy=200).
-- **Tiled maps, no procedural terrain in-game** — worlds are hand-painted by designers or emitted by `tools/paint-map/` from scene-spec JSON. `tools/ingest-tilesets.ts` parses TSX files into DB rows at build time.
+- **Tiled maps, no procedural terrain in-game** — worlds are hand-painted by designers or emitted by `tools/paint-map/` from scene-spec JSON. `tools/ingest-mana-seed.ts` walks the Mana Seed asset packs, publishes canonical TSX+PNG to `public/`, and populates DB rows.
 - **Mana Seed sprites, no procedural characters** — characters are Mana Seed 32×32 animation frames on a 16×16 world tile grid (1 tile wide × 2 tiles tall). No runtime procedural sprite composition.
 
 ## Current state
@@ -107,10 +107,10 @@ Read `AGENTS.game.md` for the up-to-date status + known blockers.
 │                                       # Salvage source only; not compiled or served.
 │
 ├── tools/
-│   ├── ingest-tilesets.ts              # Walk public/maps/**/*.tsx → UPSERT DB rows
+│   ├── ingest-mana-seed.ts             # Walk assets/, publish canonical TSX+PNG, upsert DB
 │   ├── audit-transparent.ts            # Report/fix stale overrides + all-empty sub-regions
 │   ├── generate-tsx.ts                 # Build TSX files from PNGs named "foo WxH.png"
-│   ├── freeze-map.ts                   # Dump DB user-map → TMX + JSON in public/maps/user-maps/
+│   ├── freeze-map.ts                   # Dump DB user-map → TMX + JSON in public/maps/<numericId>-<slug>.{tmx,json}
 │   ├── generate-map.ts                 # Programmatic map generator (legacy)
 │   └── paint-map/                      # Scene-spec → TMX + server JSON painter
 │
@@ -142,9 +142,9 @@ docker compose up -d
 cd packages/server
 DATABASE_URL="postgresql://game:game_dev_password@localhost:5433/game" bunx drizzle-kit push
 
-# Ingest tileset metadata from disk into the DB
+# Ingest Mana Seed tileset metadata (walks assets/, publishes TSX+PNG, populates DB)
 cd ../..
-DATABASE_URL="postgresql://game:game_dev_password@localhost:5433/game" bun tools/ingest-tilesets.ts
+DATABASE_URL="postgresql://game:game_dev_password@localhost:5433/game" bun tools/ingest-mana-seed.ts
 
 cp packages/server/.env.example packages/server/.env
 ```

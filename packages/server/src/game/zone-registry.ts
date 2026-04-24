@@ -58,9 +58,12 @@ export function getZoneByMapFile(mapFile: string): ZoneDefinition | undefined {
   return undefined;
 }
 
-/** The client TMX path for a zone (co-located with its JSON). */
+/** The client TMX path for a zone. Identity for now — kept as a named
+ *  helper so the rest of the code doesn't grow literal `zone.mapFile`
+ *  references, in case the client-facing path ever diverges from the
+ *  server-registered one (e.g. a CDN prefix). */
 export function getClientMapFile(zone: ZoneDefinition): string {
-  return zone.mapFile.replace(/\.json$/, ".tmx");
+  return zone.mapFile;
 }
 
 /** @internal Test-only helper — seeds the in-memory cache with fixtures

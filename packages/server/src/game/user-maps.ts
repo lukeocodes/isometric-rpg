@@ -13,9 +13,9 @@ import { userMaps, userMapTiles, userMapBlocks } from "../db/schema.js";
 import { registerZone, type ZoneDefinition } from "./zone-registry.js";
 
 /** Heaven — the GM's permanent hub. 32×32 grass canvas, frozen to disk at
- *  `packages/client/public/maps/heaven.tmx`. Its numericId is a hardcoded
- *  constant so GMs always spawn here post-launch to test things. The DB
- *  copy stays so the builder can edit it and re-freeze. */
+ *  `packages/client/public/maps/500-heaven.tmx`. Its numericId is a
+ *  hardcoded constant so GMs always spawn here post-launch to test things.
+ *  The DB copy stays so the builder can edit it and re-freeze. */
 export const HEAVEN_NUMERIC_ID = 500;
 export const HEAVEN_ZONE_ID    = "heaven";
 
@@ -25,7 +25,7 @@ export const HEAVEN_ZONE_ID    = "heaven";
 const SEEDED_STARTER_RACES: readonly string[] = ["human"];
 
 /** Tileset + local tile id used for the auto-seeded grass floor. Matches
- *  heaven.tmx (GID 130 with firstgid=1 → local id 129). */
+ *  500-heaven.tmx (GID 130 with firstgid=1 → local id 129). */
 const GRASS_TILESET    = "summer-forest-wang-tiles.tsx";
 const GRASS_TILE_LOCAL = 129;
 
@@ -96,19 +96,33 @@ function blockKey(b: { x: number; y: number }): string {
   return `${b.x},${b.y}`;
 }
 
+/** Slugify a map name for file-path purposes. Matches the logic in
+ *  `tools/freeze-map.ts` so the in-memory `mapFile` string always agrees
+ *  with what `freeze-map` writes to disk. */
+export function mapSlug(name: string): string {
+  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+    || "untitled";
+}
+
+/** Canonical client-facing filename for a map. Combines numeric id with a
+ *  slug of the name — `500-heaven.tmx`, `1000-human-starter.tmx`. Stable
+ *  across name changes only if the numeric id stays put. */
+export function mapFileName(m: { numericId: number; name: string }): string {
+  return `${m.numericId}-${mapSlug(m.name)}.tmx`;
+}
+
 /** Register the map as a zone so the rest of the engine treats it normally.
  *
- *  `mapFile` is just `<zoneId>.tmx` — the client first tries a static
- *  file at `/maps/<mapFile>` (a frozen TMX) and falls back to
- *  `/api/maps/<mapFile>` which synthesizes a TMX from DB tiles on demand.
- *  Heaven is already frozen to disk; starter is not (yet). Both serve the
- *  same URL contract. */
+ *  `mapFile` is `<numericId>-<slug>.tmx`. The client fetches it via
+ *  `/api/maps/<mapFile>`; the server either streams a frozen TMX from
+ *  `public/maps/` if one exists, or synthesizes one from DB tiles on demand.
+ *  Both paths serve identical content. */
 function registerAsZone(m: UserMap): void {
   const def: ZoneDefinition = {
     id:         m.zoneId,
     numericId:  m.numericId,
     name:       m.name,
-    mapFile:    `${m.zoneId}.tmx`,
+    mapFile:    mapFileName(m),
     levelRange: [1, 99],
     musicTag:   "peaceful",
     exits:      {},
@@ -154,7 +168,7 @@ async function seedGrassFloor(mapRowId: string, width: number, height: number): 
 /** Ensure the heaven row exists in the database. Heaven is the only map
  *  with a hardcoded numericId (HEAVEN_NUMERIC_ID) because GMs always spawn
  *  here post-launch to test things — it's a constant entry point. The
- *  on-disk `heaven.tmx` is the frozen render; the DB row is kept so the
+ *  on-disk `500-heaven.tmx` is the frozen render; the DB row is kept so the
  *  builder can edit it and re-freeze. */
 async function ensureHeavenRow(): Promise<void> {
   let [row] = await db

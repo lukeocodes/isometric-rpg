@@ -32,7 +32,7 @@ const DB_URL = process.env.DATABASE_URL
   || "postgresql://game:game_dev_password@localhost:5433/game";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const DEFAULT_OUT_DIR = resolve(REPO_ROOT, "packages/client/public/maps/user-maps");
+const DEFAULT_OUT_DIR = resolve(REPO_ROOT, "packages/client/public/maps");
 
 const TILE_WIDTH  = 16;
 const TILE_HEIGHT = 16;
@@ -203,11 +203,12 @@ async function renderTmx(map: MapRow, tiles: TileRow[]): Promise<string> {
   );
 
   for (let i = 0; i < tilesetList.length; i++) {
-    // TSX file is referenced relative to the TMX. We emit the TMX at
-    // <outDir>/<slug>.tmx; TSX files live at packages/client/public/maps/*.tsx
-    // (the parent dir). The browser will fetch them from /maps/<file>, so the
-    // relative path from user-maps/<slug>.tmx is ../<file>.
-    lines.push(` <tileset firstgid="${firstgids[i]}" source="../${tilesetList[i]}"/>`);
+    // TSX refs are absolute `/maps/<file>.tsx`. Matches the server-synth
+    // renderer in `packages/server/src/game/tmx-render.ts`, so frozen TMX
+    // and live-synth TMX are byte-compatible from the browser's POV:
+    // plugin-tiled fetches TSX at `/maps/...` regardless of whether the TMX
+    // itself came from `/api/maps/...` (frozen) or `/api/maps/...` (synth).
+    lines.push(` <tileset firstgid="${firstgids[i]}" source="/maps/${tilesetList[i]}"/>`);
   }
 
   let layerId = 0;

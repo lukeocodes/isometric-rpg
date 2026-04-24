@@ -42,10 +42,11 @@ TSX files are produced by the Tiled editor and are the upstream source-of-truth 
 
 ### Importing a new asset pack
 
-1. Drop PNG + TSX into `public/maps/<pack>/`.
-2. Run `bun tools/ingest-tilesets.ts` (or hit an admin endpoint) — parses TSX, upserts structural data + animations + empty flags into DB.
-3. Categorize tiles in the builder UI (changes persist to DB).
-4. Commit the new PNG/TSX files. **Do not commit the DB rows** — they're seeded / migrated, not versioned in source.
+1. Drop the raw Mana Seed pack into `assets/<pack-dir>/`.
+2. Add the pack to `PACKS` in `tools/ingest-mana-seed.ts` (category slug, seasonal, defaults).
+3. Run `bun tools/ingest-mana-seed.ts` — walks `assets/`, publishes canonical TSX + PNG into `public/maps/<cat>/` + `public/assets/tilesets/<cat>/`, upserts structural data + animations + empty flags into DB.
+4. Refine categorization in the builder UI (changes persist to DB overrides).
+5. Commit the published TSX/PNG files + the `PACKS` config change. **Do not commit the DB rows** — they're re-derivable by re-running the ingest tool.
 
 ### Cleaning up stale DB rows after a re-ingest
 

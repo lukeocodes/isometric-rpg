@@ -59,7 +59,9 @@ bunx drizzle-kit generate                                           # Generate m
 bunx drizzle-kit migrate                                            # Run migrations
 
 # Tile ingest + audit (from repo root, with DATABASE_URL set)
-bun tools/ingest-tilesets.ts                                        # Walk disk, upsert into DB
+bun tools/ingest-mana-seed.ts                                       # Walk assets/, publish canonical TSX+PNG, upsert DB
+bun tools/ingest-mana-seed.ts --reset                               # Wipe tilesets first, full rebuild
+bun tools/ingest-mana-seed.ts --pack="20.04c - Summer Forest 4.3"   # Ingest one pack only
 bun tools/audit-transparent.ts --fix                                # Clean dead overrides / sub-regions
 ```
 

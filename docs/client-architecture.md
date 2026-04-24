@@ -45,7 +45,7 @@ Tiled maps are loaded via `@excaliburjs/plugin-tiled`.
 
 ## Tiled map system
 
-Maps are hand-crafted in Tiled (TMX files) or painted programmatically by `tools/paint-map/`. The Excalibur `plugin-tiled` loads TMX files and turns them into Excalibur layers + object layers (spawn points, safe zones) automatically. Tileset PNG + TSX files live in `packages/client/public/maps/` and are ingested into the DB by `tools/ingest-tilesets.ts`.
+Maps are hand-crafted in Tiled (TMX files) or painted programmatically by `tools/paint-map/`. The Excalibur `plugin-tiled` loads TMX files and turns them into Excalibur layers + object layers (spawn points, safe zones) automatically. Tileset TSX files live in `packages/client/public/maps/<cat>/` and their PNG images in `packages/client/public/assets/tilesets/<cat>/`, both published by `tools/ingest-mana-seed.ts` (which also populates DB rows).
 
 See [`docs/world-builder.md`](world-builder.md) for the in-game builder + [`docs/tile-library.md`](tile-library.md) for the tile picker + [`docs/paint-map.md`](paint-map.md) for the scene-spec painter.
 

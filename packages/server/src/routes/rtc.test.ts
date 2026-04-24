@@ -156,10 +156,10 @@ vi.mock("../game/zone-registry.js", () => ({
   getZone:             vi.fn(() => undefined),
   getZoneByNumericId:  vi.fn((n: number) =>
     n === 500
-      ? { id: "heaven", numericId: 500, name: "Heaven", mapFile: "heaven.json",
+      ? { id: "heaven", numericId: 500, name: "Heaven", mapFile: "500-heaven.tmx",
           levelRange: [1, 99], musicTag: "peaceful", exits: {} }
       : undefined),
-  getClientMapFile: (zone: { mapFile: string }) => zone.mapFile.replace(/\.json$/, ".tmx"),
+  getClientMapFile: (zone: { mapFile: string }) => zone.mapFile,
 }));
 
 import { rtcRoutes } from "./rtc.js";

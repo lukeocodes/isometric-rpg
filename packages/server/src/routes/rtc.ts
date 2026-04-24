@@ -25,6 +25,7 @@ import {
   listUserMaps,
   getTilesFor,
   getBlocksFor,
+  mapFileName,
   type UserTile,
 } from "../game/user-maps.js";
 
@@ -823,7 +824,7 @@ async function handleBuilderOp(
         channel.send(packReliable(Opcode.ZONE_CHANGE, {
           zoneId:     m.zoneId,
           zoneName:   m.name,
-          mapFile:    "heaven.tmx",  // Client falls back to heaven as the empty canvas
+          mapFile:    mapFileName(m),
           spawnX, spawnZ,
           levelRange: [1, 99],
           musicTag:   "peaceful",
@@ -845,7 +846,7 @@ async function handleBuilderOp(
         channel.send(packReliable(Opcode.ZONE_CHANGE, {
           zoneId:     target.zoneId,
           zoneName:   target.name,
-          mapFile:    "heaven.tmx",
+          mapFile:    mapFileName(target),
           spawnX, spawnZ,
           levelRange: [1, 99],
           musicTag:   "peaceful",

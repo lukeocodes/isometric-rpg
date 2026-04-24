@@ -19,7 +19,7 @@ import { RemotePlayerActor } from "../actors/RemotePlayerActor.js";
 
 // Heaven is currently the only map. The server always sends `zone.mapFile`
 // on SPAWN_ACCEPTED, so this fallback is only used if the server forgot.
-const FALLBACK_TMX = "heaven.tmx";
+const FALLBACK_TMX = "500-heaven.tmx";
 
 
 

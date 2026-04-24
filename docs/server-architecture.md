@@ -20,8 +20,10 @@ cd packages/server && bunx vitest            # watch mode
 ```
 buildApp()                  # Fastify factory + route registration
 connectRedis()
-  → loadAllUserMaps()       # user_maps (incl. heaven) → in-memory zone registry;
-                            #   seeds the heaven row (numericId=500) if missing
+  → loadAllUserMaps()       # user_maps → in-memory zone registry;
+                            #   seeds heaven (numericId=500, type='heaven')
+                            #   seeds per-race starters (type='starter', one row per race
+                            #   in SEEDED_STARTER_RACES, grass-floored)
   → for each registered zone (skip `user:*`):
       loadZoneMap(zone.id, zone.mapFile)         # plugin-tiled JSON parse
       loadMapItems(zone.id, extractedItems)      # map-items from object layers
@@ -37,7 +39,12 @@ connectRedis()
   → app.listen(8000)
 ```
 
-Heaven is the only registered zone right now. The old static-`zones` DB table + `loadStaticZones()` were removed — static shipped zones can return if/when they're authored, but the current design treats every zone as a user map.
+Registered zones right now: **heaven** (frozen TMX on disk) + one **`starter-<race>`** per seeded race (DB-only, synth-on-fetch). Every zone is a `user_maps` row; the `type` column distinguishes `heaven` / `starter` / `adventure`. The old static-`zones` DB table + `loadStaticZones()` were removed.
+
+**Two independent map delivery paths:**
+
+- **Client** fetches `GET /api/maps/<zoneId>.tmx` — the server prefers the disk snapshot (`public/maps/<zoneId>.tmx`) and falls back to synthesizing TMX from `user_maps` + `user_map_tiles`.
+- **Server-side Tiled data** (walkability, `player-spawn` objects, mapItems) is parsed from `public/maps/<zoneId>.json` (Tiled JSON produced by `tools/paint-map`). Zones with no `<zoneId>.json` on disk are skipped at boot — their runtime walkability falls through to the procedural `isWalkable`, spawn coords come from `user_maps.(width, height)` via `centreOf`, and there are no per-zone spawn points.
 
 All the `load*()` calls are synchronous-read-friendly after boot: each populates a module-level cache that every downstream getter reads without awaiting.
 
@@ -63,6 +70,7 @@ All the `load*()` calls are synchronous-read-friendly after boot: each populates
 - `src/routes/world.ts` — legacy procedural-terrain chunk stream endpoints (pre-plugin-tiled).
 - `src/routes/world-builder.ts` — world-builder adjacency endpoints (map list, create, rename, etc. — complements the WebRTC builder ops).
 - `src/routes/builder-registry.ts` — `GET /api/builder/registry` (full bootstrap bundle: categories + layers + tilesets + sub-regions + empty-tile flags + animations + tile overrides + map-item types) and `POST|DELETE /api/builder/overrides`.
+- `src/routes/maps.ts` — `GET /api/maps/:filename.tmx` (unified map delivery: disk snapshot first via `public/maps/<filename>.tmx` with `cache-control: public, max-age=60`, else synth from DB via `renderMapTmx` with `cache-control: no-store`; 404 if neither).
 
 ### Game loop + simulation
 
@@ -81,7 +89,8 @@ All the `load*()` calls are synchronous-read-friendly after boot: each populates
 - `src/game/dungeon.ts` — dungeon instance generation + boss tracking.
 - `src/game/linger.ts` — 2-minute character linger on unsafe disconnect (client can reconnect to their already-in-combat character).
 - `src/game/protocol.ts` — binary + JSON pack / unpack. Position (24 B single-entity or 20 B/entity batched), plus all binary combat / state / XP / respawn / enemy-nearby / zone-music opcodes. See [`binary-protocol.md`](binary-protocol.md).
-- `src/game/user-maps.ts` — world-builder user-map storage: in-memory tile grid + DB persistence + snapshot serialization for `BUILDER_MAP_SNAPSHOT`.
+- `src/game/user-maps.ts` — world-builder user-map storage: in-memory tile grid + DB persistence + snapshot serialization for `BUILDER_MAP_SNAPSHOT`. Also owns the heaven + starter seeding (`ensureHeavenRow`, `ensureStarterRowForRace`, `SEEDED_STARTER_RACES`) and spawn helpers (`getHeavenSpawn`, `getStarterSpawnForRace`, `getFirstStarterSpawn`, `centreOf`) that compute coords from each row's `width/height`.
+- `src/game/tmx-render.ts` — renders a `user_maps` row + its `user_map_tiles` into a Tiled-compatible TMX string. Buckets tiles by `(layer, tileset)`, resolves firstgids from TSX headers, applies rotation / flip flags. Shared by the `/api/maps/:filename.tmx` synth path; `tools/freeze-map.ts` has a near-identical inline renderer (candidate for unification).
 - `src/game/world-items.ts` — ground-spawned items (loot drops, map-item containers).
 
 ### Procedural world
@@ -137,7 +146,7 @@ VALUES ('sp-unique-id', 10, 20, 'heaven',
         ARRAY['skeleton-warrior','skeleton-archer'], 8, 4, 5);
 ```
 
-(Heaven is the only zone right now, so spawn points here only make sense for testing. Real zones return when gameplay lands.)
+(Heaven + per-race starters are the only zones right now, so spawn points here only make sense for testing. Real zones return when gameplay lands.)
 
 ## Position broadcast format
 

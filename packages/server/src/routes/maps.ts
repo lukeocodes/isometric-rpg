@@ -1,21 +1,22 @@
 /**
  * Map-serving route.
  *
- *   GET /api/maps/:filename
+ *   GET /api/maps/:filename.tmx
  *
- * Filename is the zone's canonical client-facing name, e.g. `heaven.tmx` or
- * `starter.tmx`. Resolution order:
+ * Filename is `<numericId>-<slug>.tmx` (the canonical output of
+ * `mapFileName()` and `tools/freeze-map.ts`). Resolution order:
  *
- *   1. If `packages/client/public/maps/<filename>` exists on disk, stream it
- *      verbatim with a long cache header. This is the "frozen" path — fast,
- *      no DB roundtrip, browser-cacheable.
- *   2. Otherwise look up the user map by zoneId (filename minus extension)
- *      and synthesize a TMX from `user_map_tiles`. This is the "live" path —
- *      used while authoring a map that hasn't been committed to disk yet.
+ *   1. If `packages/client/public/maps/<filename>` exists on disk, stream
+ *      it verbatim with a short cache header (frozen path).
+ *   2. Else synth a TMX from `user_maps` + `user_map_tiles` — look up the
+ *      row by numeric prefix (`<digits>-…`), or by full `zoneId` as a
+ *      fallback for legacy filenames.
  *   3. Neither present → 404.
  *
- * The contract is the same either way: the client hands the response to
- * `@excaliburjs/plugin-tiled` as a TMX document.
+ * TSX tilesets are NOT served through this route. Both the frozen path
+ * (`tools/freeze-map.ts`) and the synth path (`tmx-render.ts`) emit
+ * absolute `<tileset source="/maps/<file>.tsx"/>` refs, which plugin-tiled
+ * fetches from Vite's static serving of `public/maps/` directly.
  */
 import type { FastifyInstance } from "fastify";
 import { existsSync } from "node:fs";
@@ -30,8 +31,9 @@ import { renderMapTmx, type DbMap, type DbTile } from "../game/tmx-render.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MAPS_DIR = resolve(__dirname, "../../../client/public/maps");
 
-/** Filenames like `heaven.tmx`, `starter.tmx`. Reject anything else to keep
- *  the attack surface small — no `..`, no subdirectories, no query strings. */
+/** Filenames like `500-heaven.tmx` or `1000-human-starter.tmx`. Reject
+ *  anything else to keep the attack surface small — no `..`, no
+ *  subdirectories, no query strings, no alternate extensions. */
 const FILENAME_RE = /^[a-z0-9][a-z0-9_-]*\.tmx$/;
 
 export async function mapsRoutes(app: FastifyInstance) {
@@ -43,34 +45,45 @@ export async function mapsRoutes(app: FastifyInstance) {
         return reply.status(400).send({ detail: "Invalid map filename" });
       }
 
-      const zoneId   = filename.replace(/\.tmx$/, "");
       const diskPath = resolve(MAPS_DIR, filename);
 
       // --- 1. Frozen TMX on disk ---
       if (existsSync(diskPath)) {
         const xml = await readFile(diskPath, "utf-8");
         reply.header("content-type", "text/xml; charset=utf-8");
-        // Frozen files are effectively immutable until the next freeze; a
+        // Disk files are effectively immutable until the next freeze; a
         // short cache saves roundtrips without making stale edits stick for
         // long.
         reply.header("cache-control", "public, max-age=60");
         return reply.send(xml);
       }
 
-      // --- 2. Synthesize from DB ---
-      const [mapRow] = await db
-        .select({
-          id:        userMaps.id,
-          width:     userMaps.width,
-          height:    userMaps.height,
-          name:      userMaps.name,
-          zoneId:    userMaps.zoneId,
-        })
-        .from(userMaps)
-        .where(eq(userMaps.zoneId, zoneId));
+      // --- 2. Synthesize TMX from DB ---
+      // Filenames are `<numericId>-<slug>.tmx` (the canonical form produced
+      // by `registerAsZone` and `tools/freeze-map.ts`). Parse the numeric
+      // prefix for the DB lookup. We also accept a plain `<zoneId>.tmx` for
+      // backwards-compat with any lingering client references.
+      const stem = filename.replace(/\.tmx$/, "");
+      const numericMatch = stem.match(/^(\d+)-/);
+      const mapRows = await (numericMatch
+        ? db.select({
+            id:     userMaps.id,
+            width:  userMaps.width,
+            height: userMaps.height,
+            name:   userMaps.name,
+            zoneId: userMaps.zoneId,
+          }).from(userMaps).where(eq(userMaps.numericId, Number(numericMatch[1])))
+        : db.select({
+            id:     userMaps.id,
+            width:  userMaps.width,
+            height: userMaps.height,
+            name:   userMaps.name,
+            zoneId: userMaps.zoneId,
+          }).from(userMaps).where(eq(userMaps.zoneId, stem)));
 
+      const [mapRow] = mapRows;
       if (!mapRow) {
-        return reply.status(404).send({ detail: `No map named ${zoneId}` });
+        return reply.status(404).send({ detail: `No map matching ${filename}` });
       }
 
       const tileRows = await db

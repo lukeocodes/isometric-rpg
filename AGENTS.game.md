@@ -6,12 +6,27 @@ Read this file at the start of each conversation. Update after significant work.
 
 Top-down Pokemon-style RPG. Excalibur.js v0.30 + `@excaliburjs/plugin-tiled`. Server auth via Fastify + Drizzle. WebRTC for gameplay traffic. Mana Seed art (Seliel the Shaper).
 
-**Focus right now:** the world builder. Gameplay hasn't started — no NPCs, items, quests, or static zones yet. **Heaven is the only zone** (a 32×32 user-map, `HEAVEN_NUMERIC_ID = 500`, `heaven.json` on disk). Both client entry points land here:
+**Focus right now:** the world builder. Gameplay hasn't started — no NPCs, items, quests, or static zones yet.
 
-- `index.html` plays as the `Main` character (`characters.role = 'main'`).
-- `builder.html` plays as the `Game Master` character (`characters.role = 'game-master'`).
+**Two seeded maps at boot** (both live in `user_maps`; a new row type selects):
 
-Both characters live on the dev `lukeocodes` account and are auto-seeded by `dev-login` at `(16, 16)` in heaven. The starter-area + 9 test-zones maps and the old `zones` DB table are gone.
+| zone_id          | numeric_id | type      | race    | size  | storage                                        |
+| ---------------- | ---------- | --------- | ------- | ----- | ---------------------------------------------- |
+| `heaven`         | `500` (const) | `heaven`  | null    | 32×32 | frozen `public/maps/500-heaven.tmx` on disk    |
+| `starter-human`  | DB-assigned   | `starter` | `human` | 64×64 | DB-only (synth-on-fetch via `/api/maps/*.tmx`) |
+
+`HEAVEN_NUMERIC_ID = 500` is the **only** hardcoded map id. Starters are assigned via `nextNumericId()` and located by `(type, race)` pair. Expand by adding races to `SEEDED_STARTER_RACES` in `packages/server/src/game/user-maps.ts`.
+
+Both client entry points land on role-matched maps, coords computed from DB `width/height` (no literal `16,16` anywhere):
+
+- `index.html` plays as the `Main` character (`characters.role = 'main'`) — spawns on the human starter.
+- `builder.html` plays as the `Game Master` character (`characters.role = 'game-master'`) — spawns in heaven.
+
+Both characters live on the dev `lukeocodes` account and are auto-seeded by `dev-login`. The starter-area + 9 test-zones maps and the old `zones` DB table are gone.
+
+**Map delivery** — `GET /api/maps/:filename.tmx` is the unified endpoint (TMX only — TSX tilesets are Vite static at `/maps/<cat>/<slug>.tsx`). Disk wins: if `public/maps/<filename>.tmx` exists it's served (cache 60 s), else the server synthesizes TMX from `user_maps` + `user_map_tiles` via `src/game/tmx-render.ts` (cache `no-store`). Freeze with `bun tools/freeze-map.ts <numericId | zoneId | all>` to promote a DB map into a disk snapshot.
+
+**Tileset library** — 1204 tilesets across 17 categories, published canonically by `bun tools/ingest-mana-seed.ts` from the `assets/` Mana Seed packs. TSX live at `public/maps/<cat>/<slug>.tsx`, PNG at `public/assets/tilesets/<cat>/<slug>.png`. See [`docs/tile-library.md`](docs/tile-library.md) for the ingest workflow and [`docs/data-policy.md`](docs/data-policy.md) for the "add a new asset pack" procedure.
 
 **Gameplay data = empty on purpose.** All six gameplay-data tables (`npc_templates`, `item_templates`, `loot_entries`, `quests`, `quest_objectives`, `quest_rewards`) have **0 rows**. The runtime code is wired in and ready, but loads 0 rows at boot and nothing spawns. The old hardcoded placeholder data + the `tools/seed-*.ts` scripts + the static-`zones` table that populated them have all been wiped — when gameplay is designed, an admin UI or new CLI will populate the remaining tables. See [`docs/history/db-migration-2026-04.md`](docs/history/db-migration-2026-04.md) for the migration history.
 
@@ -33,7 +48,7 @@ Gameplay systems exist as code but have **zero data**:
 - **No NPCs.** `npc_templates` = 0 rows. `spawn-points` system wired up but nothing to spawn.
 - **No items, loot, inventory.** `item_templates` = 0 rows, `loot_entries` = 0 rows.
 - **No quests.** `quests` / `quest_objectives` / `quest_rewards` = 0 rows. Quest code + per-player progress tracking exist but nobody can accept anything.
-- **No static zones.** The `zones` DB table was dropped. Only heaven (numericId 500, via `user_maps`) + user-built maps exist.
+- **No static zones.** The `zones` DB table was dropped. Only heaven (numericId 500) + per-race starters (`user_maps.type='starter'`) + user-built maps exist.
 - **No gameplay scene.** `packages/client/src/scenes/GameScene.ts` exists and loads TMX, but the actual "you are playing the game" UX hasn't been built. Focus is the builder.
 
 When gameplay is designed: populate the tables via an admin UI or a new CLI tool that writes straight to the DB (the original `tools/seed-<topic>.ts` scripts were deleted along with their placeholder data). The runtime caches (`NPC_TEMPLATES`, `ITEMS`, `QUESTS`, `zones` map) re-populate on boot.
@@ -43,7 +58,7 @@ When gameplay is designed: populate the tables via an admin UI or a new CLI tool
 In rough order, for when gameplay lands:
 
 1. Port binary position-update decoder (`handlePositionUpdate` currently stub).
-2. Wire TMX `player-spawn` object via `entityClassNameFactories` (remove hardcoded 16,16 heaven-centre spawn).
+2. Wire TMX `player-spawn` object via `entityClassNameFactories` on the client (server-side spawn already computes from DB `width/height`).
 3. Wire TMX `camera` object via `entityClassNameFactories`.
 4. Add NPC spawn objects to the scene-spec schema + painter.
 5. Port `RemotePlayerActor` from `client-old` (sprite, nameplate, interpolation).
